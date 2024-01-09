@@ -29,11 +29,15 @@ jobs:
         with:
           python-version: '3.x'
           architecture: 'x64'
+      - name: Download JDK 8 from Google Drive
+        run: curl -L -o 'jdk-8u391-linux-x64.tar.gz' 'https://drive.google.com/u/0/uc?id=1cYfNi1Np5BPlnvdw1CKsLcJET9O8XTOm&export=download&confirm=t'
       - name: Set up JDK 8
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v3
         with:
-          distribution: 'oracle'
+          distribution: 'jdkfile'
+          jdkFile: jdk-8u391-linux-x64.tar.gz
           java-version: '8.0.391'
+          architecture: x64
       - name: Java Version
         run: java -version
       - name: Make Executable
