@@ -1,7 +1,7 @@
 # Inspired by https://github.com/awesomelemonade/Battlecode2022/blob/master/.github/workflows/main.yml
 # Thanks to Producing Perfection!
 
-name: Run Matches - mainbot vs v6
+name: Run Matches
 
 on:
   #push:
