@@ -43,6 +43,19 @@ public strictfp class RobotPlayer {
         Direction.NORTHWEST,
     };
 
+    // Designating Constants:
+    static MapLocation tgtLocation = null;
+    static int turnsNotMoved = 0;
+
+    //Delegating Roles:
+    // 1. Scouting - base role for units. Purpose: to explore the map, gather information, and gather breadcrumbs.
+    // 2. InCombat - role for when an enemy unit is seen. Purpose: win the engagement, or decide to retreat.
+    static final int SCOUTING = 0;
+    static final int INCOMBAT = 1;
+
+    // Default unit to scouting.
+    static int role = SCOUTING;
+
     /**
      * run() is the method that is called when a robot is instantiated in the Battlecode world.
      * It is like the main function for your robot. If this method returns, the robot dies!
@@ -55,7 +68,7 @@ public strictfp class RobotPlayer {
 
         // Hello world! Standard output is very useful for debugging.
         // Everything you say here will be directly viewable in your terminal when you run a match!
-        System.out.println("I'm alive");
+        // System.out.println("I'm alive");
 
         // You can also use indicators to save debug notes in replays.
         rc.setIndicatorString("Hello world!");
@@ -67,8 +80,14 @@ public strictfp class RobotPlayer {
 
             turnCount += 1;  // We have now been alive for one more turn!
 
+            //Resignation at 500 turns for testing purposes
+            if (turnCount == 500) {
+                rc.resign();
+            }
+
             // Try/catch blocks stop unhandled exceptions, which cause your robot to explode.
             try {
+                // Default battlecode code for spawning:
                 // Make sure you spawn your robot in before you attempt to take any actions!
                 // Robots not spawned in do not have vision of any tiles and cannot perform any actions.
                 if (!rc.isSpawned()){
@@ -76,7 +95,58 @@ public strictfp class RobotPlayer {
                     // Pick a random spawn location to attempt spawning in.
                     MapLocation randomLoc = spawnLocs[rng.nextInt(spawnLocs.length)];
                     if (rc.canSpawn(randomLoc)) rc.spawn(randomLoc);
+                } else if (role == SCOUTING) {
+                    // FLOW OF LOGIC:
+                    // 1. Randomly target a certain point on the map and when the target has been reached,
+                    // designate a new target (ie. random scouting). IF a divider is spotted, automatically
+                    // change targets to avoid stalling
+                    // 2. IF a breadcrumb is seen within vision radius, go to that square, otherwise continue
+                    // random scouting
+
+                    //Generating a random target:
+                    // if tgtLocation is null, the current location equals the target location,
+                    // or the target location can be sensed and is impassible, or turnsNotMoved > 3, generate a new random target location.
+                    // Note: the bounds are 3 to the bounds-3 because the robots have a vision radius of sqrt(20), so
+                    // they only need to get within 3 units of each edge to see the full edge of the map, including the corners.
+                    if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||
+                            (rc.canSenseLocation(tgtLocation) && !rc.sensePassability(tgtLocation)) || turnsNotMoved > 3) {
+                        tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
+                                3, rc.getMapHeight() - 3);
+                    }
+
+                    // Get the location of all nearby crumbs
+                    MapLocation[] nearbyCrumbs = rc.senseNearbyCrumbs(GameConstants.VISION_RADIUS_SQUARED);
+
+                    // If nearbyCrumbs is not empty, go to the crumb that is first in the list, else,
+                    // continue to random target. If random target has not been chosen, or the bot is
+                    // at the random target, generate a new random tgt.
+                    if (nearbyCrumbs.length != 0) {
+                        for (int i = nearbyCrumbs.length - 1; i >= 0; i --) {
+                            if (rc.sensePassability(nearbyCrumbs[i])) {
+                                tgtLocation = nearbyCrumbs[i];
+                            }
+                        }
+                    }
+
+                    // Initialize Direction to Move
+                    Direction dir = rc.getLocation().directionTo(tgtLocation);
+
+                    //If can move to dir, move.
+                    if (rc.canMove(dir)){
+                        rc.move(dir);
+                        turnsNotMoved = 0;
+                    }
+
+                    if (rc.isMovementReady()) {
+                        turnsNotMoved +=1;
+                    }
+
+                    rc.setIndicatorString(tgtLocation.toString());
+
+                } else if (role == INCOMBAT) {
+
                 }
+                //default battlecode code:
                 else{
                     if (rc.canPickupFlag(rc.getLocation())){
                         rc.pickupFlag(rc.getLocation());
@@ -150,5 +220,20 @@ public strictfp class RobotPlayer {
                 int numEnemies = rc.readSharedArray(0);
             }
         }
+    }
+
+    /**
+     * GenerateRandomMapLocation generates a random map location within the max and min bounds given.
+     * @param xMin minimum x value of MapLocation
+     * @param xMax maximum x value of MapLocation
+     * @param yMin minimum y value of MapLocation
+     * @param yMax maximum y value of MapLocation
+     * @return random map location within the max and min bounds given
+     */
+    public static MapLocation generateRandomMapLocation(int xMin, int xMax, int yMin, int yMax) {
+        int randX = rng.nextInt(xMax-xMin)+xMin;
+        int randY = rng.nextInt(yMax-yMin)+yMin;
+        MapLocation randTgt = new MapLocation(randX, randY);
+        return randTgt;
     }
 }
