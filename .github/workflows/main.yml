@@ -29,15 +29,11 @@ jobs:
         with:
           python-version: '3.x'
           architecture: 'x64'
-      - name: Download JDK 8
-        run: curl https://transfer.sh/EzJITW/jdk-8u202-linux-x64.tar.gz -o jdk-8u202-linux-x64.tar.gz
       - name: Set up JDK 8
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
-          distribution: 'jdkfile'
-          jdkFile: jdk-8u202-linux-x64.tar.gz
-          java-version: '8.0.202'
-          architecture: x64
+          distribution: 'oracle'
+          java-version: '8.0.391'
       - name: Java Version
         run: java -version
       - name: Make Executable
