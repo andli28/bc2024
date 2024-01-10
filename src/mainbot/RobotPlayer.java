@@ -94,6 +94,7 @@ public strictfp class RobotPlayer {
         rc.setIndicatorString("Hello world!");
 
         Pathfinder.rc = rc;
+        Comms.rc = rc;
 
         while (true) {
             // This code runs during the entire lifespan of the robot, which is why it is in
@@ -106,9 +107,9 @@ public strictfp class RobotPlayer {
             turnCount += 1; // We have now been alive for one more turn!
 
             // Resignation at 500 turns for testing purposes
-//            if (turnCount == 500) {
-//                rc.resign();
-//            }
+            // if (turnCount == 500) {
+            // rc.resign();
+            // }
 
             // Try/catch blocks stop unhandled exceptions, which cause your robot to
             // explode.
@@ -119,26 +120,32 @@ public strictfp class RobotPlayer {
                 // actions.
                 if (!rc.isSpawned()) {
                     MapLocation[] spawnLocs = rc.getAllySpawnLocations();
-                    // Pick a random spawn location to attempt spawning in.
-                    MapLocation randomLoc = spawnLocs[rng.nextInt(spawnLocs.length)];
+                    // Spawn anywhere you can for now(spawns 50 in turn 1)
                     haveSeenCombat = false;
-                    if (rc.canSpawn(randomLoc))
-                        rc.spawn(randomLoc);
-                } else {
+                    for (int i = spawnLocs.length; --i >= 0;) {
+                        MapLocation loc = spawnLocs[i];
+                        if (rc.canSpawn(loc))
+                            rc.spawn(loc);
+                    }
+                }
 
-                    //Flag Counting, finding number of nearby flags not picked up
-                    FlagInfo[] nearbyFlags = rc.senseNearbyFlags(GameConstants.VISION_RADIUS_SQUARED, rc.getTeam().opponent());
+                if (rc.isSpawned()) {
+                    // Flag Counting, finding number of nearby flags not picked up
+                    FlagInfo[] nearbyFlags = rc.senseNearbyFlags(GameConstants.VISION_RADIUS_SQUARED,
+                            rc.getTeam().opponent());
                     int numFlagsNearbyNotPickedUp = 0;
                     if (nearbyFlags.length != 0) {
-                        for (int i = nearbyFlags.length-1; i>=0;i--) {
+                        for (int i = nearbyFlags.length - 1; i >= 0; i--) {
                             if (!nearbyFlags[i].isPickedUp()) {
                                 numFlagsNearbyNotPickedUp++;
                             }
                         }
                     }
 
-                    //Enemy Counting, finding number of hostiles, number of hostiles in range, and the nearby hostile with the lowest HP
-                    RobotInfo[] enemies = rc.senseNearbyRobots(rc.getLocation(), GameConstants.VISION_RADIUS_SQUARED, rc.getTeam().opponent());
+                    // Enemy Counting, finding number of hostiles, number of hostiles in range, and
+                    // the nearby hostile with the lowest HP
+                    RobotInfo[] enemies = rc.senseNearbyRobots(rc.getLocation(), GameConstants.VISION_RADIUS_SQUARED,
+                            rc.getTeam().opponent());
                     int numHostiles = 0;
                     int numHostilesIR = 0;
                     MapLocation lowestCurrHostile = null;
@@ -146,10 +153,12 @@ public strictfp class RobotPlayer {
                     if (enemies.length != 0) {
                         for (int i = enemies.length - 1; i >= 0; i--) {
                             numHostiles++;
-                            if (enemies[i].getLocation().distanceSquaredTo(rc.getLocation()) <= GameConstants.ATTACK_RADIUS_SQUARED) {
+                            if (enemies[i].getLocation()
+                                    .distanceSquaredTo(rc.getLocation()) <= GameConstants.ATTACK_RADIUS_SQUARED) {
                                 numHostilesIR++;
                             }
-                            if (rc.getLocation().distanceSquaredTo(enemies[i].getLocation()) <= GameConstants.ATTACK_RADIUS_SQUARED
+                            if (rc.getLocation()
+                                    .distanceSquaredTo(enemies[i].getLocation()) <= GameConstants.ATTACK_RADIUS_SQUARED
                                     && enemies[i].getHealth() < lowestCurrHostileHealth) {
                                 lowestCurrHostileHealth = enemies[i].getHealth();
                                 lowestCurrHostile = enemies[i].getLocation();
@@ -157,8 +166,10 @@ public strictfp class RobotPlayer {
                         }
                     }
 
-                    //Friendly Counting, finding number of friendlies, number of friends in range, and nearby friend with lowest HP
-                    RobotInfo[] friendlies = rc.senseNearbyRobots(rc.getLocation(), GameConstants.VISION_RADIUS_SQUARED, rc.getTeam());
+                    // Friendly Counting, finding number of friendlies, number of friends in range,
+                    // and nearby friend with lowest HP
+                    RobotInfo[] friendlies = rc.senseNearbyRobots(rc.getLocation(), GameConstants.VISION_RADIUS_SQUARED,
+                            rc.getTeam());
                     int numFriendlies = 0;
                     int numFriendliesIR = 0;
                     MapLocation lowestCurrFriendly = null;
@@ -166,10 +177,12 @@ public strictfp class RobotPlayer {
                     if (friendlies.length != 0) {
                         for (int i = friendlies.length - 1; i >= 0; i--) {
                             numFriendlies++;
-                            if (friendlies[i].getLocation().distanceSquaredTo(rc.getLocation()) <= GameConstants.HEAL_RADIUS_SQUARED) {
+                            if (friendlies[i].getLocation()
+                                    .distanceSquaredTo(rc.getLocation()) <= GameConstants.HEAL_RADIUS_SQUARED) {
                                 numFriendliesIR++;
                             }
-                            if (rc.getLocation().distanceSquaredTo(friendlies[i].getLocation()) <= GameConstants.HEAL_RADIUS_SQUARED
+                            if (rc.getLocation()
+                                    .distanceSquaredTo(friendlies[i].getLocation()) <= GameConstants.HEAL_RADIUS_SQUARED
                                     && friendlies[i].getHealth() < lowestCurrHostileHealth) {
                                 lowestCurrFriendlyHealth = friendlies[i].getHealth();
                                 lowestCurrFriendly = friendlies[i].getLocation();
@@ -177,7 +190,7 @@ public strictfp class RobotPlayer {
                         }
                     }
 
-                    //Role Delegation
+                    // Role Delegation
                     // If there is a nearby enemy, you're in combat. Else if you have more than 250
                     // crumbs and you've seen combat before go into build mode. Otherwise, scout.
                     if (rc.hasFlag()) {
@@ -190,7 +203,7 @@ public strictfp class RobotPlayer {
                     } else if (numFlagsNearbyNotPickedUp != 0) {
                         role = CAPTURING;
                         rc.setIndicatorString("Capturaing");
-                    }else if (rc.getCrumbs() > 250 && haveSeenCombat) {
+                    } else if (rc.getCrumbs() > 250 && haveSeenCombat) {
                         role = BUILDING;
                         rc.setIndicatorString("Building");
                     } else {
@@ -211,7 +224,8 @@ public strictfp class RobotPlayer {
 
                         // Generating a random target:
                         // if tgtLocation is null, the current location equals the target location,
-                        // or the target location can be sensed and is impassible, or turnsNotReachedTgt > 50,
+                        // or the target location can be sensed and is impassible, or turnsNotReachedTgt
+                        // > 50,
                         // generate a new random target location.
                         // Note: the bounds are 3 to the bounds-3 because the robots have a vision
                         // radius of sqrt(20), so
@@ -251,7 +265,7 @@ public strictfp class RobotPlayer {
 
                         // Initialize Direction to Move
                         Direction dir = Pathfinder.pathfind(rc.getLocation(), tgtLocation);
-                        //rc.setIndicatorString(tgtLocation.toString());
+                        // rc.setIndicatorString(tgtLocation.toString());
 
                         // If can move to dir, move.
                         if (rc.canMove(dir)) {
@@ -265,24 +279,26 @@ public strictfp class RobotPlayer {
                         }
 
                     } else if (role == BUILDING) {
-                        //Iterate through all building directions, and build a trap there if you can.
-                        for (int i = Direction.allDirections().length - 1; i >= 0 ; i--) {
+                        // Iterate through all building directions, and build a trap there if you can.
+                        for (int i = Direction.allDirections().length - 1; i >= 0; i--) {
                             if (rc.canBuild(TrapType.EXPLOSIVE, rc.getLocation().add(Direction.allDirections()[i]))) {
                                 rc.build(TrapType.EXPLOSIVE, rc.getLocation().add(Direction.allDirections()[i]));
                                 break;
                             }
                         }
                     } else if (role == CAPTURING) {
-                        //If you can pick up the flag, pick it up, otherwise calculate the nearest enemy flag, and go to it
+                        // If you can pick up the flag, pick it up, otherwise calculate the nearest
+                        // enemy flag, and go to it
                         if (rc.canPickupFlag(rc.getLocation())) {
                             rc.pickupFlag(rc.getLocation());
                         } else {
-                            //find closest flagLoc:
+                            // find closest flagLoc:
                             MapLocation closestFlag = null;
                             int closestFlagDist = Integer.MAX_VALUE;
-                            for (int i = nearbyFlags.length -1; i >=0; i--) {
+                            for (int i = nearbyFlags.length - 1; i >= 0; i--) {
                                 if (!nearbyFlags[i].isPickedUp()) {
-                                    int distSqToSpawn = rc.getLocation().distanceSquaredTo(nearbyFlags[i].getLocation());
+                                    int distSqToSpawn = rc.getLocation()
+                                            .distanceSquaredTo(nearbyFlags[i].getLocation());
                                     if (distSqToSpawn < closestFlagDist) {
                                         closestFlagDist = distSqToSpawn;
                                         closestFlag = nearbyFlags[i].getLocation();
@@ -301,7 +317,7 @@ public strictfp class RobotPlayer {
                         // to make sure setup phase has ended.
                         if (rc.hasFlag() && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS) {
                             MapLocation[] spawnLocs = rc.getAllySpawnLocations();
-                            //find closest spawnLoc:
+                            // find closest spawnLoc:
                             MapLocation closestSpawn = null;
                             int closestSpawnDist = Integer.MAX_VALUE;
                             for (int i = spawnLocs.length - 1; i >= 0; i--) {
@@ -321,39 +337,41 @@ public strictfp class RobotPlayer {
                     if (rc.isActionReady() && lowestCurrFriendly != null && rc.canHeal(lowestCurrFriendly)) {
                         rc.heal(lowestCurrFriendly);
                     }
-//                    // default battlecode code:
-//                    else {
-//                        if (rc.canPickupFlag(rc.getLocation())) {
-//                            rc.pickupFlag(rc.getLocation());
-//                        }
-//                        // If we are holding an enemy flag, singularly focus on moving towards
-//                        // an ally spawn zone to capture it! We use the check roundNum >= SETUP_ROUNDS
-//                        // to make sure setup phase has ended.
-//                        if (rc.hasFlag() && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS) {
-//                            MapLocation[] spawnLocs = rc.getAllySpawnLocations();
-//                            MapLocation firstLoc = spawnLocs[0];
-//                            Direction dir = rc.getLocation().directionTo(firstLoc);
-//                            if (rc.canMove(dir))
-//                                rc.move(dir);
-//                        }
-//                        // Move and attack randomly if no objective.
-//                        Direction dir = Pathfinder.pathfind(rc.getLocation(), new MapLocation(29, 0));
-//                        MapLocation nextLoc = rc.getLocation().add(dir);
-//                        if (rc.canMove(dir)) {
-//                            rc.move(dir);
-//                        } else if (rc.canAttack(nextLoc)) {
-//                            rc.attack(nextLoc);
-//                            System.out.println("Take that! Damaged an enemy that was in our way!");
-//                        }
-//
-//                        // Rarely attempt placing traps behind the robot.
-//                        MapLocation prevLoc = rc.getLocation().subtract(dir);
-//                        if (rc.canBuild(TrapType.EXPLOSIVE, prevLoc) && rng.nextInt() % 37 == 1)
-//                            rc.build(TrapType.EXPLOSIVE, prevLoc);
-//                        // We can also move our code into different methods or classes to better
-//                        // organize it!
-//                        updateEnemyRobots(rc);
-
+                    // // default battlecode code:
+                    // else {
+                    // if (rc.canPickupFlag(rc.getLocation())) {
+                    // rc.pickupFlag(rc.getLocation());
+                    // }
+                    // // If we are holding an enemy flag, singularly focus on moving towards
+                    // // an ally spawn zone to capture it! We use the check roundNum >=
+                    // SETUP_ROUNDS
+                    // // to make sure setup phase has ended.
+                    // if (rc.hasFlag() && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS) {
+                    // MapLocation[] spawnLocs = rc.getAllySpawnLocations();
+                    // MapLocation firstLoc = spawnLocs[0];
+                    // Direction dir = rc.getLocation().directionTo(firstLoc);
+                    // if (rc.canMove(dir))
+                    // rc.move(dir);
+                    // }
+                    // // Move and attack randomly if no objective.
+                    // Direction dir = Pathfinder.pathfind(rc.getLocation(), new MapLocation(29,
+                    // 0));
+                    // MapLocation nextLoc = rc.getLocation().add(dir);
+                    // if (rc.canMove(dir)) {
+                    // rc.move(dir);
+                    // } else if (rc.canAttack(nextLoc)) {
+                    // rc.attack(nextLoc);
+                    // System.out.println("Take that! Damaged an enemy that was in our way!");
+                    // }
+                    //
+                    // // Rarely attempt placing traps behind the robot.
+                    // MapLocation prevLoc = rc.getLocation().subtract(dir);
+                    // if (rc.canBuild(TrapType.EXPLOSIVE, prevLoc) && rng.nextInt() % 37 == 1)
+                    // rc.build(TrapType.EXPLOSIVE, prevLoc);
+                    // // We can also move our code into different methods or classes to better
+                    // // organize it!
+                    // updateEnemyRobots(rc);
+                    Comms.update();
                 }
 
             } catch (GameActionException e) {
