@@ -52,7 +52,8 @@ public strictfp class RobotPlayer {
 
     // Designating Constants:
     static MapLocation tgtLocation = null;
-    static int turnsNotMoved = 0;
+    static int turnsNotReachedTgt = 0;
+    static boolean lastTurnCrumbSearch = false;
 
     // Delegating Roles:
     // 1. Scouting - base role for units. Purpose: to explore the map, gather
@@ -131,7 +132,7 @@ public strictfp class RobotPlayer {
 
                         // Generating a random target:
                         // if tgtLocation is null, the current location equals the target location,
-                        // or the target location can be sensed and is impassible, or turnsNotMoved > 3,
+                        // or the target location can be sensed and is impassible, or turnsNotReachedTgt > 50,
                         // generate a new random target location.
                         // Note: the bounds are 3 to the bounds-3 because the robots have a vision
                         // radius of sqrt(20), so
@@ -139,9 +140,10 @@ public strictfp class RobotPlayer {
                         // map, including the corners.
                         if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||
                                 (rc.canSenseLocation(tgtLocation) && !rc.sensePassability(tgtLocation))
-                                || turnsNotMoved > 3) {
+                                || turnsNotReachedTgt > 50) {
                             tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
                                     3, rc.getMapHeight() - 3);
+                            lastTurnCrumbSearch = false;
                         }
 
                         // Get the location of all nearby crumbs
@@ -152,28 +154,30 @@ public strictfp class RobotPlayer {
                         // continue to random target. If random target has not been chosen, or the bot
                         // is
                         // at the random target, generate a new random tgt.
+                        // the else if is to account for the case where a crumb has been eaten before
+                        // this unit has had a chance to pick it up, so add a case to prevent redudant
+                        // persuit of a crumb that is not there
                         if (nearbyCrumbs.length != 0) {
                             for (int i = nearbyCrumbs.length - 1; i >= 0; i--) {
                                 if (rc.sensePassability(nearbyCrumbs[i])) {
                                     tgtLocation = nearbyCrumbs[i];
+                                    lastTurnCrumbSearch = true;
                                 }
                             }
+                        } else if (lastTurnCrumbSearch) {
+                            tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
+                                    3, rc.getMapHeight() - 3);
+                            lastTurnCrumbSearch = false;
                         }
 
                         // Initialize Direction to Move
                         Direction dir = Pathfinder.pathfind(rc.getLocation(), tgtLocation);
+                        rc.setIndicatorString(tgtLocation.toString());
 
                         // If can move to dir, move.
                         if (rc.canMove(dir)) {
                             rc.move(dir);
-                            turnsNotMoved = 0;
                         }
-
-                        if (rc.isMovementReady()) {
-                            turnsNotMoved += 1;
-                        }
-
-                        rc.setIndicatorString(tgtLocation.toString());
 
                     } else if (role == INCOMBAT) {
 
