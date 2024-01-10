@@ -20,6 +20,7 @@ public class Pathfinder {
     public static Rot buhgDir = Rot.NONE;
     public static Direction lastBuhgDir = Direction.CENTER;
     public static int initBlockDist = 9999;
+    public static int turnsBuhgging = 0;
 
     // cosine similarity for 2 2d vecs
     public static float cosSim(int dx1, int dy1, int dx2, int dy2) {
@@ -81,6 +82,7 @@ public class Pathfinder {
             }
             initBlockDist = src.distanceSquaredTo(tgt);
         }
+        turnsBuhgging++;
 
         // standard buhg movement once a dir decided
         if (buhgDir == Rot.LEFT) {
@@ -94,9 +96,10 @@ public class Pathfinder {
                     buhgDir = Rot.RIGHT;
                 if (rc.canMove(moveDir)) {
                     // check for buhg exiting conditions(closer to goal than init buhgging dist)
-                    if (src.distanceSquaredTo(tgt) < initBlockDist) {
+                    if (src.distanceSquaredTo(tgt) < initBlockDist || turnsBuhgging > 20) {
                         initBlockDist = 9999;
                         buhgDir = Rot.NONE;
+                        turnsBuhgging = 0;
                     }
                     lastBuhgDir = moveDir;
                     return moveDir;
@@ -110,9 +113,10 @@ public class Pathfinder {
                 buhgDir = Rot.LEFT;
             for (int i = 7; --i >= 0;) {
                 if (rc.canMove(moveDir)) {
-                    if (src.distanceSquaredTo(tgt) < initBlockDist) {
+                    if (src.distanceSquaredTo(tgt) < initBlockDist || turnsBuhgging > 20) {
                         initBlockDist = 9999;
                         buhgDir = Rot.NONE;
+                        turnsBuhgging = 0;
                     }
                     lastBuhgDir = moveDir;
                     return moveDir;
