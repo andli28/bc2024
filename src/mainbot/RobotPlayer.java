@@ -61,7 +61,6 @@ public strictfp class RobotPlayer {
     // Designating Constants:
     static MapLocation tgtLocation = null;
     static int turnsNotReachedTgt = 0;
-    static boolean lastTurnCrumbSearch = false;
     static boolean haveSeenCombat = false;
 
     // Delegating Roles:
@@ -141,6 +140,38 @@ public strictfp class RobotPlayer {
                     //750 Turn upgrade
                     if (turnCount % 750 == 0 && rc.canBuyGlobal(GlobalUpgrade.ACTION)) {
                         rc.buyGlobal(GlobalUpgrade.ACTION);
+                    }
+
+                    // MapInfo Counting: Counting Traps, Water, etc
+                    MapLocation nearestStunTrap = null;
+                    MapLocation nearestExplosiveTrap = null;
+                    MapLocation nearestWaterTrap = null;
+                    MapLocation nearestWater = null;
+
+                    int lowestDistToStunTrap = Integer.MAX_VALUE;
+                    int lowestDistToExplosiveTrap = Integer.MAX_VALUE;
+                    int lowestDistToWaterTrap = Integer.MAX_VALUE;
+                    int lowestDistToWater = Integer.MAX_VALUE;
+
+                    MapInfo[] nearbyMap = rc.senseNearbyMapInfos();
+
+                    for (int i = nearbyMap.length - 1; i >=0; i--) {
+                        MapInfo singleMap = nearbyMap[i];
+                        int distToSingleMap = rc.getLocation().distanceSquaredTo(singleMap.getMapLocation());
+                        if (singleMap.isWater() && distToSingleMap < lowestDistToWater) {
+                            lowestDistToWater = distToSingleMap;
+                            nearestWater = singleMap.getMapLocation();
+                        }
+                        if (singleMap.getTrapType() == TrapType.EXPLOSIVE && distToSingleMap < lowestDistToExplosiveTrap) {
+                            lowestDistToExplosiveTrap = distToSingleMap;
+                            nearestExplosiveTrap = singleMap.getMapLocation();
+                        } else if (singleMap.getTrapType() == TrapType.STUN && distToSingleMap < lowestDistToStunTrap) {
+                            lowestDistToStunTrap = distToSingleMap;
+                            nearestStunTrap = singleMap.getMapLocation();
+                        } else if (singleMap.getTrapType() == TrapType.WATER && distToSingleMap < lowestDistToWaterTrap) {
+                            lowestDistToWaterTrap = distToSingleMap;
+                            nearestWaterTrap = singleMap.getMapLocation();
+                        }
                     }
 
                     // Flag Counting, finding number of nearby flags not picked up
@@ -232,26 +263,11 @@ public strictfp class RobotPlayer {
                         // 2. IF a breadcrumb is seen within vision radius, go to that square, otherwise
                         // continue
                         // random scouting
-
-                        // Generating a random target:
-                        // if tgtLocation is null, the current location equals the target location,
-                        // or the target location can be sensed and is impassible, or turnsNotReachedTgt
-                        // > 50,
-                        // generate a new random target location.
-                        // Note: the bounds are 3 to the bounds-3 because the robots have a vision
-                        // radius of sqrt(20), so
-                        // they only need to get within 3 units of each edge to see the full edge of the
-                        // map, including the corners.
-                        if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||
-                                (rc.canSenseLocation(tgtLocation) && !rc.sensePassability(tgtLocation))
-                                || turnsNotReachedTgt > 50) {
-                            tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
-                                    3, rc.getMapHeight() - 3);
-                            lastTurnCrumbSearch = false;
-                        }
+                        //3. IF nearby water is not null, go to that square and clear it.
 
                         // Get the location of all nearby crumbs
                         MapLocation[] nearbyCrumbs = rc.senseNearbyCrumbs(GameConstants.VISION_RADIUS_SQUARED);
+                        boolean activelyPursuingCrumb = false;
 
                         // If nearbyCrumbs is not empty, go to the crumb that is first in the list,
                         // else,
@@ -265,13 +281,36 @@ public strictfp class RobotPlayer {
                             for (int i = nearbyCrumbs.length - 1; i >= 0; i--) {
                                 if (rc.sensePassability(nearbyCrumbs[i])) {
                                     tgtLocation = nearbyCrumbs[i];
-                                    lastTurnCrumbSearch = true;
+                                    activelyPursuingCrumb = true;
                                 }
                             }
-                        } else if (lastTurnCrumbSearch) {
-                            tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
-                                    3, rc.getMapHeight() - 3);
-                            lastTurnCrumbSearch = false;
+                        }
+
+                        // If we are not actively pursuing a crumb, check if we can clear/pursue a
+                        // water tile, otherwise generate a random target.
+                        if (!activelyPursuingCrumb) {
+                            if (nearestWater != null) {
+                                if (lowestDistToWater <= GameConstants.INTERACT_RADIUS_SQUARED && rc.canFill(nearestWater)) {
+                                    rc.fill(nearestWater);
+                                } else {
+                                    tgtLocation = nearestWater;
+                                }
+                            }
+                            // Generating a random target:
+                            // if tgtLocation is null, the current location equals the target location,
+                            // or the target location can be sensed and is impassible, or turnsNotReachedTgt
+                            // > 50,
+                            // generate a new random target location.
+                            // Note: the bounds are 3 to the bounds-3 because the robots have a vision
+                            // radius of sqrt(20), so
+                            // they only need to get within 3 units of each edge to see the full edge of the
+                            // map, including the corners.
+                            else if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||
+                                    (rc.canSenseLocation(tgtLocation) && !rc.sensePassability(tgtLocation))
+                                    || turnsNotReachedTgt > 50) {
+                                tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
+                                        3, rc.getMapHeight() - 3);
+                            }
                         }
 
                         // Initialize Direction to Move
