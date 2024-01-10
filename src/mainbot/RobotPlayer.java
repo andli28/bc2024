@@ -62,6 +62,7 @@ public strictfp class RobotPlayer {
     // engagement, or decide to retreat.
     static final int SCOUTING = 0;
     static final int INCOMBAT = 1;
+    static final int BUILDING = 2;
 
     // Default unit to scouting.
     static int role = SCOUTING;
@@ -119,6 +120,36 @@ public strictfp class RobotPlayer {
                     if (rc.canSpawn(randomLoc))
                         rc.spawn(randomLoc);
                 } else {
+
+                    //Enemy Counting, finding number of hostiles, number of hostiles in range, and the nearby hostile with the lowest HP
+                    RobotInfo[] enemies = rc.senseNearbyRobots(rc.getLocation(), GameConstants.VISION_RADIUS_SQUARED, rc.getTeam().opponent());
+                    int numHostiles = 0;
+                    int numHostilesIR = 0;
+                    MapLocation lowestCurrHostile = null;
+                    int lowestCurrHostileHealth = Integer.MAX_VALUE;
+                    if (enemies.length != 0) {
+                        for (int i = enemies.length - 1; i >= 0; i--) {
+                            numHostiles++;
+                            if (enemies[i].getLocation().distanceSquaredTo(rc.getLocation()) <= GameConstants.ATTACK_RADIUS_SQUARED) {
+                                numHostilesIR++;
+                            }
+                            if (rc.getLocation().distanceSquaredTo(enemies[i].getLocation()) <= GameConstants.ATTACK_RADIUS_SQUARED
+                                    && enemies[i].getHealth() < lowestCurrHostileHealth) {
+                                lowestCurrHostileHealth = enemies[i].getHealth();
+                                lowestCurrHostile = enemies[i].getLocation();
+                            }
+                        }
+                    }
+
+                    //Role Delegation
+                    if (enemies.length != 0) {
+                        role = INCOMBAT;
+                        rc.setIndicatorString("In combat");
+                    } else {
+                        role = SCOUTING;
+                        rc.setIndicatorString("Scouting");
+                    }
+
                     if (role == SCOUTING) {
                         // FLOW OF LOGIC:
                         // 1. Randomly target a certain point on the map and when the target has been
@@ -172,7 +203,7 @@ public strictfp class RobotPlayer {
 
                         // Initialize Direction to Move
                         Direction dir = Pathfinder.pathfind(rc.getLocation(), tgtLocation);
-                        rc.setIndicatorString(tgtLocation.toString());
+                        //rc.setIndicatorString(tgtLocation.toString());
 
                         // If can move to dir, move.
                         if (rc.canMove(dir)) {
@@ -180,6 +211,11 @@ public strictfp class RobotPlayer {
                         }
 
                     } else if (role == INCOMBAT) {
+                        if (lowestCurrHostile != null && rc.canAttack(lowestCurrHostile)) {
+                            rc.attack(lowestCurrHostile);
+                        }
+
+                    } else if (role == BUILDING) {
 
                     }
 //                    // default battlecode code:
