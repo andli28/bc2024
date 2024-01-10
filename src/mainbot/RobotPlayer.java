@@ -100,9 +100,9 @@ public strictfp class RobotPlayer {
             turnCount += 1; // We have now been alive for one more turn!
 
             // Resignation at 500 turns for testing purposes
-            if (turnCount == 500) {
-                rc.resign();
-            }
+//            if (turnCount == 500) {
+//                rc.resign();
+//            }
 
             // Try/catch blocks stop unhandled exceptions, which cause your robot to
             // explode.
@@ -117,98 +117,100 @@ public strictfp class RobotPlayer {
                     MapLocation randomLoc = spawnLocs[rng.nextInt(spawnLocs.length)];
                     if (rc.canSpawn(randomLoc))
                         rc.spawn(randomLoc);
-                } else if (role == SCOUTING) {
-                    // FLOW OF LOGIC:
-                    // 1. Randomly target a certain point on the map and when the target has been
-                    // reached,
-                    // designate a new target (ie. random scouting). IF a divider is spotted,
-                    // automatically
-                    // change targets to avoid stalling
-                    // 2. IF a breadcrumb is seen within vision radius, go to that square, otherwise
-                    // continue
-                    // random scouting
+                } else {
+                    if (role == SCOUTING) {
+                        // FLOW OF LOGIC:
+                        // 1. Randomly target a certain point on the map and when the target has been
+                        // reached,
+                        // designate a new target (ie. random scouting). IF a divider is spotted,
+                        // automatically
+                        // change targets to avoid stalling
+                        // 2. IF a breadcrumb is seen within vision radius, go to that square, otherwise
+                        // continue
+                        // random scouting
 
-                    // Generating a random target:
-                    // if tgtLocation is null, the current location equals the target location,
-                    // or the target location can be sensed and is impassible, or turnsNotMoved > 3,
-                    // generate a new random target location.
-                    // Note: the bounds are 3 to the bounds-3 because the robots have a vision
-                    // radius of sqrt(20), so
-                    // they only need to get within 3 units of each edge to see the full edge of the
-                    // map, including the corners.
-                    if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||
-                            (rc.canSenseLocation(tgtLocation) && !rc.sensePassability(tgtLocation))
-                            || turnsNotMoved > 3) {
-                        tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
-                                3, rc.getMapHeight() - 3);
-                    }
+                        // Generating a random target:
+                        // if tgtLocation is null, the current location equals the target location,
+                        // or the target location can be sensed and is impassible, or turnsNotMoved > 3,
+                        // generate a new random target location.
+                        // Note: the bounds are 3 to the bounds-3 because the robots have a vision
+                        // radius of sqrt(20), so
+                        // they only need to get within 3 units of each edge to see the full edge of the
+                        // map, including the corners.
+                        if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||
+                                (rc.canSenseLocation(tgtLocation) && !rc.sensePassability(tgtLocation))
+                                || turnsNotMoved > 3) {
+                            tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
+                                    3, rc.getMapHeight() - 3);
+                        }
 
-                    // Get the location of all nearby crumbs
-                    MapLocation[] nearbyCrumbs = rc.senseNearbyCrumbs(GameConstants.VISION_RADIUS_SQUARED);
+                        // Get the location of all nearby crumbs
+                        MapLocation[] nearbyCrumbs = rc.senseNearbyCrumbs(GameConstants.VISION_RADIUS_SQUARED);
 
-                    // If nearbyCrumbs is not empty, go to the crumb that is first in the list,
-                    // else,
-                    // continue to random target. If random target has not been chosen, or the bot
-                    // is
-                    // at the random target, generate a new random tgt.
-                    if (nearbyCrumbs.length != 0) {
-                        for (int i = nearbyCrumbs.length - 1; i >= 0; i--) {
-                            if (rc.sensePassability(nearbyCrumbs[i])) {
-                                tgtLocation = nearbyCrumbs[i];
+                        // If nearbyCrumbs is not empty, go to the crumb that is first in the list,
+                        // else,
+                        // continue to random target. If random target has not been chosen, or the bot
+                        // is
+                        // at the random target, generate a new random tgt.
+                        if (nearbyCrumbs.length != 0) {
+                            for (int i = nearbyCrumbs.length - 1; i >= 0; i--) {
+                                if (rc.sensePassability(nearbyCrumbs[i])) {
+                                    tgtLocation = nearbyCrumbs[i];
+                                }
                             }
                         }
-                    }
 
-                    // Initialize Direction to Move
-                    Direction dir = rc.getLocation().directionTo(tgtLocation);
+                        // Initialize Direction to Move
+                        Direction dir = Pathfinder.pathfind(rc.getLocation(), tgtLocation);
 
-                    // If can move to dir, move.
-                    if (rc.canMove(dir)) {
-                        rc.move(dir);
-                        turnsNotMoved = 0;
-                    }
-
-                    if (rc.isMovementReady()) {
-                        turnsNotMoved += 1;
-                    }
-
-                    rc.setIndicatorString(tgtLocation.toString());
-
-                } else if (role == INCOMBAT) {
-
-                }
-                // default battlecode code:
-                else {
-                    if (rc.canPickupFlag(rc.getLocation())) {
-                        rc.pickupFlag(rc.getLocation());
-                    }
-                    // If we are holding an enemy flag, singularly focus on moving towards
-                    // an ally spawn zone to capture it! We use the check roundNum >= SETUP_ROUNDS
-                    // to make sure setup phase has ended.
-                    if (rc.hasFlag() && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS) {
-                        MapLocation[] spawnLocs = rc.getAllySpawnLocations();
-                        MapLocation firstLoc = spawnLocs[0];
-                        Direction dir = rc.getLocation().directionTo(firstLoc);
-                        if (rc.canMove(dir))
+                        // If can move to dir, move.
+                        if (rc.canMove(dir)) {
                             rc.move(dir);
-                    }
-                    // Move and attack randomly if no objective.
-                    Direction dir = Pathfinder.pathfind(rc.getLocation(), new MapLocation(29, 0));
-                    MapLocation nextLoc = rc.getLocation().add(dir);
-                    if (rc.canMove(dir)) {
-                        rc.move(dir);
-                    } else if (rc.canAttack(nextLoc)) {
-                        rc.attack(nextLoc);
-                        System.out.println("Take that! Damaged an enemy that was in our way!");
-                    }
+                            turnsNotMoved = 0;
+                        }
 
-                    // Rarely attempt placing traps behind the robot.
-                    MapLocation prevLoc = rc.getLocation().subtract(dir);
-                    if (rc.canBuild(TrapType.EXPLOSIVE, prevLoc) && rng.nextInt() % 37 == 1)
-                        rc.build(TrapType.EXPLOSIVE, prevLoc);
-                    // We can also move our code into different methods or classes to better
-                    // organize it!
-                    updateEnemyRobots(rc);
+                        if (rc.isMovementReady()) {
+                            turnsNotMoved += 1;
+                        }
+
+                        rc.setIndicatorString(tgtLocation.toString());
+
+                    } else if (role == INCOMBAT) {
+
+                    }
+//                    // default battlecode code:
+//                    else {
+//                        if (rc.canPickupFlag(rc.getLocation())) {
+//                            rc.pickupFlag(rc.getLocation());
+//                        }
+//                        // If we are holding an enemy flag, singularly focus on moving towards
+//                        // an ally spawn zone to capture it! We use the check roundNum >= SETUP_ROUNDS
+//                        // to make sure setup phase has ended.
+//                        if (rc.hasFlag() && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS) {
+//                            MapLocation[] spawnLocs = rc.getAllySpawnLocations();
+//                            MapLocation firstLoc = spawnLocs[0];
+//                            Direction dir = rc.getLocation().directionTo(firstLoc);
+//                            if (rc.canMove(dir))
+//                                rc.move(dir);
+//                        }
+//                        // Move and attack randomly if no objective.
+//                        Direction dir = Pathfinder.pathfind(rc.getLocation(), new MapLocation(29, 0));
+//                        MapLocation nextLoc = rc.getLocation().add(dir);
+//                        if (rc.canMove(dir)) {
+//                            rc.move(dir);
+//                        } else if (rc.canAttack(nextLoc)) {
+//                            rc.attack(nextLoc);
+//                            System.out.println("Take that! Damaged an enemy that was in our way!");
+//                        }
+//
+//                        // Rarely attempt placing traps behind the robot.
+//                        MapLocation prevLoc = rc.getLocation().subtract(dir);
+//                        if (rc.canBuild(TrapType.EXPLOSIVE, prevLoc) && rng.nextInt() % 37 == 1)
+//                            rc.build(TrapType.EXPLOSIVE, prevLoc);
+//                        // We can also move our code into different methods or classes to better
+//                        // organize it!
+//                        updateEnemyRobots(rc);
+
                 }
 
             } catch (GameActionException e) {
