@@ -54,6 +54,7 @@ public strictfp class RobotPlayer {
     static MapLocation tgtLocation = null;
     static int turnsNotReachedTgt = 0;
     static boolean lastTurnCrumbSearch = false;
+    static boolean haveSeenCombat = false;
 
     // Delegating Roles:
     // 1. Scouting - base role for units. Purpose: to explore the map, gather
@@ -117,6 +118,7 @@ public strictfp class RobotPlayer {
                     MapLocation[] spawnLocs = rc.getAllySpawnLocations();
                     // Pick a random spawn location to attempt spawning in.
                     MapLocation randomLoc = spawnLocs[rng.nextInt(spawnLocs.length)];
+                    haveSeenCombat = false;
                     if (rc.canSpawn(randomLoc))
                         rc.spawn(randomLoc);
                 } else {
@@ -142,9 +144,15 @@ public strictfp class RobotPlayer {
                     }
 
                     //Role Delegation
+                    // If there is a nearby enemy, you're in combat. Else if you have more than 250
+                    // crumbs and you've seen combat before go into build mode. Otherwise, scout.
                     if (enemies.length != 0) {
                         role = INCOMBAT;
+                        haveSeenCombat = true;
                         rc.setIndicatorString("In combat");
+                    } else if (rc.getCrumbs() > 250 && haveSeenCombat) {
+                        role = BUILDING;
+                        rc.setIndicatorString("Building");
                     } else {
                         role = SCOUTING;
                         rc.setIndicatorString("Scouting");
@@ -216,7 +224,12 @@ public strictfp class RobotPlayer {
                         }
 
                     } else if (role == BUILDING) {
-
+                        for (int i = Direction.allDirections().length - 1; i >= 0 ; i--) {
+                            if (rc.canBuild(TrapType.EXPLOSIVE, rc.getLocation().add(Direction.allDirections()[i]))) {
+                                rc.build(TrapType.EXPLOSIVE, rc.getLocation().add(Direction.allDirections()[i]));
+                                break;
+                            }
+                        }
                     }
 //                    // default battlecode code:
 //                    else {
