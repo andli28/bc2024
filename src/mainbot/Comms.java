@@ -56,14 +56,23 @@ public class Comms {
 
         sampleRandomEnemies();
 
-        // clear sequence if last unit for next turn
-        if (shortId == 49)
+        // clear comms if last unit for next turn
+        if (shortId == 49) {
             write(20, 0);
+            clearRandomEnemies();
+        }
     }
 
     // TODO uuh how to know if default or carried? how often refresh?
     public static void updateFlagLocs() throws GameActionException {
         FlagInfo[] nearbyFlags = rc.senseNearbyFlags(-1);
+    }
+
+    public static void clearRandomEnemies() throws GameActionException {
+        write(13, 0);
+        write(14, 0);
+        write(15, 0);
+        write(16, 0);
     }
 
     public static void sampleRandomEnemies() throws GameActionException {
