@@ -94,7 +94,8 @@ public class Comms {
             if (comms[13 + i] != 0) {
                 MapLocation enemy = decodeLoc(comms[13 + i]);
                 if (closestSampleEnemyLoc == null
-                        || (closestSampleEnemyLoc.distanceSquaredTo(Info.src) > enemy.distanceSquaredTo(Info.src))) {
+                        || (closestSampleEnemyLoc.distanceSquaredTo(rc.getLocation()) > enemy
+                                .distanceSquaredTo(rc.getLocation()))) {
                     closestSampleEnemyLoc = enemy;
                 }
             }
