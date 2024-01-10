@@ -447,13 +447,35 @@ public strictfp class RobotPlayer {
 
                     } else if (role == BUILDING) {
                         // Iterate through all building directions, and build a trap there if you can.
+                        // If there's a nearby trap, only build a trap if it is going to be more than 2 squared units away from the other one (for spacing)
                         for (int i = Direction.allDirections().length - 1; i >= 0; i--) {
                             MapLocation buildLoc = rc.getLocation().add(Direction.allDirections()[i]);
-                            if (rc.canBuild(TrapType.EXPLOSIVE, buildLoc)) {
+                            if (nearestExplosiveTrap != null) {
+                                if (buildLoc.distanceSquaredTo(nearestExplosiveTrap) > 10 && rc.canBuild(TrapType.EXPLOSIVE, buildLoc)) {
+                                    rc.build(TrapType.EXPLOSIVE, buildLoc);
+                                    break;
+                                }
+                            } else if (rc.canBuild(TrapType.EXPLOSIVE, buildLoc)){
                                 rc.build(TrapType.EXPLOSIVE, buildLoc);
                                 break;
                             }
                         }
+
+                        // Move to whatever your target location is
+                        if (tgtLocation == null) {
+                            tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
+                                    3, rc.getMapHeight() - 3);
+                            lastTurnPursingCrumb = false;
+                        }
+                        // Initialize Direction to Move
+                        Direction dir = Pathfinder.pathfind(rc.getLocation(), tgtLocation);
+                        // rc.setIndicatorString(tgtLocation.toString());
+
+                        // If can move to dir, move.
+                        if (rc.canMove(dir)) {
+                            rc.move(dir);
+                        }
+
                     } else if (role == CAPTURING) {
                         // If you can pick up the flag, pick it up, otherwise calculate the nearest
                         // enemy flag, and go to it
