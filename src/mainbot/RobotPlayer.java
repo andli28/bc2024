@@ -37,7 +37,7 @@ public strictfp class RobotPlayer {
      * we get the same sequence of numbers every time this code is run. This is very
      * useful for debugging!
      */
-    static final Random rng = new Random(6147);
+    static final Random rng = new Random();
 
     /** Array containing all the possible movement directions. */
     static final Direction[] directions = {
@@ -49,6 +49,13 @@ public strictfp class RobotPlayer {
             Direction.SOUTHWEST,
             Direction.WEST,
             Direction.NORTHWEST,
+    };
+
+    static final Direction[] allCombatDirs = {
+            Direction.NORTH,
+            Direction.EAST,
+            Direction.SOUTH,
+            Direction.WEST,
     };
 
     // Designating Constants:
@@ -91,7 +98,7 @@ public strictfp class RobotPlayer {
         // System.out.println("I'm alive");
 
         // You can also use indicators to save debug notes in replays.
-        rc.setIndicatorString("Hello world!");
+        // rc.setIndicatorString("Hello world!");
 
         Pathfinder.rc = rc;
         Comms.rc = rc;
@@ -215,9 +222,7 @@ public strictfp class RobotPlayer {
                         // FLOW OF LOGIC:
                         // 1. Randomly target a certain point on the map and when the target has been
                         // reached,
-                        // designate a new target (ie. random scouting). IF a divider is spotted,
-                        // automatically
-                        // change targets to avoid stalling
+                        // designate a new target (ie. random scouting). 
                         // 2. IF a breadcrumb is seen within vision radius, go to that square, otherwise
                         // continue
                         // random scouting
@@ -272,11 +277,124 @@ public strictfp class RobotPlayer {
                             rc.move(dir);
                         }
 
+                        rc.setIndicatorString("Scouting: Tgt: " + tgtLocation.toString());
+
                     } else if (role == INCOMBAT) {
-                        // If there is a nearby hostile, attack the one with the lowest HP
-                        if (lowestCurrHostile != null && rc.canAttack(lowestCurrHostile)) {
-                            rc.attack(lowestCurrHostile);
+
+                        //Calculate the best retreating direction and best attackign direction
+                        // Simulate moving to any of the four cardinal directions. Calculate the average
+                        // distance from all enemies.
+                        // Best Retreat direction is the direction that maximizes average Distance
+                        // Best Attacking direction is the direction that tries to keep troops at an average distance
+                        // equal to the attack radius squared.
+
+                        Direction bestRetreat = null;
+                        Direction bestAttack = null;
+                        float bestRetreatDist = Integer.MIN_VALUE;
+                        float bestAttackDist = Integer.MAX_VALUE;
+
+                        for (int i = allCombatDirs.length - 1; i >= 0; i--) {
+                            MapLocation tempLoc = rc.getLocation().add(allCombatDirs[i]);
+
+                            if (rc.canSenseLocation(tempLoc) && rc.sensePassability(tempLoc) && !rc.canSenseRobotAtLocation(tempLoc)) {
+                                Integer[] allDistances = new Integer[enemies.length];
+                                for (int j = enemies.length - 1; j >= 0; j--) {
+                                    if (enemies[j] != null) {
+                                        int tempDist = tempLoc.distanceSquaredTo(enemies[j].getLocation());
+                                        allDistances[j] = tempDist;
+                                    }
+                                }
+                                int numInArray = 0;
+                                int sum = 0;
+                                for (int k = allDistances.length - 1; k >= 0; k--) {
+                                    if (allDistances[k] != null) {
+                                        sum += allDistances[k];
+                                        numInArray++;
+                                    }
+                                }
+                                float averageDist = (float) sum / numInArray;
+                                if (Math.abs(averageDist - GameConstants.ATTACK_RADIUS_SQUARED) < bestAttackDist) {
+                                    bestAttackDist = Math.abs(averageDist - GameConstants.ATTACK_RADIUS_SQUARED);
+                                    bestAttack = allCombatDirs[i];
+                                }
+                                if (averageDist > bestRetreatDist) {
+                                    bestRetreatDist = averageDist;
+                                    bestRetreat = allCombatDirs[i];
+                                }
+                            }
                         }
+
+                        //Decide whether the bestAttack direction or bestRetreat direction is optimal
+                        // for the situation.
+
+                        // if health is less than half your health or the number of hostiles is larger than 1,
+                        // go to best retreat dir. Otherwise, go to the best Attack dir.
+                        Direction optimalDir = null;
+                        if (rc.getHealth() < GameConstants.DEFAULT_HEALTH / 2 || numHostiles > 1) {
+                            optimalDir = bestRetreat;
+                        } else {
+                            optimalDir = bestAttack;
+                        }
+
+                        //Calculate what would be the lowest health of a hostile after a movement.
+                        MapLocation aflowestCurrHostile = null;
+                        int aflowestCurrHostileHealth = Integer.MAX_VALUE;
+
+                        if (optimalDir != null) {
+                            RobotInfo[] afhostiles = rc.senseNearbyRobots(rc.getLocation().add(optimalDir), GameConstants.ATTACK_RADIUS_SQUARED, rc.getTeam().opponent());
+
+                            for (int i = afhostiles.length - 1; i >= 0; i--) {
+
+                                    if (afhostiles[i].getHealth() < aflowestCurrHostileHealth) {
+                                        aflowestCurrHostileHealth = afhostiles[i].getHealth();
+                                        aflowestCurrHostile = afhostiles[i].getLocation();
+                                    }
+
+                            }
+                        }
+
+                        // 1. if there is a hostile within range and not one after you move,
+                        //  while you can attack it, do so and move to the optimal dir
+                        // 2.  else if there is a hostile after moving and not one currently, move, then attack
+                        // 3.  else, if both exist, choose move or attack order based on which would
+                        //  yield damage to the lowest health enemy.
+                        if (aflowestCurrHostile == null && lowestCurrHostile != null) {
+                            while (rc.canAttack(lowestCurrHostile)) {
+                                rc.attack(lowestCurrHostile);
+                            }
+                            if (optimalDir != null) {
+                                if (rc.canMove(optimalDir)) {
+                                    rc.move(optimalDir);
+                                }
+                            }
+                        } else if (aflowestCurrHostile != null && lowestCurrHostile == null) {
+                            if (rc.canMove(optimalDir)) {
+                                rc.move(optimalDir);
+                            }
+                            while (rc.canAttack(aflowestCurrHostile)) {
+                                rc.attack(aflowestCurrHostile);
+                            }
+                        } else {
+                            if (aflowestCurrHostileHealth < lowestCurrHostileHealth) {
+                                if (rc.canMove(optimalDir)) {
+                                    rc.move(optimalDir);
+                                }
+                                while (rc.canAttack(aflowestCurrHostile)) {
+                                    rc.attack(aflowestCurrHostile);
+                                }
+                            } else {
+                                while (lowestCurrHostile != null && rc.canAttack(lowestCurrHostile)) {
+                                    rc.attack(lowestCurrHostile);
+                                }
+                                if (optimalDir != null) {
+                                    if (rc.canMove(optimalDir)) {
+                                        rc.move(optimalDir);
+                                    }
+                                }
+                            }
+                        }
+
+
 
                     } else if (role == BUILDING) {
                         // Iterate through all building directions, and build a trap there if you can.
