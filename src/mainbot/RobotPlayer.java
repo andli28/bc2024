@@ -137,6 +137,12 @@ public strictfp class RobotPlayer {
                 }
 
                 if (rc.isSpawned()) {
+
+                    //750 Turn upgrade
+                    if (turnCount % 750 == 0 && rc.canBuyGlobal(GlobalUpgrade.ACTION)) {
+                        rc.buyGlobal(GlobalUpgrade.ACTION);
+                    }
+
                     // Flag Counting, finding number of nearby flags not picked up
                     FlagInfo[] nearbyFlags = rc.senseNearbyFlags(GameConstants.VISION_RADIUS_SQUARED,
                             rc.getTeam().opponent());
@@ -399,8 +405,9 @@ public strictfp class RobotPlayer {
                     } else if (role == BUILDING) {
                         // Iterate through all building directions, and build a trap there if you can.
                         for (int i = Direction.allDirections().length - 1; i >= 0; i--) {
-                            if (rc.canBuild(TrapType.EXPLOSIVE, rc.getLocation().add(Direction.allDirections()[i]))) {
-                                rc.build(TrapType.EXPLOSIVE, rc.getLocation().add(Direction.allDirections()[i]));
+                            MapLocation buildLoc = rc.getLocation().add(Direction.allDirections()[i]);
+                            if (rc.canBuild(TrapType.EXPLOSIVE, buildLoc)) {
+                                rc.build(TrapType.EXPLOSIVE, buildLoc);
                                 break;
                             }
                         }
