@@ -62,6 +62,7 @@ public strictfp class RobotPlayer {
     static MapLocation tgtLocation = null;
     static int turnsNotReachedTgt = 0;
     static boolean haveSeenCombat = false;
+    static boolean lastTurnPursingCrumb = false;
 
     // Delegating Roles:
     // 1. Scouting - base role for units. Purpose: to explore the map, gather
@@ -282,6 +283,7 @@ public strictfp class RobotPlayer {
                                 if (rc.sensePassability(nearbyCrumbs[i])) {
                                     tgtLocation = nearbyCrumbs[i];
                                     activelyPursuingCrumb = true;
+                                    lastTurnPursingCrumb = true;
                                 }
                             }
                         }
@@ -294,6 +296,7 @@ public strictfp class RobotPlayer {
                                     rc.fill(nearestWater);
                                 } else {
                                     tgtLocation = nearestWater;
+                                    lastTurnPursingCrumb = false;
                                 }
                             }
                             // Generating a random target:
@@ -307,9 +310,10 @@ public strictfp class RobotPlayer {
                             // map, including the corners.
                             else if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||
                                     (rc.canSenseLocation(tgtLocation) && !rc.sensePassability(tgtLocation))
-                                    || turnsNotReachedTgt > 50) {
+                                    || turnsNotReachedTgt > 50 || lastTurnPursingCrumb) {
                                 tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
                                         3, rc.getMapHeight() - 3);
+                                lastTurnPursingCrumb = false;
                             }
                         }
 
