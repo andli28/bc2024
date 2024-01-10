@@ -379,7 +379,7 @@ public strictfp class RobotPlayer {
                         // if health is less than half your health or the number of hostiles is larger than 1,
                         // go to best retreat dir. Otherwise, go to the best Attack dir.
                         Direction optimalDir = null;
-                        if (rc.getHealth() < GameConstants.DEFAULT_HEALTH / 2 || numHostiles > 1) {
+                        if (rc.getHealth() < GameConstants.DEFAULT_HEALTH / 2 || numHostiles > numFriendlies) {
                             optimalDir = bestRetreat;
                         } else {
                             optimalDir = bestAttack;
@@ -537,7 +537,7 @@ public strictfp class RobotPlayer {
                         }
                     }
 
-                    if (rc.isActionReady() && lowestCurrFriendly != null && rc.canHeal(lowestCurrFriendly)) {
+                    while (lowestCurrFriendly != null && rc.canHeal(lowestCurrFriendly)) {
                         rc.heal(lowestCurrFriendly);
                     }
                     // // default battlecode code:
