@@ -143,6 +143,26 @@ public strictfp class RobotPlayer {
                         }
                     }
 
+                    //Friendly Counting, finding number of friendlies, number of friends in range, and nearby friend with lowest HP
+                    RobotInfo[] friendlies = rc.senseNearbyRobots(rc.getLocation(), GameConstants.VISION_RADIUS_SQUARED, rc.getTeam());
+                    int numFriendlies = 0;
+                    int numFriendliesIR = 0;
+                    MapLocation lowestCurrFriendly = null;
+                    int lowestCurrFriendlyHealth = Integer.MAX_VALUE;
+                    if (friendlies.length != 0) {
+                        for (int i = friendlies.length - 1; i >= 0; i--) {
+                            numFriendlies++;
+                            if (friendlies[i].getLocation().distanceSquaredTo(rc.getLocation()) <= GameConstants.HEAL_RADIUS_SQUARED) {
+                                numFriendliesIR++;
+                            }
+                            if (rc.getLocation().distanceSquaredTo(friendlies[i].getLocation()) <= GameConstants.HEAL_RADIUS_SQUARED
+                                    && friendlies[i].getHealth() < lowestCurrHostileHealth) {
+                                lowestCurrFriendlyHealth = friendlies[i].getHealth();
+                                lowestCurrFriendly = friendlies[i].getLocation();
+                            }
+                        }
+                    }
+
                     //Role Delegation
                     // If there is a nearby enemy, you're in combat. Else if you have more than 250
                     // crumbs and you've seen combat before go into build mode. Otherwise, scout.
@@ -219,17 +239,23 @@ public strictfp class RobotPlayer {
                         }
 
                     } else if (role == INCOMBAT) {
+                        // If there is a nearby hostile, attack the one with the lowest HP
                         if (lowestCurrHostile != null && rc.canAttack(lowestCurrHostile)) {
                             rc.attack(lowestCurrHostile);
                         }
 
                     } else if (role == BUILDING) {
+                        //Iterate through all building directions, and build a trap there if you can.
                         for (int i = Direction.allDirections().length - 1; i >= 0 ; i--) {
                             if (rc.canBuild(TrapType.EXPLOSIVE, rc.getLocation().add(Direction.allDirections()[i]))) {
                                 rc.build(TrapType.EXPLOSIVE, rc.getLocation().add(Direction.allDirections()[i]));
                                 break;
                             }
                         }
+                    }
+
+                    if (rc.isActionReady() && lowestCurrFriendly != null && rc.canHeal(lowestCurrFriendly)) {
+                        rc.heal(lowestCurrFriendly);
                     }
 //                    // default battlecode code:
 //                    else {
