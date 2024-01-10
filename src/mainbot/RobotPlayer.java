@@ -446,18 +446,31 @@ public strictfp class RobotPlayer {
 
 
                     } else if (role == BUILDING) {
-                        // Iterate through all building directions, and build a trap there if you can.
-                        // If there's a nearby trap, only build a trap if it is going to be more than 2 squared units away from the other one (for spacing)
+                        // Iterate through all building directions, and go through the following logic:
+                        //1 . If there are no nearby Explosive traps, build one,
+                        //2. Else if there are no nearby Stun Traps, build one.
+                        //3. Else if there are both, prioritize builiding another explosive trap that is at least 10 sq units away from the first one
+                        //4. IF you can't build the explosive trap, but can build the stun trap at least 7 sq units away from the first one, do so.
                         for (int i = Direction.allDirections().length - 1; i >= 0; i--) {
                             MapLocation buildLoc = rc.getLocation().add(Direction.allDirections()[i]);
-                            if (nearestExplosiveTrap != null) {
-                                if (buildLoc.distanceSquaredTo(nearestExplosiveTrap) > 10 && rc.canBuild(TrapType.EXPLOSIVE, buildLoc)) {
+                            if (nearestExplosiveTrap == null) {
+                                if (rc.canBuild(TrapType.EXPLOSIVE, buildLoc)){
                                     rc.build(TrapType.EXPLOSIVE, buildLoc);
                                     break;
                                 }
-                            } else if (rc.canBuild(TrapType.EXPLOSIVE, buildLoc)){
-                                rc.build(TrapType.EXPLOSIVE, buildLoc);
-                                break;
+                            } else if (nearestStunTrap == null) {
+                                if (rc.canBuild(TrapType.STUN, buildLoc)){
+                                    rc.build(TrapType.STUN, buildLoc);
+                                    break;
+                                }
+                            } else {
+                                if (buildLoc.distanceSquaredTo(nearestExplosiveTrap) > 10 && rc.canBuild(TrapType.EXPLOSIVE, buildLoc)) {
+                                    rc.build(TrapType.EXPLOSIVE, buildLoc);
+                                    break;
+                                } else if (buildLoc.distanceSquaredTo(nearestStunTrap) > 7 && rc.canBuild(TrapType.STUN, buildLoc)) {
+                                    rc.build(TrapType.STUN, buildLoc);
+                                    break;
+                                }
                             }
                         }
 
