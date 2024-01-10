@@ -1,6 +1,7 @@
 package mainbot;
 
 import battlecode.common.*;
+import battlecode.world.Flag;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -64,6 +65,8 @@ public strictfp class RobotPlayer {
     static final int SCOUTING = 0;
     static final int INCOMBAT = 1;
     static final int BUILDING = 2;
+    static final int CAPTURING = 3;
+    static final int RETURNING = 4;
 
     // Default unit to scouting.
     static int role = SCOUTING;
@@ -123,6 +126,17 @@ public strictfp class RobotPlayer {
                         rc.spawn(randomLoc);
                 } else {
 
+                    //Flag Counting, finding number of nearby flags not picked up
+                    FlagInfo[] nearbyFlags = rc.senseNearbyFlags(GameConstants.VISION_RADIUS_SQUARED, rc.getTeam().opponent());
+                    int numFlagsNearbyNotPickedUp = 0;
+                    if (nearbyFlags.length != 0) {
+                        for (int i = nearbyFlags.length-1; i>=0;i--) {
+                            if (!nearbyFlags[i].isPickedUp()) {
+                                numFlagsNearbyNotPickedUp++;
+                            }
+                        }
+                    }
+
                     //Enemy Counting, finding number of hostiles, number of hostiles in range, and the nearby hostile with the lowest HP
                     RobotInfo[] enemies = rc.senseNearbyRobots(rc.getLocation(), GameConstants.VISION_RADIUS_SQUARED, rc.getTeam().opponent());
                     int numHostiles = 0;
@@ -166,11 +180,17 @@ public strictfp class RobotPlayer {
                     //Role Delegation
                     // If there is a nearby enemy, you're in combat. Else if you have more than 250
                     // crumbs and you've seen combat before go into build mode. Otherwise, scout.
-                    if (enemies.length != 0) {
+                    if (rc.hasFlag()) {
+                        role = RETURNING;
+                        rc.setIndicatorString("Returning");
+                    } else if (enemies.length != 0) {
                         role = INCOMBAT;
                         haveSeenCombat = true;
                         rc.setIndicatorString("In combat");
-                    } else if (rc.getCrumbs() > 250 && haveSeenCombat) {
+                    } else if (numFlagsNearbyNotPickedUp != 0) {
+                        role = CAPTURING;
+                        rc.setIndicatorString("Capturaing");
+                    }else if (rc.getCrumbs() > 250 && haveSeenCombat) {
                         role = BUILDING;
                         rc.setIndicatorString("Building");
                     } else {
@@ -250,6 +270,50 @@ public strictfp class RobotPlayer {
                             if (rc.canBuild(TrapType.EXPLOSIVE, rc.getLocation().add(Direction.allDirections()[i]))) {
                                 rc.build(TrapType.EXPLOSIVE, rc.getLocation().add(Direction.allDirections()[i]));
                                 break;
+                            }
+                        }
+                    } else if (role == CAPTURING) {
+                        //If you can pick up the flag, pick it up, otherwise calculate the nearest enemy flag, and go to it
+                        if (rc.canPickupFlag(rc.getLocation())) {
+                            rc.pickupFlag(rc.getLocation());
+                        } else {
+                            //find closest flagLoc:
+                            MapLocation closestFlag = null;
+                            int closestFlagDist = Integer.MAX_VALUE;
+                            for (int i = nearbyFlags.length -1; i >=0; i--) {
+                                if (!nearbyFlags[i].isPickedUp()) {
+                                    int distSqToSpawn = rc.getLocation().distanceSquaredTo(nearbyFlags[i].getLocation());
+                                    if (distSqToSpawn < closestFlagDist) {
+                                        closestFlagDist = distSqToSpawn;
+                                        closestFlag = nearbyFlags[i].getLocation();
+                                    }
+                                }
+                            }
+                            Direction dir = Pathfinder.pathfind(rc.getLocation(), closestFlag);
+                            if (rc.canMove(dir)) {
+                                rc.move(dir);
+                            }
+                        }
+
+                    } else if (role == RETURNING) {
+                        // If we are holding an enemy flag, singularly focus on moving towards
+                        // an ally spawn zone to capture it! We use the check roundNum >= SETUP_ROUNDS
+                        // to make sure setup phase has ended.
+                        if (rc.hasFlag() && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS) {
+                            MapLocation[] spawnLocs = rc.getAllySpawnLocations();
+                            //find closest spawnLoc:
+                            MapLocation closestSpawn = null;
+                            int closestSpawnDist = Integer.MAX_VALUE;
+                            for (int i = spawnLocs.length - 1; i >= 0; i--) {
+                                int distSqToSpawn = rc.getLocation().distanceSquaredTo(spawnLocs[i]);
+                                if (distSqToSpawn < closestSpawnDist) {
+                                    closestSpawnDist = distSqToSpawn;
+                                    closestSpawn = spawnLocs[i];
+                                }
+                            }
+                            Direction dir = Pathfinder.pathfind(rc.getLocation(), closestSpawn);
+                            if (rc.canMove(dir)) {
+                                rc.move(dir);
                             }
                         }
                     }
