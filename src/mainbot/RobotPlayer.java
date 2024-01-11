@@ -286,6 +286,8 @@ public strictfp class RobotPlayer {
                     int numFriendliesIR = 0;
                     MapLocation lowestCurrFriendly = null;
                     int lowestCurrFriendlyHealth = Integer.MAX_VALUE;
+                    MapLocation lowestCurrFriendlySeen = null;
+                    int lowestCurrFriendlySeenHealth = Integer.MAX_VALUE;
                     if (friendlies.length != 0) {
                         for (int i = friendlies.length - 1; i >= 0; i--) {
                             numFriendlies++;
@@ -295,16 +297,25 @@ public strictfp class RobotPlayer {
                             }
                             if (rc.getLocation()
                                     .distanceSquaredTo(friendlies[i].getLocation()) <= GameConstants.HEAL_RADIUS_SQUARED
-                                    && friendlies[i].getHealth() < lowestCurrHostileHealth) {
+                                    && friendlies[i].getHealth() < lowestCurrFriendlyHealth) {
                                 lowestCurrFriendlyHealth = friendlies[i].getHealth();
                                 lowestCurrFriendly = friendlies[i].getLocation();
+                            }
+                            if (friendlies[i].getHealth() < lowestCurrFriendlySeenHealth) {
+                                lowestCurrFriendlySeenHealth = friendlies[i].getHealth();
+                                lowestCurrFriendlySeen = friendlies[i].getLocation();
                             }
                         }
                     }
 
                     // Role Delegation
-                    // If there is a nearby enemy, you're in combat. Else if you have more than 250
-                    // crumbs and you've seen combat before go into build mode. Otherwise, scout.
+                    // If you have a flag, return
+                    // else if there are nearby enemies, you're in combat
+                    // else if there is a nearby flag to be picked up, you're capturing
+                    // else if you have more than 250 crumbs and have seen combat, you're building
+                    // else if there is a close diplaced flag, you're defending
+                    // else if you're lowest current friendly seen has a health below the dfault, you're healing
+                    // else, you're scouting
                     if (rc.hasFlag()) {
                         role = RETURNING;
                         rc.setIndicatorString("Returning");
@@ -321,7 +332,7 @@ public strictfp class RobotPlayer {
                     } else if (closestDisplacedFlag != null) {
                         role = DEFENDING;
                         rc.setIndicatorString("Defending");
-                    } else if (lowestCurrFriendlyHealth < GameConstants.DEFAULT_HEALTH){
+                    } else if (lowestCurrFriendlySeenHealth < GameConstants.DEFAULT_HEALTH){
                         role = HEALING;
                         rc.setIndicatorString("Healing");
                     } else {
@@ -630,7 +641,7 @@ public strictfp class RobotPlayer {
                         rc.setIndicatorString("Defending" + tgtLocation.toString());
                     } else if (role == HEALING) {
 
-                        Direction dir = Pathfinder.pathfind(rc.getLocation(), lowestCurrFriendly);
+                        Direction dir = Pathfinder.pathfind(rc.getLocation(), lowestCurrFriendlySeen);
                         if (rc.canMove(dir)) {
                             rc.move(dir);
                         }
