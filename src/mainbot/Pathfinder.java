@@ -29,7 +29,7 @@ public class Pathfinder {
 
     // does not explicitly check movement cd but does canmove checks
     public static Direction pathfind(MapLocation src, MapLocation tgt) throws GameActionException {
-        if (src.equals(tgt))
+        if (!rc.isMovementReady() || src.equals(tgt))
             return Direction.CENTER;
         // some variant buh g with wall avoidance
         Direction dirTo = src.directionTo(tgt);
@@ -95,13 +95,14 @@ public class Pathfinder {
                 if (!rc.onTheMap(src.add(moveDir)))
                     buhgDir = Rot.RIGHT;
                 if (rc.canMove(moveDir)) {
+                    lastBuhgDir = moveDir;
                     // check for buhg exiting conditions(closer to goal than init buhgging dist)
                     if (src.distanceSquaredTo(tgt) < initBlockDist || turnsBuhgging > 20) {
                         initBlockDist = 9999;
                         buhgDir = Rot.NONE;
                         turnsBuhgging = 0;
+                        lastBuhgDir = Direction.CENTER;
                     }
-                    lastBuhgDir = moveDir;
                     return moveDir;
                 }
                 moveDir = moveDir.rotateLeft();
@@ -113,12 +114,13 @@ public class Pathfinder {
                 buhgDir = Rot.LEFT;
             for (int i = 7; --i >= 0;) {
                 if (rc.canMove(moveDir)) {
+                    lastBuhgDir = moveDir;
                     if (src.distanceSquaredTo(tgt) < initBlockDist || turnsBuhgging > 20) {
                         initBlockDist = 9999;
                         buhgDir = Rot.NONE;
                         turnsBuhgging = 0;
+                        lastBuhgDir = Direction.CENTER;
                     }
-                    lastBuhgDir = moveDir;
                     return moveDir;
                 }
                 moveDir = moveDir.rotateRight();

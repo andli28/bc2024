@@ -332,7 +332,7 @@ public class Comms {
             boolean displaced = true;
             for (int j = 3; --j >= 0;) {
                 MapLocation defaultLoc = decodeLoc(comms[6 + j]);
-                if (defaultLoc.equals(loc))
+                if (loc.equals(defaultLoc))
                     displaced = false;
             }
             if (displaced) {
@@ -370,7 +370,7 @@ public class Comms {
             boolean displaced = true;
             for (int j = 3; --j >= 0;) {
                 MapLocation defaultLoc = decodeLoc(comms[j]);
-                if (defaultLoc.equals(loc))
+                if (loc.equals(defaultLoc))
                     displaced = false;
             }
             if (displaced) {
