@@ -63,6 +63,7 @@ public strictfp class RobotPlayer {
     static int turnsNotReachedTgt = 0;
     static boolean haveSeenCombat = false;
     static boolean lastTurnPursingCrumb = false;
+    static boolean lastTurnPursingWater = false;
 
     // Delegating Roles:
     // 1. Scouting - base role for units. Purpose: to explore the map, gather
@@ -284,6 +285,7 @@ public strictfp class RobotPlayer {
                                     tgtLocation = nearbyCrumbs[i];
                                     activelyPursuingCrumb = true;
                                     lastTurnPursingCrumb = true;
+                                    lastTurnPursingWater = false;
                                 }
                             }
                         }
@@ -296,6 +298,7 @@ public strictfp class RobotPlayer {
                                     rc.fill(nearestWater);
                                 } else {
                                     tgtLocation = nearestWater;
+                                    lastTurnPursingWater = true;
                                     lastTurnPursingCrumb = false;
                                 }
                             }
@@ -310,10 +313,11 @@ public strictfp class RobotPlayer {
                             // map, including the corners.
                             else if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||
                                     (rc.canSenseLocation(tgtLocation) && !rc.sensePassability(tgtLocation))
-                                    || turnsNotReachedTgt > 50 || lastTurnPursingCrumb) {
+                                    || turnsNotReachedTgt > 50 || lastTurnPursingCrumb || lastTurnPursingWater) {
                                 tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
                                         3, rc.getMapHeight() - 3);
                                 lastTurnPursingCrumb = false;
+                                lastTurnPursingWater = false;
                             }
                         }
 
