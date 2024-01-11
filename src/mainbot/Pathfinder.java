@@ -29,7 +29,7 @@ public class Pathfinder {
 
     // does not explicitly check movement cd but does canmove checks
     public static Direction pathfind(MapLocation src, MapLocation tgt) throws GameActionException {
-        if (src == tgt)
+        if (src.equals(tgt))
             return Direction.CENTER;
         // some variant buh g with wall avoidance
         Direction dirTo = src.directionTo(tgt);

@@ -87,7 +87,7 @@ public class Comms {
     static void removeValue(int val, int[] indices) throws GameActionException {
         for (int i = indices.length; --i >= 0;) {
             int idx = indices[i];
-            if (Comms.comms[idx] == val) {
+            if (comms[idx] == val) {
                 write(idx, 0);
             }
         }
@@ -99,10 +99,10 @@ public class Comms {
         int firstAvail = -1;
         for (int i = indices.length; --i >= 0;) {
             int idx = indices[i];
-            if (Comms.comms[idx] == 0) {
+            if (comms[idx] == 0) {
                 firstAvail = idx;
             } else {
-                if (decodeLoc(Comms.comms[idx]) == loc)
+                if (decodeLoc(comms[idx]).equals(loc))
                     return -1;
             }
         }
@@ -164,7 +164,7 @@ public class Comms {
             }
 
             // if carrying a flag remove previous ping and update current flag
-            if (carrying == fi.getTeam() && fi.getLocation() == rc.getLocation()) {
+            if (carrying == fi.getTeam() && fi.getLocation().equals(rc.getLocation())) {
                 if (fi.getTeam() != rc.getTeam()) {
                     // enemy current
                     writeFlagLoc(fi.getLocation(), ENEMY_CURRENT_FLAG_INDICES);
@@ -173,23 +173,27 @@ public class Comms {
         }
     }
 
+    public static MapLocation[] getDefaultAllyFlagLocations() {
+        return new MapLocation[] { decodeLoc(comms[0]), decodeLoc(comms[1]), decodeLoc(comms[2]) };
+    }
+
     public static MapLocation closestDisplacedAllyFlag() {
         MapLocation closest = null;
         int dist = 9999;
         MapLocation src = rc.getLocation();
         for (int i = 3; --i >= 0;) {
-            MapLocation loc = decodeLoc(Comms.comms[3 + i]);
+            MapLocation loc = decodeLoc(comms[3 + i]);
             if (loc == null)
                 continue;
             boolean displaced = true;
             for (int j = 3; --j >= 0;) {
-                MapLocation defaultLoc = decodeLoc(Comms.comms[j]);
-                if (defaultLoc == loc)
+                MapLocation defaultLoc = decodeLoc(comms[j]);
+                if (defaultLoc.equals(loc))
                     displaced = false;
             }
             if (displaced) {
                 if (closest == null || dist > loc.distanceSquaredTo(src)) {
-                    closest = src;
+                    closest = loc;
                     dist = src.distanceSquaredTo(loc);
                 }
             }
@@ -208,8 +212,8 @@ public class Comms {
         if (nearbyEnemies.length > 0 && rc.canWriteSharedArray(63, 0)) {
             for (int i = 4; --i >= 0;) {
                 RobotInfo r = nearbyEnemies[RobotPlayer.rng.nextInt(nearbyEnemies.length)];
-                MapLocation currSight = decodeLoc(Comms.comms[13 + i]);
-                if (currSight == null || (RobotPlayer.rng.nextDouble() < 1.f / (Comms.comms[20]))) {
+                MapLocation currSight = decodeLoc(comms[13 + i]);
+                if (currSight == null || (RobotPlayer.rng.nextDouble() < 1.f / (comms[20]))) {
                     write(13 + i, encodeLoc(r.getLocation()));
                     break;
                 }
