@@ -331,7 +331,7 @@ public strictfp class RobotPlayer {
                     } else if (numFlagsNearbyNotPickedUp != 0) {
                         role = CAPTURING;
                         rc.setIndicatorString("Capturing");
-                    } else if (false && rc.getCrumbs() > 250 && haveSeenCombat) {
+                    } else if (rc.getCrumbs() > 250 && haveSeenCombat) {
                         role = BUILDING;
                         rc.setIndicatorString("Building");
                     } else if (closestDisplacedFlag != null) {
@@ -544,34 +544,19 @@ public strictfp class RobotPlayer {
                             }
                         } else {
                             if (optimalDir != null) {
-                                MapLocation posAfterMove = rc.getLocation().add(optimalDir);
-                                if (posAfterMove.distanceSquaredTo(closestHostile) < distToClosestHostile) {
-                                    if (rc.canMove(optimalDir)) {
-                                        rc.move(optimalDir);
-                                    }
-                                    if (enemies.length > 3) {
-                                        layTrapWithinRangeOfEnemy(rc, nearestExplosiveTrap, nearestStunTrap, closestHostile, 10);
-                                    }
-
-                                } else {
-
-                                    if (enemies.length > 3) {
-                                        layTrapWithinRangeOfEnemy(rc, nearestExplosiveTrap, nearestStunTrap, closestHostile, 10);
-                                    }
-
-                                    if (rc.canMove(optimalDir)) {
-                                        rc.move(optimalDir);
-                                    }
-                                }
-                            } else {
-                                if (enemies.length > 3) {
-                                    layTrapWithinRangeOfEnemy(rc, nearestExplosiveTrap, nearestStunTrap, closestHostile, 10);
+                                if (rc.canMove(optimalDir)) {
+                                    rc.move(optimalDir);
                                 }
                             }
                         }
 
                     } else if (role == BUILDING) {
-                        layTrap(rc, nearestExplosiveTrap, nearestStunTrap);
+
+                        if (closestHostile != null) {
+                            layTrapWithinRangeOfEnemy(rc, nearestExplosiveTrap, nearestStunTrap, closestHostile, 10);
+                        } else {
+                            layTrap(rc, nearestExplosiveTrap, nearestStunTrap);
+                        }
 
                         // Move to whatever your target location is
                         if (tgtLocation == null) {
