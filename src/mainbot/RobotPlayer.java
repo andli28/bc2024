@@ -64,6 +64,7 @@ public strictfp class RobotPlayer {
     static boolean haveSeenCombat = false;
     static boolean lastTurnPursingCrumb = false;
     static boolean lastTurnPursingWater = false;
+    static boolean lastTurnDefending = false;
 
     // Delegating Roles:
     // 1. Scouting - base role for units. Purpose: to explore the map, gather
@@ -75,6 +76,7 @@ public strictfp class RobotPlayer {
     static final int BUILDING = 2;
     static final int CAPTURING = 3;
     static final int RETURNING = 4;
+    static final int DEFENDING = 5;
 
     // Default unit to scouting.
     static int role = SCOUTING;
@@ -128,20 +130,79 @@ public strictfp class RobotPlayer {
                 // actions.
                 if (!rc.isSpawned()) {
                     MapLocation[] spawnLocs = rc.getAllySpawnLocations();
+                    // If theres a displaced flag, find the spawn location
+                    // that has the smallest distance to the first displaced flag in the list and spawn there
+                    // Else if there is a randomly sampled enemy, find the spawn location
+                    // flag pair that has the smallest distance to the first sampled enemy in the list and spawn there
                     // Spawn anywhere you can for now(spawns 50 in turn 1)
+
+                    MapLocation[] displacedFlags = Comms.getDisplacedAllyFlags();
+                    MapLocation displacedFlag = null;
+                    for (int i = displacedFlags.length - 1; i>=0; i--) {
+                        if (displacedFlags[i] != null) {
+                            displacedFlag = displacedFlags[i];
+                            break;
+                        }
+                    }
+
+                    MapLocation[] sampledEnemies = Comms.getSampledEnemies();
+                    MapLocation sampledEnemy = null;
+                    for (int i = sampledEnemies.length -1 ;i>=0; i--) {
+                        if (sampledEnemies[i] != null) {
+                            sampledEnemy = sampledEnemies[i];
+                            break;
+                        }
+                    }
                     haveSeenCombat = false;
-                    for (int i = spawnLocs.length; --i >= 0;) {
-                        MapLocation loc = spawnLocs[i];
-                        if (rc.canSpawn(loc))
-                            rc.spawn(loc);
+
+                    if (displacedFlag != null) {
+                        int distToClosestToDisplacedFlag = Integer.MAX_VALUE;
+                        MapLocation closestToDisplacedFlag = null;
+                        for (int i = spawnLocs.length-1; i>=0; i--) {
+                            if (spawnLocs[i].distanceSquaredTo(displacedFlag) < distToClosestToDisplacedFlag) {
+                                distToClosestToDisplacedFlag = spawnLocs[i].distanceSquaredTo(displacedFlag);
+                                closestToDisplacedFlag = spawnLocs[i];
+                            }
+                        }
+                        if (rc.canSpawn(closestToDisplacedFlag)) {
+                            rc.spawn(closestToDisplacedFlag);
+                        }
+                    } else if (sampledEnemy != null) {
+                        int distToClosestToSampledEnemy = Integer.MAX_VALUE;
+                        MapLocation closestToSampledEnemy = null;
+                        for (int i = spawnLocs.length-1; i>=0; i--) {
+                            if (spawnLocs[i].distanceSquaredTo(sampledEnemy) < distToClosestToSampledEnemy) {
+                                distToClosestToSampledEnemy = spawnLocs[i].distanceSquaredTo(sampledEnemy);
+                                closestToSampledEnemy= spawnLocs[i];
+                            }
+                        }
+                        if (rc.canSpawn(closestToSampledEnemy)) {
+                            rc.spawn(closestToSampledEnemy);
+                        }
+                    } else {
+                        for (int i = spawnLocs.length; --i >= 0; ) {
+                            MapLocation loc = spawnLocs[i];
+                            if (rc.canSpawn(loc))
+                                rc.spawn(loc);
+                        }
                     }
                 }
 
                 if (rc.isSpawned()) {
 
                     // 750 Turn upgrade
-                    if (turnCount % 750 == 0 && rc.canBuyGlobal(GlobalUpgrade.ACTION)) {
+                    if (turnCount == 750 && rc.canBuyGlobal(GlobalUpgrade.ACTION)) {
                         rc.buyGlobal(GlobalUpgrade.ACTION);
+                    } else if (turnCount == 1500 && rc.canBuyGlobal(GlobalUpgrade.HEALING)) {
+                        rc.buyGlobal(GlobalUpgrade.HEALING);
+                    }
+
+                    // Information about the closest displaced flag + distance to that MapLocation
+                    MapLocation closestDisplacedFlag = Comms.closestDisplacedAllyFlag();
+
+                    int distToClosestDisplacedFlag = Integer.MAX_VALUE;
+                    if (closestDisplacedFlag != null) {
+                        distToClosestDisplacedFlag = rc.getLocation().distanceSquaredTo(closestDisplacedFlag);
                     }
 
                     // MapInfo Counting: Counting Traps, Water, etc
@@ -254,6 +315,9 @@ public strictfp class RobotPlayer {
                     } else if (rc.getCrumbs() > 250 && haveSeenCombat) {
                         role = BUILDING;
                         rc.setIndicatorString("Building");
+                    } else if (closestDisplacedFlag != null) {
+                        role = DEFENDING;
+                        rc.setIndicatorString("Defending");
                     } else {
                         role = SCOUTING;
                         rc.setIndicatorString("Scouting");
@@ -288,6 +352,7 @@ public strictfp class RobotPlayer {
                                     activelyPursuingCrumb = true;
                                     lastTurnPursingCrumb = true;
                                     lastTurnPursingWater = false;
+                                    lastTurnDefending = false;
                                 }
                             }
                         }
@@ -303,6 +368,7 @@ public strictfp class RobotPlayer {
                                     tgtLocation = nearestWater;
                                     lastTurnPursingWater = true;
                                     lastTurnPursingCrumb = false;
+                                    lastTurnDefending = false;
                                 }
                             }
                             // Generating a random target:
@@ -316,11 +382,12 @@ public strictfp class RobotPlayer {
                             // map, including the corners.
                             else if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||
                                     (rc.canSenseLocation(tgtLocation) && !rc.sensePassability(tgtLocation))
-                                    || turnsNotReachedTgt > 50 || lastTurnPursingCrumb || lastTurnPursingWater) {
+                                    || turnsNotReachedTgt > 50 || lastTurnPursingCrumb || lastTurnPursingWater || lastTurnDefending) {
                                 tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
                                         3, rc.getMapHeight() - 3);
                                 lastTurnPursingCrumb = false;
                                 lastTurnPursingWater = false;
+                                lastTurnDefending = false;
                             }
                         }
 
@@ -493,6 +560,8 @@ public strictfp class RobotPlayer {
                             tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
                                     3, rc.getMapHeight() - 3);
                             lastTurnPursingCrumb = false;
+                            lastTurnPursingWater = false;
+                            lastTurnDefending = false;
                         }
                         // Initialize Direction to Move
                         Direction dir = Pathfinder.pathfind(rc.getLocation(), tgtLocation);
@@ -549,6 +618,18 @@ public strictfp class RobotPlayer {
                                 rc.move(dir);
                             }
                         }
+                    } else if (role == DEFENDING) {
+
+                        tgtLocation = closestDisplacedFlag;
+                        lastTurnPursingCrumb = false;
+                        lastTurnPursingWater = false;
+                        lastTurnDefending = true;
+                        Direction dir = Pathfinder.pathfind(rc.getLocation(), closestDisplacedFlag);
+                        if (rc.canMove(dir)) {
+                            rc.move(dir);
+                        }
+
+                        rc.setIndicatorString("Defending" + tgtLocation.toString());
                     }
 
                     while (lowestCurrFriendly != null && rc.canHeal(lowestCurrFriendly)) {
@@ -591,22 +672,24 @@ public strictfp class RobotPlayer {
                 }
                 Comms.update();
 
-            } catch (GameActionException e) {
-                // Oh no! It looks like we did something illegal in the Battlecode world. You
-                // should
-                // handle GameActionExceptions judiciously, in case unexpected events occur in
-                // the game
-                // world. Remember, uncaught exceptions cause your robot to explode!
-                System.out.println("GameActionException");
-                e.printStackTrace();
-
-            } catch (Exception e) {
-                // Oh no! It looks like our code tried to do something bad. This isn't a
-                // GameActionException, so it's more likely to be a bug in our code.
-                System.out.println("Exception");
-                e.printStackTrace();
-
-            } finally {
+            }
+//            catch (GameActionException e) {
+//                // Oh no! It looks like we did something illegal in the Battlecode world. You
+//                // should
+//                // handle GameActionExceptions judiciously, in case unexpected events occur in
+//                // the game
+//                // world. Remember, uncaught exceptions cause your robot to explode!
+//                System.out.println("GameActionException");
+//                e.printStackTrace();
+//
+//            } catch (Exception e) {
+//                // Oh no! It looks like our code tried to do something bad. This isn't a
+//                // GameActionException, so it's more likely to be a bug in our code.
+//                System.out.println("Exception");
+//                e.printStackTrace();
+//
+//            }
+            finally {
                 // Signify we've done everything we want to do, thereby ending our turn.
                 // This will make our code wait until the next turn, and then perform this loop
                 // again.
