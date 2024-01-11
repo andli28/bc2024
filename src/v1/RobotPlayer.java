@@ -138,11 +138,12 @@ public strictfp class RobotPlayer {
 
                 if (rc.isSpawned()) {
 
-                    //750 Turn upgrade
-                    if (turnCount % 750 == 0 && rc.canBuyGlobal(GlobalUpgrade.ACTION)) {
+                    // 750 Turn upgrade + 1500 turn upgrade
+                    if (turnCount == 750 && rc.canBuyGlobal(GlobalUpgrade.ACTION)) {
                         rc.buyGlobal(GlobalUpgrade.ACTION);
+                    } else if (turnCount == 1500 && rc.canBuyGlobal(GlobalUpgrade.HEALING)) {
+                        rc.buyGlobal(GlobalUpgrade.HEALING);
                     }
-
                     // MapInfo Counting: Counting Traps, Water, etc
                     MapLocation nearestStunTrap = null;
                     MapLocation nearestExplosiveTrap = null;

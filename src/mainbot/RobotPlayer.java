@@ -64,7 +64,6 @@ public strictfp class RobotPlayer {
     static boolean haveSeenCombat = false;
     static boolean lastTurnPursingCrumb = false;
     static boolean lastTurnPursingWater = false;
-    static boolean lastTurnDefending = false;
 
     // Delegating Roles:
     // 1. Scouting - base role for units. Purpose: to explore the map, gather
@@ -77,6 +76,7 @@ public strictfp class RobotPlayer {
     static final int CAPTURING = 3;
     static final int RETURNING = 4;
     static final int DEFENDING = 5;
+    static final int HEALING = 6;
 
     // Default unit to scouting.
     static int role = SCOUTING;
@@ -193,7 +193,7 @@ public strictfp class RobotPlayer {
 
                 if (rc.isSpawned()) {
 
-                    // 750 Turn upgrade
+                    // 750 Turn upgrade + 1500 turn upgrade
                     if (turnCount == 750 && rc.canBuyGlobal(GlobalUpgrade.ACTION)) {
                         rc.buyGlobal(GlobalUpgrade.ACTION);
                     } else if (turnCount == 1500 && rc.canBuyGlobal(GlobalUpgrade.HEALING)) {
@@ -314,13 +314,16 @@ public strictfp class RobotPlayer {
                         rc.setIndicatorString("In combat");
                     } else if (numFlagsNearbyNotPickedUp != 0) {
                         role = CAPTURING;
-                        rc.setIndicatorString("Capturaing");
+                        rc.setIndicatorString("Capturing");
                     } else if (rc.getCrumbs() > 250 && haveSeenCombat) {
                         role = BUILDING;
                         rc.setIndicatorString("Building");
                     } else if (closestDisplacedFlag != null) {
                         role = DEFENDING;
                         rc.setIndicatorString("Defending");
+                    } else if (lowestCurrFriendlyHealth < GameConstants.DEFAULT_HEALTH){
+                        role = HEALING;
+                        rc.setIndicatorString("Healing");
                     } else {
                         role = SCOUTING;
                         rc.setIndicatorString("Scouting");
@@ -355,7 +358,6 @@ public strictfp class RobotPlayer {
                                     activelyPursuingCrumb = true;
                                     lastTurnPursingCrumb = true;
                                     lastTurnPursingWater = false;
-                                    lastTurnDefending = false;
                                 }
                             }
                         }
@@ -371,7 +373,6 @@ public strictfp class RobotPlayer {
                                     tgtLocation = nearestWater;
                                     lastTurnPursingWater = true;
                                     lastTurnPursingCrumb = false;
-                                    lastTurnDefending = false;
                                 }
                             }
                             // Generating a random target:
@@ -385,13 +386,11 @@ public strictfp class RobotPlayer {
                             // map, including the corners.
                             else if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||
                                     (rc.canSenseLocation(tgtLocation) && !rc.sensePassability(tgtLocation))
-                                    || turnsNotReachedTgt > 50 || lastTurnPursingCrumb || lastTurnPursingWater
-                                    || lastTurnDefending) {
+                                    || turnsNotReachedTgt > 50 || lastTurnPursingCrumb || lastTurnPursingWater) {
                                 tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
                                         3, rc.getMapHeight() - 3);
                                 lastTurnPursingCrumb = false;
                                 lastTurnPursingWater = false;
-                                lastTurnDefending = false;
                             }
                         }
 
@@ -565,7 +564,6 @@ public strictfp class RobotPlayer {
                                     3, rc.getMapHeight() - 3);
                             lastTurnPursingCrumb = false;
                             lastTurnPursingWater = false;
-                            lastTurnDefending = false;
                         }
                         // Initialize Direction to Move
                         Direction dir = Pathfinder.pathfind(rc.getLocation(), tgtLocation);
@@ -624,16 +622,19 @@ public strictfp class RobotPlayer {
                         }
                     } else if (role == DEFENDING) {
 
-                        tgtLocation = closestDisplacedFlag;
-                        lastTurnPursingCrumb = false;
-                        lastTurnPursingWater = false;
-                        lastTurnDefending = true;
                         Direction dir = Pathfinder.pathfind(rc.getLocation(), closestDisplacedFlag);
                         if (rc.canMove(dir)) {
                             rc.move(dir);
                         }
 
                         rc.setIndicatorString("Defending" + tgtLocation.toString());
+                    } else if (role == HEALING) {
+
+                        Direction dir = Pathfinder.pathfind(rc.getLocation(), lowestCurrFriendly);
+                        if (rc.canMove(dir)) {
+                            rc.move(dir);
+                        }
+
                     }
 
                     while (lowestCurrFriendly != null && rc.canHeal(lowestCurrFriendly)) {
