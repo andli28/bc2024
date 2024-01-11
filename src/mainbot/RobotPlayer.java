@@ -627,6 +627,7 @@ public strictfp class RobotPlayer {
                                 }
                             }
                             Direction dir = Pathfinder.pathfind(rc.getLocation(), closestSpawn);
+                            rc.setIndicatorString("Returning" + closestSpawn.toString());
                             if (rc.canMove(dir)) {
                                 rc.move(dir);
                             }
