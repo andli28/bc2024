@@ -185,6 +185,18 @@ public class Comms {
         }
     }
 
+    public static int getAllyAttackSpecs() {
+        return comms[12];
+    }
+
+    public static int getAllyBuildSpecs() {
+        return comms[13];
+    }
+
+    public static int getAllyHealSpecs() {
+        return comms[14];
+    }
+
     public static int getEnemyCount() throws GameActionException {
         return comms[20];
     }
