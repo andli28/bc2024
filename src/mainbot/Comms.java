@@ -35,7 +35,8 @@ public class Comms {
     public static RobotInfo[] nearbyEnemies;
     public static FlagInfo[] nearbyFlags;
     public static Team carrying;
-    public static int refreshIdx = -1;
+    public static int[] refreshIdxs = new int[6];
+    public static int refreshPtr = -1;
 
     public static void receive() throws GameActionException {
         // yea yea unroll this later
@@ -61,9 +62,12 @@ public class Comms {
         // these can be called regardless of dead or alive
         receive();
         sequence();
-        if (refreshIdx != -1) {
-            write(refreshIdx, 0);
-            refreshIdx = -1;
+        // refresh the comms entries you are in charge of(1 turn lifespan)
+        for (; refreshPtr >= 0; refreshPtr--) {
+            // if you are dead do not refresh the enemy current flags
+            if (!rc.isSpawned() && refreshIdxs[refreshPtr] >= 9 && refreshIdxs[refreshPtr] <= 11)
+                continue;
+            write(refreshIdxs[refreshPtr], 0);
         }
 
         // sense updating for alive guys only
@@ -74,6 +78,7 @@ public class Comms {
             sampleRandomEnemies();
             nearbyFlags = rc.senseNearbyFlags(-1);
             updateFlagLocs();
+            updateCurrEnemyFlags();
         }
 
         // clear comms if last unit for next turn
@@ -112,8 +117,8 @@ public class Comms {
         return firstAvail;
     }
 
-    // call this whenever a flag is picked up for comms updating
-    // in setup, need to remove default ally flag loc in comms
+    // FIXME dont rely on robotplayer call, handle these transitions here(only
+    // relevant once we start picking up own flags)
     public static void flagPickup(FlagInfo finfo) throws GameActionException {
         // picking up own flag must be setup relocation
         if (finfo.getTeam() == rc.getTeam()) {
@@ -127,11 +132,10 @@ public class Comms {
         if (finfo.getTeam() == rc.getTeam()) {
             // update default ally with drop location in setup
             writeFlagLoc(finfo.getLocation(), ALLY_DEFAULT_FLAG_INDICES);
-        } else {
-            // TODO some commed dropped flag accounting to prevent dups?
         }
         carrying = Team.NEUTRAL;
     }
+    // END FIXME
 
     // default locs are persistent(except ally pickup + move in setup phase)
     // current locs clear every round
@@ -148,33 +152,110 @@ public class Comms {
                     int idx = writeFlagLoc(fi.getLocation(), ALLY_CURRENT_FLAG_INDICES);
                     // note idx for refresh next time it is this bots turn
                     if (idx != -1) {
-                        refreshIdx = idx;
+                        refreshIdxs[++refreshPtr] = idx;
                     }
                 }
             } else {
                 // default/current enemy flag loc
-
-                // FIXME possible issue where dropped enemy flags get counted as default and we
-                // dup a flag into persistent mem
-                // solve by also recording dropped pos?
                 if (!fi.isPickedUp()) {
-                    writeFlagLoc(fi.getLocation(), ENEMY_DEFAULT_FLAG_INDICES);
-                    writeFlagLoc(fi.getLocation(), ENEMY_CURRENT_FLAG_INDICES);
+                    // check if this is a dropped flag before writing to default
+                    MapLocation fl = fi.getLocation();
+                    MapLocation[] currEnemyFlags = getCurrentEnemyFlagLocations();
+                    if (!(fl.equals(currEnemyFlags[0]) || fl.equals(currEnemyFlags[1])
+                            || fl.equals(currEnemyFlags[2]))) {
+                        writeFlagLoc(fi.getLocation(), ENEMY_DEFAULT_FLAG_INDICES);
+                    }
                 }
             }
 
-            // if carrying a flag remove previous ping and update current flag
-            if (carrying == fi.getTeam() && fi.getLocation().equals(rc.getLocation())) {
+            // if carrying enemy flag remove previous ping and update current flag
+            if (rc.getRoundNum() > 200 && rc.hasFlag() && fi.getLocation().equals(rc.getLocation())) {
                 if (fi.getTeam() != rc.getTeam()) {
-                    // enemy current
-                    writeFlagLoc(fi.getLocation(), ENEMY_CURRENT_FLAG_INDICES);
+                    // enemy current pings persistent after death to avoid default dup(check
+                    // currents)
+                    int idx = writeFlagLoc(fi.getLocation(), ENEMY_CURRENT_FLAG_INDICES);
+                    if (idx != -1) {
+                        refreshIdxs[++refreshPtr] = idx;
+                    }
                 }
             }
         }
     }
 
+    // if flag carrier killed the currentflag entry persists, after another duck
+    // comes to verify this clears comm entry
+    public static void updateCurrEnemyFlags() throws GameActionException {
+        for (int i = 3; --i >= 0;) {
+            MapLocation loc = decodeLoc(comms[9 + i]);
+            // can only invalidate comm if you can see the loc
+            if (loc == null || loc.distanceSquaredTo(rc.getLocation()) > GameConstants.VISION_RADIUS_SQUARED)
+                continue;
+            boolean validComm = false;
+            for (int j = nearbyFlags.length; --j >= 0;) {
+                if (nearbyFlags[j].getLocation().equals(loc)) {
+                    validComm = true;
+                }
+            }
+            if (!validComm)
+                write(9 + i, 0);
+        }
+    }
+
     public static MapLocation[] getDefaultAllyFlagLocations() {
         return new MapLocation[] { decodeLoc(comms[0]), decodeLoc(comms[1]), decodeLoc(comms[2]) };
+    }
+
+    // can have null entries
+    public static MapLocation[] getCurrentAllyFlagLocations() {
+        return new MapLocation[] { decodeLoc(comms[3]), decodeLoc(comms[4]), decodeLoc(comms[5]) };
+    }
+
+    // can have null entries if we have not seen em
+    public static MapLocation[] getDefaultEnemyFlagLocations() {
+        return new MapLocation[] { decodeLoc(comms[6]), decodeLoc(comms[7]), decodeLoc(comms[8]) };
+    }
+
+    // can have null entries
+    public static MapLocation[] getCurrentEnemyFlagLocations() {
+        return new MapLocation[] { decodeLoc(comms[9]), decodeLoc(comms[10]), decodeLoc(comms[11]) };
+    }
+
+    // returns arr of size 3 containing displaced enemy flag current locs, can
+    // contain null
+    public static MapLocation[] getDisplacedEnemyFlags() {
+        MapLocation[] displacedEnemyFlags = new MapLocation[] { null, null, null };
+        for (int i = 3; --i >= 0;) {
+            MapLocation loc = decodeLoc(comms[9 + i]);
+            if (loc == null)
+                continue;
+            boolean displaced = true;
+            for (int j = 3; --j >= 0;) {
+                MapLocation defaultLoc = decodeLoc(comms[6 + j]);
+                if (defaultLoc.equals(loc))
+                    displaced = false;
+            }
+            if (displaced) {
+                displacedEnemyFlags[i] = loc;
+            }
+        }
+        return displacedEnemyFlags;
+    }
+
+    public static MapLocation closestDisplacedEnemyFlag() {
+        MapLocation closest = null;
+        int dist = 9999;
+        MapLocation src = rc.getLocation();
+        MapLocation[] displayedEnemyFlags = getDisplacedEnemyFlags();
+        for (int i = 3; --i >= 0;) {
+            MapLocation loc = displayedEnemyFlags[i];
+            if (loc == null)
+                continue;
+            if (closest == null || dist > loc.distanceSquaredTo(src)) {
+                closest = loc;
+                dist = src.distanceSquaredTo(loc);
+            }
+        }
+        return closest;
     }
 
     // returns arr of size 3 containing displaced ally flag current locations, can
