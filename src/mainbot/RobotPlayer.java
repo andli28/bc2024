@@ -139,7 +139,7 @@ public strictfp class RobotPlayer {
 
                 if (rc.isSpawned()) {
 
-                    //750 Turn upgrade
+                    // 750 Turn upgrade
                     if (turnCount % 750 == 0 && rc.canBuyGlobal(GlobalUpgrade.ACTION)) {
                         rc.buyGlobal(GlobalUpgrade.ACTION);
                     }
@@ -157,20 +157,22 @@ public strictfp class RobotPlayer {
 
                     MapInfo[] nearbyMap = rc.senseNearbyMapInfos();
 
-                    for (int i = nearbyMap.length - 1; i >=0; i--) {
+                    for (int i = nearbyMap.length - 1; i >= 0; i--) {
                         MapInfo singleMap = nearbyMap[i];
                         int distToSingleMap = rc.getLocation().distanceSquaredTo(singleMap.getMapLocation());
                         if (singleMap.isWater() && distToSingleMap < lowestDistToWater) {
                             lowestDistToWater = distToSingleMap;
                             nearestWater = singleMap.getMapLocation();
                         }
-                        if (singleMap.getTrapType() == TrapType.EXPLOSIVE && distToSingleMap < lowestDistToExplosiveTrap) {
+                        if (singleMap.getTrapType() == TrapType.EXPLOSIVE
+                                && distToSingleMap < lowestDistToExplosiveTrap) {
                             lowestDistToExplosiveTrap = distToSingleMap;
                             nearestExplosiveTrap = singleMap.getMapLocation();
                         } else if (singleMap.getTrapType() == TrapType.STUN && distToSingleMap < lowestDistToStunTrap) {
                             lowestDistToStunTrap = distToSingleMap;
                             nearestStunTrap = singleMap.getMapLocation();
-                        } else if (singleMap.getTrapType() == TrapType.WATER && distToSingleMap < lowestDistToWaterTrap) {
+                        } else if (singleMap.getTrapType() == TrapType.WATER
+                                && distToSingleMap < lowestDistToWaterTrap) {
                             lowestDistToWaterTrap = distToSingleMap;
                             nearestWaterTrap = singleMap.getMapLocation();
                         }
@@ -261,11 +263,11 @@ public strictfp class RobotPlayer {
                         // FLOW OF LOGIC:
                         // 1. Randomly target a certain point on the map and when the target has been
                         // reached,
-                        // designate a new target (ie. random scouting). 
+                        // designate a new target (ie. random scouting).
                         // 2. IF a breadcrumb is seen within vision radius, go to that square, otherwise
                         // continue
                         // random scouting
-                        //3. IF nearby water is not null, go to that square and clear it.
+                        // 3. IF nearby water is not null, go to that square and clear it.
 
                         // Get the location of all nearby crumbs
                         MapLocation[] nearbyCrumbs = rc.senseNearbyCrumbs(GameConstants.VISION_RADIUS_SQUARED);
@@ -294,7 +296,8 @@ public strictfp class RobotPlayer {
                         // water tile, otherwise generate a random target.
                         if (!activelyPursuingCrumb) {
                             if (nearestWater != null) {
-                                if (lowestDistToWater <= GameConstants.INTERACT_RADIUS_SQUARED && rc.canFill(nearestWater)) {
+                                if (lowestDistToWater <= GameConstants.INTERACT_RADIUS_SQUARED
+                                        && rc.canFill(nearestWater)) {
                                     rc.fill(nearestWater);
                                 } else {
                                     tgtLocation = nearestWater;
@@ -334,11 +337,12 @@ public strictfp class RobotPlayer {
 
                     } else if (role == INCOMBAT) {
 
-                        //Calculate the best retreating direction and best attackign direction
+                        // Calculate the best retreating direction and best attackign direction
                         // Simulate moving to any of the four cardinal directions. Calculate the average
                         // distance from all enemies.
                         // Best Retreat direction is the direction that maximizes average Distance
-                        // Best Attacking direction is the direction that tries to keep troops at an average distance
+                        // Best Attacking direction is the direction that tries to keep troops at an
+                        // average distance
                         // equal to the attack radius squared.
 
                         Direction bestRetreat = null;
@@ -349,7 +353,8 @@ public strictfp class RobotPlayer {
                         for (int i = allCombatDirs.length - 1; i >= 0; i--) {
                             MapLocation tempLoc = rc.getLocation().add(allCombatDirs[i]);
 
-                            if (rc.canSenseLocation(tempLoc) && rc.sensePassability(tempLoc) && !rc.canSenseRobotAtLocation(tempLoc)) {
+                            if (rc.canSenseLocation(tempLoc) && rc.sensePassability(tempLoc)
+                                    && !rc.canSenseRobotAtLocation(tempLoc)) {
                                 Integer[] allDistances = new Integer[enemies.length];
                                 for (int j = enemies.length - 1; j >= 0; j--) {
                                     if (enemies[j] != null) {
@@ -377,10 +382,11 @@ public strictfp class RobotPlayer {
                             }
                         }
 
-                        //Decide whether the bestAttack direction or bestRetreat direction is optimal
+                        // Decide whether the bestAttack direction or bestRetreat direction is optimal
                         // for the situation.
 
-                        // if health is less than half your health or the number of hostiles is larger than 1,
+                        // if health is less than half your health or the number of hostiles is larger
+                        // than 1,
                         // go to best retreat dir. Otherwise, go to the best Attack dir.
                         Direction optimalDir = null;
                         if (rc.getHealth() < GameConstants.DEFAULT_HEALTH / 2 || numHostiles > numFriendlies) {
@@ -389,28 +395,30 @@ public strictfp class RobotPlayer {
                             optimalDir = bestAttack;
                         }
 
-                        //Calculate what would be the lowest health of a hostile after a movement.
+                        // Calculate what would be the lowest health of a hostile after a movement.
                         MapLocation aflowestCurrHostile = null;
                         int aflowestCurrHostileHealth = Integer.MAX_VALUE;
 
                         if (optimalDir != null) {
-                            RobotInfo[] afhostiles = rc.senseNearbyRobots(rc.getLocation().add(optimalDir), GameConstants.ATTACK_RADIUS_SQUARED, rc.getTeam().opponent());
+                            RobotInfo[] afhostiles = rc.senseNearbyRobots(rc.getLocation().add(optimalDir),
+                                    GameConstants.ATTACK_RADIUS_SQUARED, rc.getTeam().opponent());
 
                             for (int i = afhostiles.length - 1; i >= 0; i--) {
 
-                                    if (afhostiles[i].getHealth() < aflowestCurrHostileHealth) {
-                                        aflowestCurrHostileHealth = afhostiles[i].getHealth();
-                                        aflowestCurrHostile = afhostiles[i].getLocation();
-                                    }
+                                if (afhostiles[i].getHealth() < aflowestCurrHostileHealth) {
+                                    aflowestCurrHostileHealth = afhostiles[i].getHealth();
+                                    aflowestCurrHostile = afhostiles[i].getLocation();
+                                }
 
                             }
                         }
 
                         // 1. if there is a hostile within range and not one after you move,
-                        //  while you can attack it, do so and move to the optimal dir
-                        // 2.  else if there is a hostile after moving and not one currently, move, then attack
-                        // 3.  else, if both exist, choose move or attack order based on which would
-                        //  yield damage to the lowest health enemy.
+                        // while you can attack it, do so and move to the optimal dir
+                        // 2. else if there is a hostile after moving and not one currently, move, then
+                        // attack
+                        // 3. else, if both exist, choose move or attack order based on which would
+                        // yield damage to the lowest health enemy.
                         if (aflowestCurrHostile == null && lowestCurrHostile != null) {
                             while (rc.canAttack(lowestCurrHostile)) {
                                 rc.attack(lowestCurrHostile);
@@ -447,31 +455,33 @@ public strictfp class RobotPlayer {
                             }
                         }
 
-
-
                     } else if (role == BUILDING) {
                         // Iterate through all building directions, and go through the following logic:
-                        //1 . If there are no nearby Explosive traps, build one,
-                        //2. Else if there are no nearby Stun Traps, build one.
-                        //3. Else if there are both, prioritize builiding another explosive trap that is at least 10 sq units away from the first one
-                        //4. IF you can't build the explosive trap, but can build the stun trap at least 7 sq units away from the first one, do so.
+                        // 1 . If there are no nearby Explosive traps, build one,
+                        // 2. Else if there are no nearby Stun Traps, build one.
+                        // 3. Else if there are both, prioritize builiding another explosive trap that
+                        // is at least 10 sq units away from the first one
+                        // 4. IF you can't build the explosive trap, but can build the stun trap at
+                        // least 7 sq units away from the first one, do so.
                         for (int i = Direction.allDirections().length - 1; i >= 0; i--) {
                             MapLocation buildLoc = rc.getLocation().add(Direction.allDirections()[i]);
                             if (nearestExplosiveTrap == null) {
-                                if (rc.canBuild(TrapType.EXPLOSIVE, buildLoc)){
+                                if (rc.canBuild(TrapType.EXPLOSIVE, buildLoc)) {
                                     rc.build(TrapType.EXPLOSIVE, buildLoc);
                                     break;
                                 }
                             } else if (nearestStunTrap == null) {
-                                if (rc.canBuild(TrapType.STUN, buildLoc)){
+                                if (rc.canBuild(TrapType.STUN, buildLoc)) {
                                     rc.build(TrapType.STUN, buildLoc);
                                     break;
                                 }
                             } else {
-                                if (buildLoc.distanceSquaredTo(nearestExplosiveTrap) > 10 && rc.canBuild(TrapType.EXPLOSIVE, buildLoc)) {
+                                if (buildLoc.distanceSquaredTo(nearestExplosiveTrap) > 10
+                                        && rc.canBuild(TrapType.EXPLOSIVE, buildLoc)) {
                                     rc.build(TrapType.EXPLOSIVE, buildLoc);
                                     break;
-                                } else if (buildLoc.distanceSquaredTo(nearestStunTrap) > 7 && rc.canBuild(TrapType.STUN, buildLoc)) {
+                                } else if (buildLoc.distanceSquaredTo(nearestStunTrap) > 7
+                                        && rc.canBuild(TrapType.STUN, buildLoc)) {
                                     rc.build(TrapType.STUN, buildLoc);
                                     break;
                                 }
@@ -578,8 +588,8 @@ public strictfp class RobotPlayer {
                     // // We can also move our code into different methods or classes to better
                     // // organize it!
                     // updateEnemyRobots(rc);
-                    Comms.update();
                 }
+                Comms.update();
 
             } catch (GameActionException e) {
                 // Oh no! It looks like we did something illegal in the Battlecode world. You
