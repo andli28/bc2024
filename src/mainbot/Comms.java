@@ -177,10 +177,10 @@ public class Comms {
         return new MapLocation[] { decodeLoc(comms[0]), decodeLoc(comms[1]), decodeLoc(comms[2]) };
     }
 
-    public static MapLocation closestDisplacedAllyFlag() {
-        MapLocation closest = null;
-        int dist = 9999;
-        MapLocation src = rc.getLocation();
+    // returns arr of size 3 containing displaced ally flag current locations, can
+    // contain null entries
+    public static MapLocation[] getDisplacedAllyFlags() {
+        MapLocation[] displacedAllyFlags = new MapLocation[] { null, null, null };
         for (int i = 3; --i >= 0;) {
             MapLocation loc = decodeLoc(comms[3 + i]);
             if (loc == null)
@@ -192,10 +192,24 @@ public class Comms {
                     displaced = false;
             }
             if (displaced) {
-                if (closest == null || dist > loc.distanceSquaredTo(src)) {
-                    closest = loc;
-                    dist = src.distanceSquaredTo(loc);
-                }
+                displacedAllyFlags[i] = loc;
+            }
+        }
+        return displacedAllyFlags;
+    }
+
+    public static MapLocation closestDisplacedAllyFlag() {
+        MapLocation closest = null;
+        int dist = 9999;
+        MapLocation src = rc.getLocation();
+        MapLocation[] displayedAllyFlags = getDisplacedAllyFlags();
+        for (int i = 3; --i >= 0;) {
+            MapLocation loc = displayedAllyFlags[i];
+            if (loc == null)
+                continue;
+            if (closest == null || dist > loc.distanceSquaredTo(src)) {
+                closest = loc;
+                dist = src.distanceSquaredTo(loc);
             }
         }
         return closest;
@@ -221,16 +235,24 @@ public class Comms {
         }
     }
 
+    // returns arr of len 4 of sampled enemies, can contain null entries
+    public static MapLocation[] getSampledEnemies() {
+        MapLocation[] enemies = new MapLocation[4];
+        for (int i = 4; --i >= 0;) {
+            enemies[i] = decodeLoc(comms[13 + i]);
+        }
+        return enemies;
+    }
+
     public static MapLocation getClosestSampleEnemy() {
         MapLocation closestSampleEnemyLoc = null;
+        MapLocation[] sampledEnemies = getSampledEnemies();
         for (int i = 4; --i >= 0;) {
-            if (comms[13 + i] != 0) {
-                MapLocation enemy = decodeLoc(comms[13 + i]);
-                if (closestSampleEnemyLoc == null
-                        || (closestSampleEnemyLoc.distanceSquaredTo(rc.getLocation()) > enemy
-                                .distanceSquaredTo(rc.getLocation()))) {
-                    closestSampleEnemyLoc = enemy;
-                }
+            MapLocation enemy = sampledEnemies[i];
+            if (closestSampleEnemyLoc == null
+                    || (closestSampleEnemyLoc.distanceSquaredTo(rc.getLocation()) > enemy
+                            .distanceSquaredTo(rc.getLocation()))) {
+                closestSampleEnemyLoc = enemy;
             }
         }
         return closestSampleEnemyLoc;
