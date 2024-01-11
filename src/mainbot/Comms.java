@@ -4,6 +4,33 @@ import battlecode.common.*;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedList;
+
+enum Spec {
+    ATT,
+    BUILD,
+    HEAL,
+    NONE
+}
+
+// from
+// https://www.geeksforgeeks.org/creating-a-user-defined-printable-pair-class-in-java/
+// since im lazy
+class Pair {
+    int first, second;
+
+    // constructor for assigning values
+    Pair(int first, int second) {
+        this.first = first;
+        this.second = second;
+    }
+
+    // printing the pair class
+    @Override
+    public String toString() {
+        return first + "," + second;
+    }
+}
 
 public class Comms {
     // comms[0:2][15] ally flag exists
@@ -14,14 +41,12 @@ public class Comms {
     // comms[6:8][11:6], [5:0] x, y coords of default enemy flag locs
     // comms[9:11][15] enemy flag exists
     // comms[9:11][11:6], [5:0] x, y coords of current enemy flag locs
-    // comms[12][11:6], [5:0] counts of attack, build spec ducks
-    // comms[12][15:10] count of heal spec ducks
-    // comms[13:16][15], [11:6], [5:0] exists, x, y of 4 randomly sampled enemies
-    // comms[17:19][15], [14], [11:6], [5:0] exists, picked up, x, y of closest
-    // enemy to each ally
-    // flag(current loc)
-    // comms[20] unit count for random sampling and id sequencing
-    // comms[21] enemy alive count
+    // comms[12] ally attack spec ducks
+    // comms[13] ally build spec ducks
+    // comms[14] ally heal spec ducks
+    // comms[15:18][15], [11:6], [5:0] exists, x, y of 4 randomly sampled enemies
+    // comms[19] unit count for random sampling and id sequencing
+    // comms[20] enemy alive count(overestimate)
 
     public static final int[] ALLY_DEFAULT_FLAG_INDICES = { 0, 1, 2 };
     public static final int[] ALLY_CURRENT_FLAG_INDICES = { 3, 4, 5 };
@@ -37,6 +62,10 @@ public class Comms {
     public static Team carrying;
     public static int[] refreshIdxs = new int[6];
     public static int refreshPtr = -1;
+    public static Spec prevSpec = Spec.NONE;
+    // killed enemy unit respawn tracking
+    public static int turnKillCount = 0;
+    public static LinkedList<Pair> respawnTimer = new LinkedList<>();
 
     public static void receive() throws GameActionException {
         // yea yea unroll this later
@@ -54,8 +83,18 @@ public class Comms {
 
     // sequence unit ids(0-49) assumes starts at 0
     public static void sequence() throws GameActionException {
-        shortId = comms[20];
-        write(20, shortId + 1);
+        shortId = comms[19];
+        write(19, shortId + 1);
+    }
+
+    // init comm values updated by first unit
+    public static void initialize() throws GameActionException {
+        receive();
+        // this should be called round 1 before update and so first unit sees 0(before
+        // sequence)
+        if (comms[19] == 0) {
+            write(20, 50);
+        }
     }
 
     public static void update() throws GameActionException {
@@ -70,6 +109,44 @@ public class Comms {
             write(refreshIdxs[refreshPtr], 0);
         }
 
+        // current spec count
+        Spec curSpec;
+        if (rc.getLevel(SkillType.ATTACK) >= 4) {
+            curSpec = Spec.ATT;
+        } else if (rc.getLevel(SkillType.BUILD) >= 4) {
+            curSpec = Spec.BUILD;
+        } else if (rc.getLevel(SkillType.HEAL) >= 4) {
+            curSpec = Spec.HEAL;
+        } else {
+            curSpec = Spec.NONE;
+        }
+
+        // if cur spec different from prev spec update counter
+        if (curSpec != prevSpec) {
+            switch (prevSpec) {
+                case ATT:
+                    write(12, comms[12] - 1);
+                    break;
+                case BUILD:
+                    write(13, comms[13] - 1);
+                    break;
+                case HEAL:
+                    write(14, comms[14] - 1);
+                    break;
+            }
+            switch (curSpec) {
+                case ATT:
+                    write(12, comms[12] + 1);
+                    break;
+                case BUILD:
+                    write(13, comms[13] + 1);
+                    break;
+                case HEAL:
+                    write(14, comms[14] + 1);
+                    break;
+            }
+        }
+
         // sense updating for alive guys only
         if (rc.isSpawned()) {
             // reformat to extract this
@@ -81,9 +158,31 @@ public class Comms {
             updateCurrEnemyFlags();
         }
 
+        // kill count
+        if (turnKillCount > 0) {
+            respawnTimer.add(new Pair(rc.getRoundNum() + 25, turnKillCount));
+        }
+        // update global enemy estimate
+        int delta = -turnKillCount;
+        // go through respawn q, for prev killed units that could have respawned add
+        // them back to global q
+        while (respawnTimer.size() > 0) {
+            Pair nextRespawn = respawnTimer.peek();
+            if (nextRespawn.first <= rc.getRoundNum()) {
+                respawnTimer.remove();
+                delta += nextRespawn.second;
+            } else {
+                break;
+            }
+        }
+        write(20, comms[20] + delta);
+        turnKillCount = 0;
+        prevSpec = curSpec;
+
         // clear comms if last unit for next turn
         if (shortId == 49) {
-            write(20, 0);
+            // clear unit spec, sequence, sampled enemy counts
+            write(19, 0);
             clearRandomEnemies();
         }
     }
@@ -297,19 +396,19 @@ public class Comms {
     }
 
     public static void clearRandomEnemies() throws GameActionException {
-        write(13, 0);
-        write(14, 0);
         write(15, 0);
         write(16, 0);
+        write(17, 0);
+        write(18, 0);
     }
 
     public static void sampleRandomEnemies() throws GameActionException {
         if (nearbyEnemies.length > 0 && rc.canWriteSharedArray(63, 0)) {
             for (int i = 4; --i >= 0;) {
                 RobotInfo r = nearbyEnemies[RobotPlayer.rng.nextInt(nearbyEnemies.length)];
-                MapLocation currSight = decodeLoc(comms[13 + i]);
-                if (currSight == null || (RobotPlayer.rng.nextDouble() < 1.f / (comms[20]))) {
-                    write(13 + i, encodeLoc(r.getLocation()));
+                MapLocation currSight = decodeLoc(comms[15 + i]);
+                if (currSight == null || (RobotPlayer.rng.nextDouble() < 1.f / (comms[19]))) {
+                    write(15 + i, encodeLoc(r.getLocation()));
                     break;
                 }
             }
@@ -320,7 +419,7 @@ public class Comms {
     public static MapLocation[] getSampledEnemies() {
         MapLocation[] enemies = new MapLocation[4];
         for (int i = 4; --i >= 0;) {
-            enemies[i] = decodeLoc(comms[13 + i]);
+            enemies[i] = decodeLoc(comms[15 + i]);
         }
         return enemies;
     }

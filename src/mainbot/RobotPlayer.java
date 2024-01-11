@@ -131,14 +131,16 @@ public strictfp class RobotPlayer {
                 if (!rc.isSpawned()) {
                     MapLocation[] spawnLocs = rc.getAllySpawnLocations();
                     // If theres a displaced flag, find the spawn location
-                    // that has the smallest distance to the first displaced flag in the list and spawn there
+                    // that has the smallest distance to the first displaced flag in the list and
+                    // spawn there
                     // Else if there is a randomly sampled enemy, find the spawn location
-                    // flag pair that has the smallest distance to the first sampled enemy in the list and spawn there
+                    // flag pair that has the smallest distance to the first sampled enemy in the
+                    // list and spawn there
                     // Spawn anywhere you can for now(spawns 50 in turn 1)
 
                     MapLocation[] displacedFlags = Comms.getDisplacedAllyFlags();
                     MapLocation displacedFlag = null;
-                    for (int i = displacedFlags.length - 1; i>=0; i--) {
+                    for (int i = displacedFlags.length - 1; i >= 0; i--) {
                         if (displacedFlags[i] != null) {
                             displacedFlag = displacedFlags[i];
                             break;
@@ -147,7 +149,7 @@ public strictfp class RobotPlayer {
 
                     MapLocation[] sampledEnemies = Comms.getSampledEnemies();
                     MapLocation sampledEnemy = null;
-                    for (int i = sampledEnemies.length -1 ;i>=0; i--) {
+                    for (int i = sampledEnemies.length - 1; i >= 0; i--) {
                         if (sampledEnemies[i] != null) {
                             sampledEnemy = sampledEnemies[i];
                             break;
@@ -158,7 +160,7 @@ public strictfp class RobotPlayer {
                     if (displacedFlag != null) {
                         int distToClosestToDisplacedFlag = Integer.MAX_VALUE;
                         MapLocation closestToDisplacedFlag = null;
-                        for (int i = spawnLocs.length-1; i>=0; i--) {
+                        for (int i = spawnLocs.length - 1; i >= 0; i--) {
                             if (spawnLocs[i].distanceSquaredTo(displacedFlag) < distToClosestToDisplacedFlag) {
                                 distToClosestToDisplacedFlag = spawnLocs[i].distanceSquaredTo(displacedFlag);
                                 closestToDisplacedFlag = spawnLocs[i];
@@ -170,17 +172,17 @@ public strictfp class RobotPlayer {
                     } else if (sampledEnemy != null) {
                         int distToClosestToSampledEnemy = Integer.MAX_VALUE;
                         MapLocation closestToSampledEnemy = null;
-                        for (int i = spawnLocs.length-1; i>=0; i--) {
+                        for (int i = spawnLocs.length - 1; i >= 0; i--) {
                             if (spawnLocs[i].distanceSquaredTo(sampledEnemy) < distToClosestToSampledEnemy) {
                                 distToClosestToSampledEnemy = spawnLocs[i].distanceSquaredTo(sampledEnemy);
-                                closestToSampledEnemy= spawnLocs[i];
+                                closestToSampledEnemy = spawnLocs[i];
                             }
                         }
                         if (rc.canSpawn(closestToSampledEnemy)) {
                             rc.spawn(closestToSampledEnemy);
                         }
                     } else {
-                        for (int i = spawnLocs.length; --i >= 0; ) {
+                        for (int i = spawnLocs.length; --i >= 0;) {
                             MapLocation loc = spawnLocs[i];
                             if (rc.canSpawn(loc))
                                 rc.spawn(loc);
@@ -382,7 +384,8 @@ public strictfp class RobotPlayer {
                             // map, including the corners.
                             else if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||
                                     (rc.canSenseLocation(tgtLocation) && !rc.sensePassability(tgtLocation))
-                                    || turnsNotReachedTgt > 50 || lastTurnPursingCrumb || lastTurnPursingWater || lastTurnDefending) {
+                                    || turnsNotReachedTgt > 50 || lastTurnPursingCrumb || lastTurnPursingWater
+                                    || lastTurnDefending) {
                                 tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
                                         3, rc.getMapHeight() - 3);
                                 lastTurnPursingCrumb = false;
@@ -670,25 +673,29 @@ public strictfp class RobotPlayer {
                     // // organize it!
                     // updateEnemyRobots(rc);
                 }
+                if (rc.getRoundNum() == 1) {
+                    Comms.initialize();
+                }
                 Comms.update();
 
             }
-//            catch (GameActionException e) {
-//                // Oh no! It looks like we did something illegal in the Battlecode world. You
-//                // should
-//                // handle GameActionExceptions judiciously, in case unexpected events occur in
-//                // the game
-//                // world. Remember, uncaught exceptions cause your robot to explode!
-//                System.out.println("GameActionException");
-//                e.printStackTrace();
-//
-//            } catch (Exception e) {
-//                // Oh no! It looks like our code tried to do something bad. This isn't a
-//                // GameActionException, so it's more likely to be a bug in our code.
-//                System.out.println("Exception");
-//                e.printStackTrace();
-//
-//            }
+            // catch (GameActionException e) {
+            // // Oh no! It looks like we did something illegal in the Battlecode world. You
+            // // should
+            // // handle GameActionExceptions judiciously, in case unexpected events occur
+            // in
+            // // the game
+            // // world. Remember, uncaught exceptions cause your robot to explode!
+            // System.out.println("GameActionException");
+            // e.printStackTrace();
+            //
+            // } catch (Exception e) {
+            // // Oh no! It looks like our code tried to do something bad. This isn't a
+            // // GameActionException, so it's more likely to be a bug in our code.
+            // System.out.println("Exception");
+            // e.printStackTrace();
+            //
+            // }
             finally {
                 // Signify we've done everything we want to do, thereby ending our turn.
                 // This will make our code wait until the next turn, and then perform this loop
