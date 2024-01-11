@@ -284,6 +284,17 @@ public strictfp class RobotPlayer {
                         }
                     }
 
+                    //Calculate the average distance from all enemies.
+                    Integer[] allDistancesFromEnemies = new Integer[enemies.length];
+                    for (int j = enemies.length - 1; j >= 0; j--) {
+                        allDistancesFromEnemies[j] = rc.getLocation().distanceSquaredTo(enemies[j].getLocation());
+                    }
+                    int sumOfDistances = 0;
+                    for (int k = allDistancesFromEnemies.length - 1; k >= 0; k--) {
+                        sumOfDistances += allDistancesFromEnemies[k];
+                    }
+                    float averageDistFromEnemies = (float) sumOfDistances / allDistancesFromEnemies.length;
+
                     // Friendly Counting, finding number of friendlies, number of friends in range,
                     // and nearby friend with lowest HP
                     RobotInfo[] friendlies = rc.senseNearbyRobots(rc.getLocation(), GameConstants.VISION_RADIUS_SQUARED,
@@ -438,8 +449,8 @@ public strictfp class RobotPlayer {
 
                         Direction bestRetreat = null;
                         Direction bestAttack = null;
-                        float bestRetreatDist = Integer.MIN_VALUE;
-                        float bestAttackDist = Integer.MAX_VALUE;
+                        float bestRetreatDist = averageDistFromEnemies;
+                        float bestAttackDist = averageDistFromEnemies;
 
                         for (int i = allCombatDirs.length - 1; i >= 0; i--) {
                             MapLocation tempLoc = rc.getLocation().add(allCombatDirs[i]);
@@ -578,7 +589,7 @@ public strictfp class RobotPlayer {
                         //enable units to go in any direction.
                         // optimal direction is prioritized by it being the furthest from enemies
                         Direction bestRetreat = null;
-                        float bestRetreatDist = Integer.MIN_VALUE;
+                        float bestRetreatDist = averageDistFromEnemies;
 
                         for (int i = directions.length - 1; i >= 0; i--) {
                             MapLocation tempLoc = rc.getLocation().add(directions[i]);
@@ -807,6 +818,14 @@ public strictfp class RobotPlayer {
         }
     }
 
+    /**
+     * attackMove ensures that you are attacking the lowest health enemy by deciding when to attack first or move first
+     * @param rc robot controller
+     * @param optimalDir optimal direction that was decided to move
+     * @param lowestCurrHostile current hostile with the lowest health
+     * @param lowestCurrHostileHealth health of the current hostile with the lowest health
+     * @throws GameActionException
+     */
     public static void attackMove(RobotController rc, Direction optimalDir, MapLocation lowestCurrHostile, int lowestCurrHostileHealth) throws GameActionException {
         // Calculate what would be the lowest health of a hostile after a movement.
         MapLocation aflowestCurrHostile = null;
