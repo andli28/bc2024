@@ -77,6 +77,7 @@ public strictfp class RobotPlayer {
     static final int RETURNING = 4;
     static final int DEFENDING = 5;
     static final int HEALING = 6;
+    static final int WOUNDED = 7;
 
     // Default unit to scouting.
     static int role = SCOUTING;
@@ -315,6 +316,7 @@ public strictfp class RobotPlayer {
 
                     // Role Delegation
                     // If you have a flag, return
+                    // else if your health is below retreat threshold, you're wounded
                     // else if there are nearby enemies, you're in combat
                     // else if there is a nearby flag to be picked up, you're capturing
                     // else if you have more than 250 crumbs and have seen combat, you're building
@@ -324,6 +326,9 @@ public strictfp class RobotPlayer {
                     if (rc.hasFlag()) {
                         role = RETURNING;
                         rc.setIndicatorString("Returning");
+                    } else if (rc.getHealth() < GameConstants.DEFAULT_HEALTH * .4) {
+                        role = WOUNDED;
+                        rc.setIndicatorString("Wounded");
                     } else if (enemies.length != 0) {
                         role = INCOMBAT;
                         haveSeenCombat = true;
@@ -481,74 +486,7 @@ public strictfp class RobotPlayer {
                             optimalDir = bestAttack;
                         }
 
-                        // Calculate what would be the lowest health of a hostile after a movement.
-                        MapLocation aflowestCurrHostile = null;
-                        int aflowestCurrHostileHealth = Integer.MAX_VALUE;
-
-                        if (optimalDir != null) {
-                            RobotInfo[] afhostiles = rc.senseNearbyRobots(rc.getLocation().add(optimalDir),
-                                    GameConstants.ATTACK_RADIUS_SQUARED, rc.getTeam().opponent());
-
-                            for (int i = afhostiles.length - 1; i >= 0; i--) {
-
-                                if (afhostiles[i].getHealth() < aflowestCurrHostileHealth) {
-                                    aflowestCurrHostileHealth = afhostiles[i].getHealth();
-                                    aflowestCurrHostile = afhostiles[i].getLocation();
-                                }
-
-                            }
-                        }
-
-                        // 1. if there is a hostile within range and not one after you move,
-                        // while you can attack it, do so and move to the optimal dir
-                        // 2. else if there is a hostile after moving and not one currently, move, then
-                        // attack
-                        // 3. else if, if both exist, choose move or attack order based on which would
-                        // yield damage to the lowest health enemy.
-                        // 4. else if they both don't exist, but optimal dir is not null plan to do some sort of movement
-                        //  if there are > 3 nearby enemies in vision and you can place a trap do so (there is also a calculation for if you want to move first or build a trap first
-                        // else if optimal dir does not exist, still consider placing a trap
-                        if (aflowestCurrHostile == null && lowestCurrHostile != null) {
-                            while (rc.canAttack(lowestCurrHostile)) {
-                                rc.attack(lowestCurrHostile);
-                            }
-                            if (optimalDir != null) {
-                                if (rc.canMove(optimalDir)) {
-                                    rc.move(optimalDir);
-                                }
-                            }
-                        } else if (aflowestCurrHostile != null && lowestCurrHostile == null) {
-                            if (rc.canMove(optimalDir)) {
-                                rc.move(optimalDir);
-                            }
-                            while (rc.canAttack(aflowestCurrHostile)) {
-                                rc.attack(aflowestCurrHostile);
-                            }
-                        } else if (aflowestCurrHostile != null && lowestCurrHostile != null) {
-                            if (aflowestCurrHostileHealth < lowestCurrHostileHealth) {
-                                if (rc.canMove(optimalDir)) {
-                                    rc.move(optimalDir);
-                                }
-                                while (rc.canAttack(aflowestCurrHostile)) {
-                                    rc.attack(aflowestCurrHostile);
-                                }
-                            } else {
-                                while (lowestCurrHostile != null && rc.canAttack(lowestCurrHostile)) {
-                                    rc.attack(lowestCurrHostile);
-                                }
-                                if (optimalDir != null) {
-                                    if (rc.canMove(optimalDir)) {
-                                        rc.move(optimalDir);
-                                    }
-                                }
-                            }
-                        } else {
-                            if (optimalDir != null) {
-                                if (rc.canMove(optimalDir)) {
-                                    rc.move(optimalDir);
-                                }
-                            }
-                        }
+                        attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
 
                     } else if (role == BUILDING) {
 
@@ -635,6 +573,42 @@ public strictfp class RobotPlayer {
                             rc.move(dir);
                         }
 
+                    } else if (role == WOUNDED) {
+
+                        //enable units to go in any direction.
+                        // optimal direction is prioritized by it being the furthest from enemies
+                        Direction bestRetreat = null;
+                        float bestRetreatDist = Integer.MIN_VALUE;
+
+                        for (int i = directions.length - 1; i >= 0; i--) {
+                            MapLocation tempLoc = rc.getLocation().add(directions[i]);
+
+                            if (rc.canSenseLocation(tempLoc) && rc.sensePassability(tempLoc)
+                                    && !rc.canSenseRobotAtLocation(tempLoc)) {
+                                Integer[] allDistances = new Integer[enemies.length];
+                                for (int j = enemies.length - 1; j >= 0; j--) {
+                                    if (enemies[j] != null) {
+                                        int tempDist = tempLoc.distanceSquaredTo(enemies[j].getLocation());
+                                        allDistances[j] = tempDist;
+                                    }
+                                }
+                                int numInArray = 0;
+                                int sum = 0;
+                                for (int k = allDistances.length - 1; k >= 0; k--) {
+                                    if (allDistances[k] != null) {
+                                        sum += allDistances[k];
+                                        numInArray++;
+                                    }
+                                }
+                                float averageDist = (float) sum / numInArray;
+                                if (averageDist > bestRetreatDist) {
+                                    bestRetreatDist = averageDist;
+                                    bestRetreat = directions[i];
+                                }
+                            }
+                        }
+
+                        attackMove(rc, bestRetreat, lowestCurrHostile, lowestCurrHostileHealth);
                     }
 
                     while (lowestCurrFriendly != null && rc.canHeal(lowestCurrFriendly)) {
@@ -828,6 +802,75 @@ public strictfp class RobotPlayer {
                         rc.build(TrapType.STUN, buildLoc);
                         break;
                     }
+                }
+            }
+        }
+    }
+
+    public static void attackMove(RobotController rc, Direction optimalDir, MapLocation lowestCurrHostile, int lowestCurrHostileHealth) throws GameActionException {
+        // Calculate what would be the lowest health of a hostile after a movement.
+        MapLocation aflowestCurrHostile = null;
+        int aflowestCurrHostileHealth = Integer.MAX_VALUE;
+
+        if (optimalDir != null) {
+            RobotInfo[] afhostiles = rc.senseNearbyRobots(rc.getLocation().add(optimalDir),
+                    GameConstants.ATTACK_RADIUS_SQUARED, rc.getTeam().opponent());
+
+            for (int i = afhostiles.length - 1; i >= 0; i--) {
+
+                if (afhostiles[i].getHealth() < aflowestCurrHostileHealth) {
+                    aflowestCurrHostileHealth = afhostiles[i].getHealth();
+                    aflowestCurrHostile = afhostiles[i].getLocation();
+                }
+
+            }
+        }
+
+        // 1. if there is a hostile within range and not one after you move,
+        // while you can attack it, do so and move to the optimal dir
+        // 2. else if there is a hostile after moving and not one currently, move, then
+        // attack
+        // 3. else if, if both exist, choose move or attack order based on which would
+        // yield damage to the lowest health enemy.
+        // 4. else if they both don't exist, move in optimal dir
+        if (aflowestCurrHostile == null && lowestCurrHostile != null) {
+            while (rc.canAttack(lowestCurrHostile)) {
+                rc.attack(lowestCurrHostile);
+            }
+            if (optimalDir != null) {
+                if (rc.canMove(optimalDir)) {
+                    rc.move(optimalDir);
+                }
+            }
+        } else if (aflowestCurrHostile != null && lowestCurrHostile == null) {
+            if (rc.canMove(optimalDir)) {
+                rc.move(optimalDir);
+            }
+            while (rc.canAttack(aflowestCurrHostile)) {
+                rc.attack(aflowestCurrHostile);
+            }
+        } else if (aflowestCurrHostile != null && lowestCurrHostile != null) {
+            if (aflowestCurrHostileHealth < lowestCurrHostileHealth) {
+                if (rc.canMove(optimalDir)) {
+                    rc.move(optimalDir);
+                }
+                while (rc.canAttack(aflowestCurrHostile)) {
+                    rc.attack(aflowestCurrHostile);
+                }
+            } else {
+                while (lowestCurrHostile != null && rc.canAttack(lowestCurrHostile)) {
+                    rc.attack(lowestCurrHostile);
+                }
+                if (optimalDir != null) {
+                    if (rc.canMove(optimalDir)) {
+                        rc.move(optimalDir);
+                    }
+                }
+            }
+        } else {
+            if (optimalDir != null) {
+                if (rc.canMove(optimalDir)) {
+                    rc.move(optimalDir);
                 }
             }
         }
