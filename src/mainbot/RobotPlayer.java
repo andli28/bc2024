@@ -124,6 +124,7 @@ public strictfp class RobotPlayer {
             // Try/catch blocks stop unhandled exceptions, which cause your robot to
             // explode.
             try {
+                Comms.receive();
                 // Default battlecode code for spawning:
                 // Make sure you spawn your robot in before you attempt to take any actions!
                 // Robots not spawned in do not have vision of any tiles and cannot perform any

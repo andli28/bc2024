@@ -89,7 +89,6 @@ public class Comms {
 
     // init comm values updated by first unit
     public static void initialize() throws GameActionException {
-        receive();
         // this should be called round 1 before update and so first unit sees 0(before
         // sequence)
         if (comms[19] == 0) {
@@ -99,7 +98,6 @@ public class Comms {
 
     public static void update() throws GameActionException {
         // these can be called regardless of dead or alive
-        receive();
         sequence();
         // refresh the comms entries you are in charge of(1 turn lifespan)
         for (; refreshPtr >= 0; refreshPtr--) {
@@ -185,6 +183,10 @@ public class Comms {
             write(19, 0);
             clearRandomEnemies();
         }
+    }
+
+    public static int getEnemyCount() throws GameActionException {
+        return comms[20];
     }
 
     // removes all occurences of a value from indices if exists
