@@ -198,14 +198,15 @@ public strictfp class RobotPlayer {
                 if (rc.isSpawned()) {
 
                     // decide if this person should be a builder (if shortId <3)
-                    if (turnCount > 1 && Comms.shortId <3) {
+                    if (turnCount > 1 && Comms.shortId < 3) {
                         BUILDERSPECIALIST = true;
                     }
 
                     // 750 Turn upgrade + 1500 turn upgrade
                     if (turnCount == GameConstants.GLOBAL_UPGRADE_ROUNDS && rc.canBuyGlobal(GlobalUpgrade.ACTION)) {
                         rc.buyGlobal(GlobalUpgrade.ACTION);
-                    } else if (turnCount == 2*GameConstants.GLOBAL_UPGRADE_ROUNDS && rc.canBuyGlobal(GlobalUpgrade.HEALING)) {
+                    } else if (turnCount == 2 * GameConstants.GLOBAL_UPGRADE_ROUNDS
+                            && rc.canBuyGlobal(GlobalUpgrade.HEALING)) {
                         rc.buyGlobal(GlobalUpgrade.HEALING);
                     }
 
@@ -251,7 +252,8 @@ public strictfp class RobotPlayer {
                         }
                     }
 
-                    // if you were randomly chosen as a builder specialist && turncount is between 75 and max setup rounds
+                    // if you were randomly chosen as a builder specialist && turncount is between
+                    // 75 and max setup rounds
                     // , train by digging until you have 30 exp
 
                     if (BUILDERSPECIALIST && rc.getExperience(SkillType.BUILD) < 30 && turnCount > 25) {
@@ -299,7 +301,7 @@ public strictfp class RobotPlayer {
                         }
                     }
 
-                    //Calculate the average distance from all enemies.
+                    // Calculate the average distance from all enemies.
                     Integer[] allDistancesFromEnemies = new Integer[enemies.length];
                     for (int j = enemies.length - 1; j >= 0; j--) {
                         allDistancesFromEnemies[j] = rc.getLocation().distanceSquaredTo(enemies[j].getLocation());
@@ -340,7 +342,8 @@ public strictfp class RobotPlayer {
                         }
                     }
 
-                    // setting default threshold for portion of health before designated wounded as .4, but .9 for builderSpecialist
+                    // setting default threshold for portion of health before designated wounded as
+                    // .4, but .9 for builderSpecialist
                     double woundedRetreatThreshold = .4;
                     if (BUILDERSPECIALIST) {
                         woundedRetreatThreshold = .9;
@@ -348,17 +351,21 @@ public strictfp class RobotPlayer {
 
                     // Role Delegation
                     // If you have a flag, return
-                    // else if your health is below retreat threshold with nearby enemies, you're wounded
+                    // else if your health is below retreat threshold with nearby enemies, you're
+                    // wounded
                     // else if there are nearby enemies, you're in combat
                     // else if there is a nearby flag to be picked up, you're capturing
-                    // else if you have experience over 30 and have more than 250 crumbs and have seen combat, you're building
+                    // else if you have experience over 30 and have more than 250 crumbs and have
+                    // seen combat, you're building
                     // else if there is a close diplaced flag, you're defending
-                    // else if you're lowest current friendly seen has a health below the dfault, you're healing
+                    // else if you're lowest current friendly seen has a health below the dfault,
+                    // you're healing
                     // else, you're scouting
                     if (rc.hasFlag()) {
                         role = RETURNING;
                         rc.setIndicatorString("Returning");
-                    } else if (enemies.length != 0 && rc.getHealth() < GameConstants.DEFAULT_HEALTH * woundedRetreatThreshold) {
+                    } else if (enemies.length != 0
+                            && rc.getHealth() < GameConstants.DEFAULT_HEALTH * woundedRetreatThreshold) {
                         role = WOUNDED;
                         rc.setIndicatorString("Wounded");
                     } else if (enemies.length != 0) {
@@ -374,7 +381,7 @@ public strictfp class RobotPlayer {
                     } else if (closestDisplacedFlag != null) {
                         role = DEFENDING;
                         rc.setIndicatorString("Defending");
-                    } else if (lowestCurrFriendlySeenHealth < GameConstants.DEFAULT_HEALTH){
+                    } else if (lowestCurrFriendlySeenHealth < GameConstants.DEFAULT_HEALTH) {
                         role = HEALING;
                         rc.setIndicatorString("Healing");
                     } else {
@@ -513,13 +520,15 @@ public strictfp class RobotPlayer {
                         // go to best retreat dir. Otherwise, go to the best Attack dir.
                         Direction optimalDir = null;
 
-                        // at what decimal place of the max health will you retreat? Default .5, for a builder specialist, .9.
+                        // at what decimal place of the max health will you retreat? Default .5, for a
+                        // builder specialist, .9.
                         double inCombatRetreatThreshold = .5;
                         if (BUILDERSPECIALIST) {
                             inCombatRetreatThreshold = .9;
                         }
 
-                        if (rc.getHealth() < GameConstants.DEFAULT_HEALTH * inCombatRetreatThreshold || numHostiles > numFriendlies) {
+                        if (rc.getHealth() < GameConstants.DEFAULT_HEALTH * inCombatRetreatThreshold
+                                || numHostiles > numFriendlies || !rc.isActionReady()) {
                             optimalDir = bestRetreat;
                         } else {
                             optimalDir = bestAttack;
@@ -617,7 +626,7 @@ public strictfp class RobotPlayer {
 
                     } else if (role == WOUNDED) {
 
-                        //enable units to go in any direction.
+                        // enable units to go in any direction.
                         // optimal direction is prioritized by it being the furthest from enemies
                         Direction bestRetreat = null;
                         float bestRetreatDist = averageDistFromEnemies;
@@ -652,10 +661,12 @@ public strictfp class RobotPlayer {
 
                         attackMove(rc, bestRetreat, lowestCurrHostile, lowestCurrHostileHealth);
 
-                        // if you still have cooldown because you didn't attack, and you're a builder specialist, lay traps
+                        // if you still have cooldown because you didn't attack, and you're a builder
+                        // specialist, lay traps
                         if (BUILDERSPECIALIST) {
                             if (closestHostile != null) {
-                                layTrapWithinRangeOfEnemy(rc, nearestExplosiveTrap, nearestStunTrap, closestHostile, 10);
+                                layTrapWithinRangeOfEnemy(rc, nearestExplosiveTrap, nearestStunTrap, closestHostile,
+                                        10);
                             } else {
                                 layTrap(rc, nearestExplosiveTrap, nearestStunTrap);
                             }
@@ -774,12 +785,14 @@ public strictfp class RobotPlayer {
 
     /**
      * Building a trap (taking into account spacing)
-     * @param rc robotcontroller
+     * 
+     * @param rc                   robotcontroller
      * @param nearestExplosiveTrap maplocation of nearest explosive trap
-     * @param nearestStunTrap maplocation of nearest stun trap
+     * @param nearestStunTrap      maplocation of nearest stun trap
      * @throws GameActionException
      */
-    public static void layTrap(RobotController rc, MapLocation nearestExplosiveTrap, MapLocation nearestStunTrap) throws GameActionException {
+    public static void layTrap(RobotController rc, MapLocation nearestExplosiveTrap, MapLocation nearestStunTrap)
+            throws GameActionException {
         // Iterate through all building directions, and go through the following logic:
         // 1 . If there are no nearby Explosive traps, build one,
         // 2. Else if there are no nearby Stun Traps, build one.
@@ -814,15 +827,19 @@ public strictfp class RobotPlayer {
     }
 
     /**
-     * Building a trap (taking into account trap spacing) within the given range of the closest enemy
-     * @param rc robotcontroller
+     * Building a trap (taking into account trap spacing) within the given range of
+     * the closest enemy
+     * 
+     * @param rc                   robotcontroller
      * @param nearestExplosiveTrap maplocation of nearest explosive trap
-     * @param nearestStunTrap maplocation of nearest stun trap
-     * @param closestEnemy maplocation of nearest enemy trap
-     * @param buildThreshold max distance squared where a trap should be build from the enemy
+     * @param nearestStunTrap      maplocation of nearest stun trap
+     * @param closestEnemy         maplocation of nearest enemy trap
+     * @param buildThreshold       max distance squared where a trap should be build
+     *                             from the enemy
      * @throws GameActionException
      */
-    public static void layTrapWithinRangeOfEnemy(RobotController rc, MapLocation nearestExplosiveTrap, MapLocation nearestStunTrap, MapLocation closestEnemy, int buildThreshold) throws GameActionException {
+    public static void layTrapWithinRangeOfEnemy(RobotController rc, MapLocation nearestExplosiveTrap,
+            MapLocation nearestStunTrap, MapLocation closestEnemy, int buildThreshold) throws GameActionException {
         // Iterate through all building directions, and go through the following logic:
         // 1 . If there are no nearby Explosive traps, build one,
         // 2. Else if there are no nearby Stun Traps, build one.
@@ -859,14 +876,18 @@ public strictfp class RobotPlayer {
     }
 
     /**
-     * attackMove ensures that you are attacking the lowest health enemy by deciding when to attack first or move first
-     * @param rc robot controller
-     * @param optimalDir optimal direction that was decided to move
-     * @param lowestCurrHostile current hostile with the lowest health
-     * @param lowestCurrHostileHealth health of the current hostile with the lowest health
+     * attackMove ensures that you are attacking the lowest health enemy by deciding
+     * when to attack first or move first
+     * 
+     * @param rc                      robot controller
+     * @param optimalDir              optimal direction that was decided to move
+     * @param lowestCurrHostile       current hostile with the lowest health
+     * @param lowestCurrHostileHealth health of the current hostile with the lowest
+     *                                health
      * @throws GameActionException
      */
-    public static void attackMove(RobotController rc, Direction optimalDir, MapLocation lowestCurrHostile, int lowestCurrHostileHealth) throws GameActionException {
+    public static void attackMove(RobotController rc, Direction optimalDir, MapLocation lowestCurrHostile,
+            int lowestCurrHostileHealth) throws GameActionException {
         // Calculate what would be the lowest health of a hostile after a movement.
         MapLocation aflowestCurrHostile = null;
         int aflowestCurrHostileHealth = Integer.MAX_VALUE;
@@ -936,13 +957,16 @@ public strictfp class RobotPlayer {
     }
 
     /**
-     * Builders can train to level 6 by digging, so this method does this by filling nearby water and creating holes
-     * @param rc robotcontroller
-     * @param nearestWater nearestwater maplocation
+     * Builders can train to level 6 by digging, so this method does this by filling
+     * nearby water and creating holes
+     * 
+     * @param rc                robotcontroller
+     * @param nearestWater      nearestwater maplocation
      * @param lowestDistToWater distance from nearest water
      * @throws GameActionException
      */
-    public static void trainToSixByDigging(RobotController rc, MapLocation nearestWater, int lowestDistToWater) throws GameActionException {
+    public static void trainToSixByDigging(RobotController rc, MapLocation nearestWater, int lowestDistToWater)
+            throws GameActionException {
 
         if (nearestWater != null) {
             if (lowestDistToWater <= GameConstants.INTERACT_RADIUS_SQUARED
@@ -950,7 +974,7 @@ public strictfp class RobotPlayer {
                 rc.fill(nearestWater);
             }
         } else {
-            for (int i = directions.length-1; i>= 0 ; i--) {
+            for (int i = directions.length - 1; i >= 0; i--) {
                 MapLocation addedLoc = rc.getLocation().add(directions[i]);
                 if (rc.canDig(addedLoc)) {
                     rc.dig(addedLoc);

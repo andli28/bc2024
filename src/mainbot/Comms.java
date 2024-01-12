@@ -158,7 +158,7 @@ public class Comms {
 
         // kill count
         if (turnKillCount > 0) {
-            respawnTimer.add(new Pair(rc.getRoundNum() + 25, turnKillCount));
+            respawnTimer.add(new Pair(rc.getRoundNum() + GameConstants.JAILED_ROUNDS, turnKillCount));
         }
         // update global enemy estimate
         int delta = -turnKillCount;
