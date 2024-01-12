@@ -473,87 +473,7 @@ public strictfp class RobotPlayer {
 
                     } else if (role == INCOMBAT) {
 
-                        // Calculate the best retreating direction and best attackign direction
-                        // Simulate moving to any of the four cardinal directions. Calculate the average
-                        // distance from all enemies.
-                        // Best Retreat direction is the direction that maximizes average Distance
-                        // Best Attacking direction is the direction that tries to keep troops at an
-                        // average distance
-                        // equal to the attack radius squared.
-
-                        Direction bestRetreat = null;
-                        Direction bestAttack = null;
-                        float bestRetreatDist = averageDistFromEnemies;
-                        float bestAttackDist = averageDistFromEnemies;
-
-                        Direction[] validCombatDirs = rc.getHealth() < GameConstants.DEFAULT_HEALTH
-                                * woundedRetreatThreshold ? directions : allCombatDirs;
-                        for (int i = validCombatDirs.length - 1; i >= 0; i--) {
-                            MapLocation tempLoc = rc.getLocation().add(validCombatDirs[i]);
-
-                            if (rc.canSenseLocation(tempLoc) && rc.sensePassability(tempLoc)
-                                    && !rc.canSenseRobotAtLocation(tempLoc)) {
-                                Integer[] allDistances = new Integer[enemies.length];
-                                for (int j = enemies.length - 1; j >= 0; j--) {
-                                    if (enemies[j] != null) {
-                                        int tempDist = tempLoc.distanceSquaredTo(enemies[j].getLocation());
-                                        allDistances[j] = tempDist;
-                                    }
-                                }
-                                int numInArray = 0;
-                                int sum = 0;
-                                for (int k = allDistances.length - 1; k >= 0; k--) {
-                                    if (allDistances[k] != null) {
-                                        sum += allDistances[k];
-                                        numInArray++;
-                                    }
-                                }
-                                float averageDist = (float) sum / numInArray;
-                                if (Math.abs(averageDist - GameConstants.ATTACK_RADIUS_SQUARED) < bestAttackDist) {
-                                    bestAttackDist = Math.abs(averageDist - GameConstants.ATTACK_RADIUS_SQUARED);
-                                    bestAttack = validCombatDirs[i];
-                                }
-                                if (averageDist > bestRetreatDist) {
-                                    bestRetreatDist = averageDist;
-                                    bestRetreat = validCombatDirs[i];
-                                }
-                            }
-                        }
-
-                        // Decide whether the bestAttack direction or bestRetreat direction is optimal
-                        // for the situation.
-
-                        // if health is less than half your health or the number of hostiles is larger
-                        // than 1,
-                        // go to best retreat dir. Otherwise, go to the best Attack dir.
-                        Direction optimalDir = null;
-
-                        // at what decimal place of the max health will you retreat? Default .5, for a
-                        // builder specialist, .9.
-                        double inCombatRetreatThreshold = .5;
-                        if (BUILDERSPECIALIST) {
-                            inCombatRetreatThreshold = .9;
-                        }
-
-                        // count damage you can take next round if you move bestAttack
-                        MapLocation advanceLoc = bestAttack == null ? rc.getLocation()
-                                : rc.getLocation().add(bestAttack);
-                        int dmg = 0;
-                        for (int i = enemies.length; --i >= 0;) {
-                            RobotInfo enemy = enemies[i];
-                            // 10 r^2 is max dist where enemy is 1 move from attack range
-                            if (enemy.getLocation().distanceSquaredTo(advanceLoc) <= 10) {
-                                dmg += SkillType.ATTACK.skillEffect
-                                        + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
-                            }
-                        }
-
-                        if (rc.getHealth() < dmg || numHostiles > numFriendlies || !rc.isActionReady()) {
-                            optimalDir = bestRetreat;
-                        } else {
-                            optimalDir = bestAttack;
-                        }
-
+                        Direction optimalDir = findOptimalCombatDir(rc,enemies, averageDistFromEnemies, woundedRetreatThreshold, numHostiles, numFriendlies);
                         attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
 
                     } else if (role == BUILDING) {
@@ -565,25 +485,8 @@ public strictfp class RobotPlayer {
                             layTrap(rc, nearestExplosiveTrap, nearestStunTrap, 10, 7);
                         }
 
-                        // Move to whatever your target location is and generate a new one if necessary.
-                        if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||
-                                (rc.canSenseLocation(tgtLocation) && !rc.sensePassability(tgtLocation))
-                                || turnsNotReachedTgt > 50 || lastTurnPursingCrumb || lastTurnPursingWater) {
-                            tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
-                                    3, rc.getMapHeight() - 3);
-                            lastTurnPursingCrumb = false;
-                            lastTurnPursingWater = false;
-                        }
-
-                        // Initialize Direction to Move
-                        Direction dir = Pathfinder.pathfind(rc.getLocation(), tgtLocation);
-                        // rc.setIndicatorString(tgtLocation.toString());
-
-                        // If can move to dir, move.
-                        if (rc.canMove(dir)) {
-                            rc.move(dir);
-                        }
-                        attackMove(rc, dir, lowestCurrHostile, lowestCurrHostileHealth);
+                        Direction optimalDir = findOptimalCombatDir(rc,enemies, averageDistFromEnemies, woundedRetreatThreshold, numHostiles, numFriendlies);
+                        attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
 
                     } else if (role == CAPTURING) {
                         // If you can pick up the flag, pick it up, otherwise calculate the nearest
@@ -1011,5 +914,91 @@ public strictfp class RobotPlayer {
                 }
             }
         }
+    }
+
+    public static Direction findOptimalCombatDir(RobotController rc, RobotInfo[] enemies,
+                                                 float averageDistFromEnemies, double woundedRetreatThreshold,
+                                                 int numHostiles, int numFriendlies) throws GameActionException {
+        // Calculate the best retreating direction and best attackign direction
+        // Simulate moving to any of the four cardinal directions. Calculate the average
+        // distance from all enemies.
+        // Best Retreat direction is the direction that maximizes average Distance
+        // Best Attacking direction is the direction that tries to keep troops at an
+        // average distance
+        // equal to the attack radius squared.
+
+        Direction bestRetreat = null;
+        Direction bestAttack = null;
+        float bestRetreatDist = averageDistFromEnemies;
+        float bestAttackDist = averageDistFromEnemies;
+
+        Direction[] validCombatDirs = rc.getHealth() < GameConstants.DEFAULT_HEALTH
+                * woundedRetreatThreshold ? directions : allCombatDirs;
+        for (int i = validCombatDirs.length - 1; i >= 0; i--) {
+            MapLocation tempLoc = rc.getLocation().add(validCombatDirs[i]);
+
+            if (rc.canSenseLocation(tempLoc) && rc.sensePassability(tempLoc)
+                    && !rc.canSenseRobotAtLocation(tempLoc)) {
+                Integer[] allDistances = new Integer[enemies.length];
+                for (int j = enemies.length - 1; j >= 0; j--) {
+                    if (enemies[j] != null) {
+                        int tempDist = tempLoc.distanceSquaredTo(enemies[j].getLocation());
+                        allDistances[j] = tempDist;
+                    }
+                }
+                int numInArray = 0;
+                int sum = 0;
+                for (int k = allDistances.length - 1; k >= 0; k--) {
+                    if (allDistances[k] != null) {
+                        sum += allDistances[k];
+                        numInArray++;
+                    }
+                }
+                float averageDist = (float) sum / numInArray;
+                if (Math.abs(averageDist - GameConstants.ATTACK_RADIUS_SQUARED) < bestAttackDist) {
+                    bestAttackDist = Math.abs(averageDist - GameConstants.ATTACK_RADIUS_SQUARED);
+                    bestAttack = validCombatDirs[i];
+                }
+                if (averageDist > bestRetreatDist) {
+                    bestRetreatDist = averageDist;
+                    bestRetreat = validCombatDirs[i];
+                }
+            }
+        }
+
+        // Decide whether the bestAttack direction or bestRetreat direction is optimal
+        // for the situation.
+
+        // if health is less than half your health or the number of hostiles is larger
+        // than 1,
+        // go to best retreat dir. Otherwise, go to the best Attack dir.
+        Direction optimalDir = null;
+
+        // at what decimal place of the max health will you retreat? Default .5, for a
+        // builder specialist, .9.
+        double inCombatRetreatThreshold = .5;
+        if (BUILDERSPECIALIST) {
+            inCombatRetreatThreshold = .9;
+        }
+
+        // count damage you can take next round if you move bestAttack
+        MapLocation advanceLoc = bestAttack == null ? rc.getLocation()
+                : rc.getLocation().add(bestAttack);
+        int dmg = 0;
+        for (int i = enemies.length; --i >= 0;) {
+            RobotInfo enemy = enemies[i];
+            // 10 r^2 is max dist where enemy is 1 move from attack range
+            if (enemy.getLocation().distanceSquaredTo(advanceLoc) <= 10) {
+                dmg += SkillType.ATTACK.skillEffect
+                        + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
+            }
+        }
+
+        if (rc.getHealth() < dmg || numHostiles > numFriendlies || !rc.isActionReady()) {
+            optimalDir = bestRetreat;
+        } else {
+            optimalDir = bestAttack;
+        }
+        return optimalDir;
     }
 }
