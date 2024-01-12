@@ -18,7 +18,7 @@ bots = ['mainbot']
 botsSet = set(bots)
 
 initialMaps = ['DefaultHuge', 'DefaultLarge', 'DefaultMedium', 'DefaultSmall']
-customMaps = ['pathfind']
+customMaps = ['pathfinder']
 
 maps = initialMaps + customMaps
 mapsSet = set(maps)
