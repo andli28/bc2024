@@ -18,7 +18,9 @@ bots = ['mainbot']
 botsSet = set(bots)
 
 initialMaps = ['DefaultHuge', 'DefaultLarge', 'DefaultMedium', 'DefaultSmall']
-maps = initialMaps
+customMaps = ['pathfinder']
+
+maps = initialMaps + customMaps
 mapsSet = set(maps)
 
 matches = set(product(bots, maps))
