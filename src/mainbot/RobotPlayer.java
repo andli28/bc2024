@@ -565,40 +565,25 @@ public strictfp class RobotPlayer {
                             layTrap(rc, nearestExplosiveTrap, nearestStunTrap, 10, 7);
                         }
 
-                        // enable units to go in any direction.
-                        // optimal direction is prioritized by it being the furthest from enemies
-                        Direction bestRetreat = null;
-                        float bestRetreatDist = averageDistFromEnemies;
-
-                        for (int i = directions.length - 1; i >= 0; i--) {
-                            MapLocation tempLoc = rc.getLocation().add(directions[i]);
-
-                            if (rc.canSenseLocation(tempLoc) && rc.sensePassability(tempLoc)
-                                    && !rc.canSenseRobotAtLocation(tempLoc)) {
-                                Integer[] allDistances = new Integer[enemies.length];
-                                for (int j = enemies.length - 1; j >= 0; j--) {
-                                    if (enemies[j] != null) {
-                                        int tempDist = tempLoc.distanceSquaredTo(enemies[j].getLocation());
-                                        allDistances[j] = tempDist;
-                                    }
-                                }
-                                int numInArray = 0;
-                                int sum = 0;
-                                for (int k = allDistances.length - 1; k >= 0; k--) {
-                                    if (allDistances[k] != null) {
-                                        sum += allDistances[k];
-                                        numInArray++;
-                                    }
-                                }
-                                float averageDist = (float) sum / numInArray;
-                                if (averageDist > bestRetreatDist) {
-                                    bestRetreatDist = averageDist;
-                                    bestRetreat = directions[i];
-                                }
-                            }
+                        // Move to whatever your target location is and generate a new one if necessary.
+                        if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||
+                                (rc.canSenseLocation(tgtLocation) && !rc.sensePassability(tgtLocation))
+                                || turnsNotReachedTgt > 50 || lastTurnPursingCrumb || lastTurnPursingWater) {
+                            tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
+                                    3, rc.getMapHeight() - 3);
+                            lastTurnPursingCrumb = false;
+                            lastTurnPursingWater = false;
                         }
 
-                        attackMove(rc, bestRetreat, lowestCurrHostile, lowestCurrHostileHealth);
+                        // Initialize Direction to Move
+                        Direction dir = Pathfinder.pathfind(rc.getLocation(), tgtLocation);
+                        // rc.setIndicatorString(tgtLocation.toString());
+
+                        // If can move to dir, move.
+                        if (rc.canMove(dir)) {
+                            rc.move(dir);
+                        }
+                        attackMove(rc, dir, lowestCurrHostile, lowestCurrHostileHealth);
 
                     } else if (role == CAPTURING) {
                         // If you can pick up the flag, pick it up, otherwise calculate the nearest
