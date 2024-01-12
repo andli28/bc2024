@@ -82,6 +82,9 @@ public strictfp class RobotPlayer {
     // Default unit to scouting.
     static int role = SCOUTING;
 
+    // set specializations
+    static boolean BUILDERSPECIALIST = false;
+
     /**
      * run() is the method that is called when a robot is instantiated in the
      * Battlecode world.
@@ -194,10 +197,15 @@ public strictfp class RobotPlayer {
 
                 if (rc.isSpawned()) {
 
+                    // decide if this person should be a builder (if shortId <3)
+                    if (turnCount > 1 && Comms.shortId <3) {
+                        BUILDERSPECIALIST = true;
+                    }
+
                     // 750 Turn upgrade + 1500 turn upgrade
-                    if (turnCount == 750 && rc.canBuyGlobal(GlobalUpgrade.ACTION)) {
+                    if (turnCount == GameConstants.GLOBAL_UPGRADE_ROUNDS && rc.canBuyGlobal(GlobalUpgrade.ACTION)) {
                         rc.buyGlobal(GlobalUpgrade.ACTION);
-                    } else if (turnCount == 1500 && rc.canBuyGlobal(GlobalUpgrade.HEALING)) {
+                    } else if (turnCount == 2*GameConstants.GLOBAL_UPGRADE_ROUNDS && rc.canBuyGlobal(GlobalUpgrade.HEALING)) {
                         rc.buyGlobal(GlobalUpgrade.HEALING);
                     }
 
@@ -241,6 +249,13 @@ public strictfp class RobotPlayer {
                             lowestDistToWaterTrap = distToSingleMap;
                             nearestWaterTrap = singleMap.getMapLocation();
                         }
+                    }
+
+                    // if you were randomly chosen as a builder specialist && turncount is between 75 and max setup rounds
+                    // , train by digging until you have 30 exp
+
+                    if (BUILDERSPECIALIST && rc.getExperience(SkillType.BUILD) < 30 && turnCount > 25) {
+                        trainToSixByDigging(rc, nearestWater, lowestDistToWater);
                     }
 
                     // Flag Counting, finding number of nearby flags not picked up
@@ -325,19 +340,25 @@ public strictfp class RobotPlayer {
                         }
                     }
 
+                    // setting default threshold for portion of health before designated wounded as .4, but .9 for builderSpecialist
+                    double woundedRetreatThreshold = .4;
+                    if (BUILDERSPECIALIST) {
+                        woundedRetreatThreshold = .9;
+                    }
+
                     // Role Delegation
                     // If you have a flag, return
-                    // else if your health is below retreat threshold, you're wounded
+                    // else if your health is below retreat threshold with nearby enemies, you're wounded
                     // else if there are nearby enemies, you're in combat
                     // else if there is a nearby flag to be picked up, you're capturing
-                    // else if you have more than 250 crumbs and have seen combat, you're building
+                    // else if you have experience over 30 and have more than 250 crumbs and have seen combat, you're building
                     // else if there is a close diplaced flag, you're defending
                     // else if you're lowest current friendly seen has a health below the dfault, you're healing
                     // else, you're scouting
                     if (rc.hasFlag()) {
                         role = RETURNING;
                         rc.setIndicatorString("Returning");
-                    } else if (rc.getHealth() < GameConstants.DEFAULT_HEALTH * .4) {
+                    } else if (enemies.length != 0 && rc.getHealth() < GameConstants.DEFAULT_HEALTH * woundedRetreatThreshold) {
                         role = WOUNDED;
                         rc.setIndicatorString("Wounded");
                     } else if (enemies.length != 0) {
@@ -347,7 +368,7 @@ public strictfp class RobotPlayer {
                     } else if (numFlagsNearbyNotPickedUp != 0) {
                         role = CAPTURING;
                         rc.setIndicatorString("Capturing");
-                    } else if (rc.getCrumbs() > 250 && haveSeenCombat) {
+                    } else if (rc.getExperience(SkillType.BUILD) >= 30 && rc.getCrumbs() > 250 && haveSeenCombat) {
                         role = BUILDING;
                         rc.setIndicatorString("Building");
                     } else if (closestDisplacedFlag != null) {
@@ -491,7 +512,14 @@ public strictfp class RobotPlayer {
                         // than 1,
                         // go to best retreat dir. Otherwise, go to the best Attack dir.
                         Direction optimalDir = null;
-                        if (rc.getHealth() < GameConstants.DEFAULT_HEALTH / 2 || numHostiles > numFriendlies) {
+
+                        // at what decimal place of the max health will you retreat? Default .5, for a builder specialist, .9.
+                        double inCombatRetreatThreshold = .5;
+                        if (BUILDERSPECIALIST) {
+                            inCombatRetreatThreshold = .9;
+                        }
+
+                        if (rc.getHealth() < GameConstants.DEFAULT_HEALTH * inCombatRetreatThreshold || numHostiles > numFriendlies) {
                             optimalDir = bestRetreat;
                         } else {
                             optimalDir = bestAttack;
@@ -507,13 +535,16 @@ public strictfp class RobotPlayer {
                             layTrap(rc, nearestExplosiveTrap, nearestStunTrap);
                         }
 
-                        // Move to whatever your target location is
-                        if (tgtLocation == null) {
+                        // Move to whatever your target location is and generate a new one if necessary.
+                        if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||
+                                (rc.canSenseLocation(tgtLocation) && !rc.sensePassability(tgtLocation))
+                                || turnsNotReachedTgt > 50 || lastTurnPursingCrumb || lastTurnPursingWater) {
                             tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
                                     3, rc.getMapHeight() - 3);
                             lastTurnPursingCrumb = false;
                             lastTurnPursingWater = false;
                         }
+
                         // Initialize Direction to Move
                         Direction dir = Pathfinder.pathfind(rc.getLocation(), tgtLocation);
                         // rc.setIndicatorString(tgtLocation.toString());
@@ -620,6 +651,15 @@ public strictfp class RobotPlayer {
                         }
 
                         attackMove(rc, bestRetreat, lowestCurrHostile, lowestCurrHostileHealth);
+
+                        // if you still have cooldown because you didn't attack, and you're a builder specialist, lay traps
+                        if (BUILDERSPECIALIST) {
+                            if (closestHostile != null) {
+                                layTrapWithinRangeOfEnemy(rc, nearestExplosiveTrap, nearestStunTrap, closestHostile, 10);
+                            } else {
+                                layTrap(rc, nearestExplosiveTrap, nearestStunTrap);
+                            }
+                        }
                     }
 
                     while (lowestCurrFriendly != null && rc.canHeal(lowestCurrFriendly)) {
@@ -890,6 +930,31 @@ public strictfp class RobotPlayer {
             if (optimalDir != null) {
                 if (rc.canMove(optimalDir)) {
                     rc.move(optimalDir);
+                }
+            }
+        }
+    }
+
+    /**
+     * Builders can train to level 6 by digging, so this method does this by filling nearby water and creating holes
+     * @param rc robotcontroller
+     * @param nearestWater nearestwater maplocation
+     * @param lowestDistToWater distance from nearest water
+     * @throws GameActionException
+     */
+    public static void trainToSixByDigging(RobotController rc, MapLocation nearestWater, int lowestDistToWater) throws GameActionException {
+
+        if (nearestWater != null) {
+            if (lowestDistToWater <= GameConstants.INTERACT_RADIUS_SQUARED
+                    && rc.canFill(nearestWater)) {
+                rc.fill(nearestWater);
+            }
+        } else {
+            for (int i = directions.length-1; i>= 0 ; i--) {
+                MapLocation addedLoc = rc.getLocation().add(directions[i]);
+                if (rc.canDig(addedLoc)) {
+                    rc.dig(addedLoc);
+                    break;
                 }
             }
         }
