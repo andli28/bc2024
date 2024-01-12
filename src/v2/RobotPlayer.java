@@ -1,4 +1,4 @@
-package mainbot;
+package v2;
 
 import battlecode.common.*;
 import battlecode.world.Flag;
@@ -282,7 +282,6 @@ public strictfp class RobotPlayer {
                     int lowestCurrHostileHealth = Integer.MAX_VALUE;
                     MapLocation closestHostile = null;
                     int distToClosestHostile = Integer.MAX_VALUE;
-
                     if (enemies.length != 0) {
                         for (int i = enemies.length - 1; i >= 0; i--) {
                             numHostiles++;
@@ -350,11 +349,6 @@ public strictfp class RobotPlayer {
                         woundedRetreatThreshold = .9;
                     }
 
-                    //when building explosive or stun traps, this is the preferred distance when
-                    // building them away from one another
-                    int explosiveTrapPreferredDist = 10;
-                    int stunTrapPreferredDist =7;
-
                     // Role Delegation
                     // If you have a flag, return
                     // else if your health is below retreat threshold with nearby enemies, you're
@@ -370,13 +364,10 @@ public strictfp class RobotPlayer {
                     if (rc.hasFlag()) {
                         role = RETURNING;
                         rc.setIndicatorString("Returning");
-                        // } else if (enemies.length != 0
-                        // && rc.getHealth() < GameConstants.DEFAULT_HEALTH * woundedRetreatThreshold) {
-                        // role = WOUNDED;
-                        // rc.setIndicatorString("Wounded");
-                    } else if (rc.getExperience(SkillType.BUILD) >= 30 && rc.getCrumbs() > 250 && enemies.length != 0) {
-                        role = BUILDING;
-                        rc.setIndicatorString("Building");
+                    } else if (enemies.length != 0
+                            && rc.getHealth() < GameConstants.DEFAULT_HEALTH * woundedRetreatThreshold) {
+                        role = WOUNDED;
+                        rc.setIndicatorString("Wounded");
                     } else if (enemies.length != 0) {
                         role = INCOMBAT;
                         haveSeenCombat = true;
@@ -384,6 +375,9 @@ public strictfp class RobotPlayer {
                     } else if (numFlagsNearbyNotPickedUp != 0) {
                         role = CAPTURING;
                         rc.setIndicatorString("Capturing");
+                    } else if (rc.getExperience(SkillType.BUILD) >= 30 && rc.getCrumbs() > 250 && haveSeenCombat) {
+                        role = BUILDING;
+                        rc.setIndicatorString("Building");
                     } else if (closestDisplacedFlag != null) {
                         role = DEFENDING;
                         rc.setIndicatorString("Defending");
@@ -486,10 +480,8 @@ public strictfp class RobotPlayer {
                         float bestRetreatDist = averageDistFromEnemies;
                         float bestAttackDist = averageDistFromEnemies;
 
-                        Direction[] validCombatDirs = rc.getHealth() < GameConstants.DEFAULT_HEALTH
-                                * woundedRetreatThreshold ? directions : allCombatDirs;
-                        for (int i = validCombatDirs.length - 1; i >= 0; i--) {
-                            MapLocation tempLoc = rc.getLocation().add(validCombatDirs[i]);
+                        for (int i = allCombatDirs.length - 1; i >= 0; i--) {
+                            MapLocation tempLoc = rc.getLocation().add(allCombatDirs[i]);
 
                             if (rc.canSenseLocation(tempLoc) && rc.sensePassability(tempLoc)
                                     && !rc.canSenseRobotAtLocation(tempLoc)) {
@@ -511,11 +503,11 @@ public strictfp class RobotPlayer {
                                 float averageDist = (float) sum / numInArray;
                                 if (Math.abs(averageDist - GameConstants.ATTACK_RADIUS_SQUARED) < bestAttackDist) {
                                     bestAttackDist = Math.abs(averageDist - GameConstants.ATTACK_RADIUS_SQUARED);
-                                    bestAttack = validCombatDirs[i];
+                                    bestAttack = allCombatDirs[i];
                                 }
                                 if (averageDist > bestRetreatDist) {
                                     bestRetreatDist = averageDist;
-                                    bestRetreat = validCombatDirs[i];
+                                    bestRetreat = allCombatDirs[i];
                                 }
                             }
                         }
@@ -535,20 +527,8 @@ public strictfp class RobotPlayer {
                             inCombatRetreatThreshold = .9;
                         }
 
-                        // count damage you can take next round if you move bestAttack
-                        MapLocation advanceLoc = bestAttack == null ? rc.getLocation()
-                                : rc.getLocation().add(bestAttack);
-                        int dmg = 0;
-                        for (int i = enemies.length; --i >= 0;) {
-                            RobotInfo enemy = enemies[i];
-                            // 10 r^2 is max dist where enemy is 1 move from attack range
-                            if (enemy.getLocation().distanceSquaredTo(advanceLoc) <= 10) {
-                                dmg += SkillType.ATTACK.skillEffect
-                                        + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
-                            }
-                        }
-
-                        if (rc.getHealth() < dmg || numHostiles > numFriendlies || !rc.isActionReady()) {
+                        if (rc.getHealth() < GameConstants.DEFAULT_HEALTH * inCombatRetreatThreshold
+                                || numHostiles > numFriendlies || !rc.isActionReady()) {
                             optimalDir = bestRetreat;
                         } else {
                             optimalDir = bestAttack;
@@ -559,46 +539,29 @@ public strictfp class RobotPlayer {
                     } else if (role == BUILDING) {
 
                         if (closestHostile != null) {
-                            layTrapWithinRangeOfEnemy(rc, nearestExplosiveTrap, nearestStunTrap, closestHostile,
-                                    10, 7, 9);
+                            layTrapWithinRangeOfEnemy(rc, nearestExplosiveTrap, nearestStunTrap, closestHostile, 10);
                         } else {
-                            layTrap(rc, nearestExplosiveTrap, nearestStunTrap, 10, 7);
+                            layTrap(rc, nearestExplosiveTrap, nearestStunTrap);
                         }
 
-                        // enable units to go in any direction.
-                        // optimal direction is prioritized by it being the furthest from enemies
-                        Direction bestRetreat = null;
-                        float bestRetreatDist = averageDistFromEnemies;
-
-                        for (int i = directions.length - 1; i >= 0; i--) {
-                            MapLocation tempLoc = rc.getLocation().add(directions[i]);
-
-                            if (rc.canSenseLocation(tempLoc) && rc.sensePassability(tempLoc)
-                                    && !rc.canSenseRobotAtLocation(tempLoc)) {
-                                Integer[] allDistances = new Integer[enemies.length];
-                                for (int j = enemies.length - 1; j >= 0; j--) {
-                                    if (enemies[j] != null) {
-                                        int tempDist = tempLoc.distanceSquaredTo(enemies[j].getLocation());
-                                        allDistances[j] = tempDist;
-                                    }
-                                }
-                                int numInArray = 0;
-                                int sum = 0;
-                                for (int k = allDistances.length - 1; k >= 0; k--) {
-                                    if (allDistances[k] != null) {
-                                        sum += allDistances[k];
-                                        numInArray++;
-                                    }
-                                }
-                                float averageDist = (float) sum / numInArray;
-                                if (averageDist > bestRetreatDist) {
-                                    bestRetreatDist = averageDist;
-                                    bestRetreat = directions[i];
-                                }
-                            }
+                        // Move to whatever your target location is and generate a new one if necessary.
+                        if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||
+                                (rc.canSenseLocation(tgtLocation) && !rc.sensePassability(tgtLocation))
+                                || turnsNotReachedTgt > 50 || lastTurnPursingCrumb || lastTurnPursingWater) {
+                            tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
+                                    3, rc.getMapHeight() - 3);
+                            lastTurnPursingCrumb = false;
+                            lastTurnPursingWater = false;
                         }
 
-                        attackMove(rc, bestRetreat, lowestCurrHostile, lowestCurrHostileHealth);
+                        // Initialize Direction to Move
+                        Direction dir = Pathfinder.pathfind(rc.getLocation(), tgtLocation);
+                        // rc.setIndicatorString(tgtLocation.toString());
+
+                        // If can move to dir, move.
+                        if (rc.canMove(dir)) {
+                            rc.move(dir);
+                        }
 
                     } else if (role == CAPTURING) {
                         // If you can pick up the flag, pick it up, otherwise calculate the nearest
@@ -703,10 +666,9 @@ public strictfp class RobotPlayer {
                         if (BUILDERSPECIALIST) {
                             if (closestHostile != null) {
                                 layTrapWithinRangeOfEnemy(rc, nearestExplosiveTrap, nearestStunTrap, closestHostile,
-                                        10, 7,9);
+                                        10);
                             } else {
-                                layTrap(rc, nearestExplosiveTrap, nearestStunTrap,
-                                        10, 7);
+                                layTrap(rc, nearestExplosiveTrap, nearestStunTrap);
                             }
                         }
                     }
@@ -827,12 +789,9 @@ public strictfp class RobotPlayer {
      * @param rc                   robotcontroller
      * @param nearestExplosiveTrap maplocation of nearest explosive trap
      * @param nearestStunTrap      maplocation of nearest stun trap
-     * @param explosiveTrapPreferredDist distance an explosive trap should be away from another
-     * @param stunTrapPreferredDist distance a stun trap should be away from another
      * @throws GameActionException
      */
-    public static void layTrap(RobotController rc, MapLocation nearestExplosiveTrap, MapLocation nearestStunTrap,
-                               int explosiveTrapPreferredDist, int stunTrapPreferredDist)
+    public static void layTrap(RobotController rc, MapLocation nearestExplosiveTrap, MapLocation nearestStunTrap)
             throws GameActionException {
         // Iterate through all building directions, and go through the following logic:
         // 1 . If there are no nearby Explosive traps, build one,
@@ -854,11 +813,11 @@ public strictfp class RobotPlayer {
                     break;
                 }
             } else {
-                if (buildLoc.distanceSquaredTo(nearestExplosiveTrap) > explosiveTrapPreferredDist
+                if (buildLoc.distanceSquaredTo(nearestExplosiveTrap) > 10
                         && rc.canBuild(TrapType.EXPLOSIVE, buildLoc)) {
                     rc.build(TrapType.EXPLOSIVE, buildLoc);
                     break;
-                } else if (buildLoc.distanceSquaredTo(nearestStunTrap) > stunTrapPreferredDist
+                } else if (buildLoc.distanceSquaredTo(nearestStunTrap) > 7
                         && rc.canBuild(TrapType.STUN, buildLoc)) {
                     rc.build(TrapType.STUN, buildLoc);
                     break;
@@ -875,15 +834,12 @@ public strictfp class RobotPlayer {
      * @param nearestExplosiveTrap maplocation of nearest explosive trap
      * @param nearestStunTrap      maplocation of nearest stun trap
      * @param closestEnemy         maplocation of nearest enemy trap
-     * @param explosiveTrapPreferredDist distance an explosive trap should be away from another
-     * @param stunTrapPreferredDist distance a stun trap should be away from another
      * @param buildThreshold       max distance squared where a trap should be build
      *                             from the enemy
      * @throws GameActionException
      */
     public static void layTrapWithinRangeOfEnemy(RobotController rc, MapLocation nearestExplosiveTrap,
-            MapLocation nearestStunTrap, MapLocation closestEnemy, int explosiveTrapPreferredDist, int stunTrapPreferredDist,
-                                                 int buildThreshold) throws GameActionException {
+            MapLocation nearestStunTrap, MapLocation closestEnemy, int buildThreshold) throws GameActionException {
         // Iterate through all building directions, and go through the following logic:
         // 1 . If there are no nearby Explosive traps, build one,
         // 2. Else if there are no nearby Stun Traps, build one.
@@ -905,11 +861,11 @@ public strictfp class RobotPlayer {
                         break;
                     }
                 } else {
-                    if (buildLoc.distanceSquaredTo(nearestExplosiveTrap) > explosiveTrapPreferredDist
+                    if (buildLoc.distanceSquaredTo(nearestExplosiveTrap) > 10
                             && rc.canBuild(TrapType.EXPLOSIVE, buildLoc)) {
                         rc.build(TrapType.EXPLOSIVE, buildLoc);
                         break;
-                    } else if (buildLoc.distanceSquaredTo(nearestStunTrap) > stunTrapPreferredDist
+                    } else if (buildLoc.distanceSquaredTo(nearestStunTrap) > 7
                             && rc.canBuild(TrapType.STUN, buildLoc)) {
                         rc.build(TrapType.STUN, buildLoc);
                         break;
