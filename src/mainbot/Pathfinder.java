@@ -57,8 +57,10 @@ public class Pathfinder {
         // tldr a better first buhg dir guess system
         if (buhgDir == Rot.NONE) {
             // if blocked and no prev buhg choose a buhg dir depending on some ob bounds
-            int minDist = 9999;
-            MapLocation minBound = null;
+            int minDistL = 9999;
+            MapLocation minBoundL = null;
+            int minDistR = 9999;
+            MapLocation minBoundR = null;
 
             // scan nearby impassibles, only looking at ones that intersect with max vision
             // ring
@@ -70,18 +72,25 @@ public class Pathfinder {
                     continue;
                 // get min dist to tgt from this impassible
                 int currDist = sqLoc.distanceSquaredTo(tgt);
-                if (currDist < minDist) {
-                    minDist = currDist;
-                    minBound = sqLoc;
+                // note the closest impass to tgt on both left and right
+                int zCross = (tgt.x - src.x) * (sqLoc.y - src.y) - (tgt.y - src.y) * (sqLoc.x - src.x);
+                if (zCross > 0 && currDist < minDistL) {
+                    minDistL = currDist;
+                    minBoundL = sqLoc;
+                } else if (zCross < 0 && currDist < minDistR) {
+                    minDistR = currDist;
+                    minBoundR = sqLoc;
                 }
             }
-            // check if this best boundary sq is to left or right of vec to tgt with z of
-            // cross, else just random
-            if (minBound != null) {
-                int zCross = (tgt.x - src.x) * (minBound.y - src.y) - (tgt.y - src.y) * (minBound.x - src.x);
-                buhgDir = zCross > 0 ? Rot.LEFT : Rot.RIGHT;
+            // if impass exists on both sides, choose dir with impass closest to tgt
+            if (minBoundL != null && minBoundR != null) {
+                buhgDir = minDistL < minDistR ? Rot.LEFT : Rot.RIGHT;
+                // if no impass on both sides random
+            } else if (minBoundL == null && minBoundR == null) {
+                buhgDir = rc.getRoundNum() % 2 == 0 ? Rot.LEFT : Rot.RIGHT;
+                // if impass on only 1 side choose more open side
             } else {
-                buhgDir = rc.getID() % 2 == 0 ? Rot.LEFT : Rot.RIGHT;
+                buhgDir = minBoundL == null ? Rot.LEFT : Rot.RIGHT;
             }
             initBlockDist = src.distanceSquaredTo(tgt);
         }
