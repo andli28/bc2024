@@ -156,6 +156,7 @@ public class Comms {
             updateFlagLocs();
             updateCurrEnemyFlags();
         }
+        prevEndTurnLoc = rc.isSpawned() ? rc.getLocation() : null;
 
         // kill count
         if (turnKillCount > 0) {
@@ -231,25 +232,49 @@ public class Comms {
         return firstAvail;
     }
 
-    // FIXME dont rely on robotplayer call, handle these transitions here(only
-    // relevant once we start picking up own flags)
     public static void flagPickup(FlagInfo finfo) throws GameActionException {
         // picking up own flag must be setup relocation
         if (finfo.getTeam() == rc.getTeam()) {
             // remove entry from default ally flag locs
             removeValue(encodeLoc(finfo.getLocation()), ALLY_DEFAULT_FLAG_INDICES);
         }
-        carrying = finfo.getTeam();
     }
 
     public static void flagDrop(FlagInfo finfo) throws GameActionException {
         if (finfo.getTeam() == rc.getTeam()) {
             // update default ally with drop location in setup
             writeFlagLoc(finfo.getLocation(), ALLY_DEFAULT_FLAG_INDICES);
+        } else {
+            // previous ping is auto cleared on Comms.update(), but we need to replace the
+            // entry with where we dropped the flag
+            // current scuffed way of doing this is to invalidate refresh by changing index
+            // and just
+            // overwriting comm entry directly
+            MapLocation[] currEnemyFlags = getCurrentEnemyFlagLocations();
+            // must have a prev location if dropping a flag(pickup last turn)
+            int commIndex = -1;
+            // surely this is unrolled code and not just lazy
+            if (prevEndTurnLoc.equals(currEnemyFlags[0])) {
+                commIndex = 9;
+            } else if (prevEndTurnLoc.equals(currEnemyFlags[1])) {
+                commIndex = 10;
+            } else if (prevEndTurnLoc.equals(currEnemyFlags[2])) {
+                commIndex = 11;
+            }
+            // update comm entry with new current flag loc
+            // this should always enter(if you were carrying a flag last turn you should
+            // have wrote it)
+            if (commIndex != -1) {
+                // update current loc with where u dropped it
+                write(commIndex, encodeLoc(finfo.getLocation()));
+                // invalidate refresh
+                for (int i = refreshPtr; i >= 0; i--) {
+                    if (refreshIdxs[i] == commIndex)
+                        refreshIdxs[i] = 63;
+                }
+            }
         }
-        carrying = Team.NEUTRAL;
     }
-    // END FIXME
 
     // default locs are persistent(except ally pickup + move in setup phase)
     // current locs clear every round
@@ -282,7 +307,7 @@ public class Comms {
                 }
             }
 
-            // if carrying enemy flag remove previous ping and update current flag
+            // if carrying enemy flag continuously refresh ping
             if (rc.getRoundNum() > 200 && rc.hasFlag() && fi.getLocation().equals(rc.getLocation())) {
                 if (fi.getTeam() != rc.getTeam()) {
                     // enemy current pings persistent after death to avoid default dup(check
