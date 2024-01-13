@@ -352,8 +352,10 @@ public strictfp class RobotPlayer {
 
                     //when building explosive or stun traps, this is the preferred distance when
                     // building them away from one another
-                    int explosiveTrapPreferredDist = 10;
-                    int stunTrapPreferredDist =7;
+                    int explosiveTrapPreferredDist = 1;
+                    int stunTrapPreferredDist = 16;
+                    //when building traps near enemies, this is how close the given trap should be relative to the enemy.
+                    int buildThreshold = 16;
 
                     // Role Delegation
                     // If you have a flag, return
@@ -480,9 +482,9 @@ public strictfp class RobotPlayer {
 
                         if (closestHostile != null) {
                             layTrapWithinRangeOfEnemy(rc, nearestExplosiveTrap, nearestStunTrap, closestHostile,
-                                    10, 7, 9);
+                                    explosiveTrapPreferredDist, stunTrapPreferredDist, buildThreshold);
                         } else {
-                            layTrap(rc, nearestExplosiveTrap, nearestStunTrap, 10, 7);
+                            layTrap(rc, nearestExplosiveTrap, nearestStunTrap, explosiveTrapPreferredDist, stunTrapPreferredDist);
                         }
 
                         Direction optimalDir = findOptimalCombatDir(rc,enemies, averageDistFromEnemies, woundedRetreatThreshold, numHostiles, numFriendlies);
@@ -585,10 +587,10 @@ public strictfp class RobotPlayer {
                         if (BUILDERSPECIALIST) {
                             if (closestHostile != null) {
                                 layTrapWithinRangeOfEnemy(rc, nearestExplosiveTrap, nearestStunTrap, closestHostile,
-                                        10, 7,9);
+                                        explosiveTrapPreferredDist, stunTrapPreferredDist,buildThreshold);
                             } else {
                                 layTrap(rc, nearestExplosiveTrap, nearestStunTrap,
-                                        10, 7);
+                                        explosiveTrapPreferredDist, stunTrapPreferredDist);
                             }
                         }
                     }
@@ -720,9 +722,9 @@ public strictfp class RobotPlayer {
         // 1 . If there are no nearby Explosive traps, build one,
         // 2. Else if there are no nearby Stun Traps, build one.
         // 3. Else if there are both, prioritize builiding another explosive trap that
-        // is at least 10 sq units away from the first one
+        // is at least explosiveTrapPreferredDist sq units away from the first one
         // 4. IF you can't build the explosive trap, but can build the stun trap at
-        // least 7 sq units away from the first one, do so.
+        // least stunTrapPreferredDist sq units away from the first one, do so.
         for (int i = Direction.allDirections().length - 1; i >= 0; i--) {
             MapLocation buildLoc = rc.getLocation().add(Direction.allDirections()[i]);
             if (nearestExplosiveTrap == null) {
@@ -736,13 +738,42 @@ public strictfp class RobotPlayer {
                     break;
                 }
             } else {
-                if (buildLoc.distanceSquaredTo(nearestExplosiveTrap) > explosiveTrapPreferredDist
+                int distTonearestExplosiveTrap = buildLoc.distanceSquaredTo(nearestExplosiveTrap);
+                int distTonearestStunTrap = buildLoc.distanceSquaredTo(nearestStunTrap);
+
+                if (distTonearestExplosiveTrap > explosiveTrapPreferredDist
                         && rc.canBuild(TrapType.EXPLOSIVE, buildLoc)) {
-                    rc.build(TrapType.EXPLOSIVE, buildLoc);
+                    //checking for traps at the new build location to ensure that there is no traps there that would be closer to the closest trap given.
+                    MapInfo[] tilesToCheckForCloserExplosiveTrap = rc.senseNearbyMapInfos(buildLoc, explosiveTrapPreferredDist);
+
+                    boolean passedCheckForCloserTrap = true;
+                    for (int j = tilesToCheckForCloserExplosiveTrap.length -1; j>=0; j--) {
+                        if (tilesToCheckForCloserExplosiveTrap[j].getTrapType() == TrapType.EXPLOSIVE) {
+                            passedCheckForCloserTrap = false;
+                            break;
+                        }
+                    }
+
+                    if (passedCheckForCloserTrap) {
+                        rc.build(TrapType.EXPLOSIVE, buildLoc);
+                    }
                     break;
-                } else if (buildLoc.distanceSquaredTo(nearestStunTrap) > stunTrapPreferredDist
+                } else if (distTonearestStunTrap > stunTrapPreferredDist
                         && rc.canBuild(TrapType.STUN, buildLoc)) {
-                    rc.build(TrapType.STUN, buildLoc);
+                    //checking for traps at the new build location to ensure that there is no traps there that would be closer to the closest trap given.
+                    MapInfo[] tilesToCheckForCloserStunTrap = rc.senseNearbyMapInfos(buildLoc, stunTrapPreferredDist);
+
+                    boolean passedCheckForCloserTrap = true;
+                    for (int j = tilesToCheckForCloserStunTrap.length -1; j>=0; j--) {
+                        if (tilesToCheckForCloserStunTrap[j].getTrapType() == TrapType.STUN) {
+                            passedCheckForCloserTrap = false;
+                            break;
+                        }
+                    }
+
+                    if (passedCheckForCloserTrap) {
+                        rc.build(TrapType.STUN, buildLoc);
+                    }
                     break;
                 }
             }
@@ -770,9 +801,9 @@ public strictfp class RobotPlayer {
         // 1 . If there are no nearby Explosive traps, build one,
         // 2. Else if there are no nearby Stun Traps, build one.
         // 3. Else if there are both, prioritize builiding another explosive trap that
-        // is at least 10 sq units away from the first one
+        // is at least explosiveTrapPreferredDist sq units away from the first one
         // 4. IF you can't build the explosive trap, but can build the stun trap at
-        // least 7 sq units away from the first one, do so.
+        // least stunTrapPreferredDist sq units away from the first one, do so.
         for (int i = Direction.allDirections().length - 1; i >= 0; i--) {
             MapLocation buildLoc = rc.getLocation().add(Direction.allDirections()[i]);
             if (buildLoc.distanceSquaredTo(closestEnemy) <= buildThreshold) {
@@ -787,13 +818,41 @@ public strictfp class RobotPlayer {
                         break;
                     }
                 } else {
-                    if (buildLoc.distanceSquaredTo(nearestExplosiveTrap) > explosiveTrapPreferredDist
+                    int distTonearestExplosiveTrap = buildLoc.distanceSquaredTo(nearestExplosiveTrap);
+                    int distTonearestStunTrap = buildLoc.distanceSquaredTo(nearestStunTrap);
+
+                    if (distTonearestExplosiveTrap > explosiveTrapPreferredDist
                             && rc.canBuild(TrapType.EXPLOSIVE, buildLoc)) {
-                        rc.build(TrapType.EXPLOSIVE, buildLoc);
+                        //checking for traps at the new build location to ensure that there is no traps there that would be closer to the closest trap given.
+                        MapInfo[] tilesToCheckForCloserExplosiveTrap = rc.senseNearbyMapInfos(buildLoc, explosiveTrapPreferredDist);
+                        boolean passedCheckForCloserTrap = true;
+                        for (int j = tilesToCheckForCloserExplosiveTrap.length -1; j>=0; j--) {
+                            if (tilesToCheckForCloserExplosiveTrap[j].getTrapType() == TrapType.EXPLOSIVE) {
+                                passedCheckForCloserTrap = false;
+                                break;
+                            }
+                        }
+
+                        if (passedCheckForCloserTrap) {
+                            rc.build(TrapType.EXPLOSIVE, buildLoc);
+                        }
                         break;
-                    } else if (buildLoc.distanceSquaredTo(nearestStunTrap) > stunTrapPreferredDist
+                    } else if (distTonearestStunTrap > stunTrapPreferredDist
                             && rc.canBuild(TrapType.STUN, buildLoc)) {
-                        rc.build(TrapType.STUN, buildLoc);
+                        //checking for traps at the new build location to ensure that there is no traps there that would be closer to the closest trap given.
+                        MapInfo[] tilesToCheckForCloserStunTrap = rc.senseNearbyMapInfos(buildLoc, stunTrapPreferredDist);
+
+                        boolean passedCheckForCloserTrap = true;
+                        for (int j = tilesToCheckForCloserStunTrap.length -1; j>=0; j--) {
+                            if (tilesToCheckForCloserStunTrap[j].getTrapType() == TrapType.STUN) {
+                                passedCheckForCloserTrap = false;
+                                break;
+                            }
+                        }
+
+                        if (passedCheckForCloserTrap) {
+                            rc.build(TrapType.STUN, buildLoc);
+                        }
                         break;
                     }
                 }
