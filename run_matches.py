@@ -12,13 +12,15 @@ emojiMap = {
     'Error': ':heavy_exclamation_mark:'
 }
 errors = []
-currentBot = 'mainbot'
+currentBot = 'mirror'
 
-bots = ['examplefuncsplayer']
+bots = ['mainbot']
 botsSet = set(bots)
 
-initialMaps = ['DefaultSmall'] #['DefaultHuge', 'DefaultLarge', 'DefaultMedium', 'DefaultSmall']
-maps = initialMaps
+initialMaps = ['DefaultHuge', 'DefaultLarge', 'DefaultMedium', 'DefaultSmall']
+customMaps = ['pathfinder']
+
+maps = initialMaps + customMaps
 mapsSet = set(maps)
 
 matches = set(product(bots, maps))

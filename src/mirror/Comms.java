@@ -1,4 +1,4 @@
-package mainbot;
+package mirror;
 
 import battlecode.common.*;
 
