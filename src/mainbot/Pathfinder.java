@@ -27,6 +27,17 @@ public class Pathfinder {
         return (dx1 * dx2 + dy1 * dy2) / ((dx1 * dx1 + dy1 * dy1) * (dx2 * dx2 + dy2 + dy2));
     }
 
+    // normalizes and calculates z of cross product of 2 2d vecs
+    public static double normZCross(int x1, int y1, int x2, int y2) {
+        double v1norm = Math.sqrt(x1 * x1 + y1 * y1);
+        double v2norm = Math.sqrt(x2 * x2 + y2 * y2);
+        double x1f = x1 / v1norm;
+        double y1f = y1 / v1norm;
+        double x2f = x2 / v2norm;
+        double y2f = y2 / v2norm;
+        return x1f * y2f - x2f * y1f;
+    }
+
     // does not explicitly check movement cd but does canmove checks
     public static Direction pathfind(MapLocation src, MapLocation tgt) throws GameActionException {
         if (!rc.isMovementReady() || src.equals(tgt))
@@ -73,15 +84,18 @@ public class Pathfinder {
                 // get min dist to tgt from this impassible
                 int currDist = sqLoc.distanceSquaredTo(tgt);
                 // note the closest impass to tgt on both left and right
-                int zCross = (tgt.x - src.x) * (sqLoc.y - src.y) - (tgt.y - src.y) * (sqLoc.x - src.x);
-                if (zCross > 0 && currDist < minDistL) {
+                double zCross = normZCross(tgt.x - src.x, tgt.y - src.y, sqLoc.x - src.x, sqLoc.y - src.y);
+                // System.out.println(zCross);
+                if (zCross > 0.2 && currDist < minDistL) {
                     minDistL = currDist;
                     minBoundL = sqLoc;
-                } else if (zCross < 0 && currDist < minDistR) {
+                } else if (zCross < -0.2 && currDist < minDistR) {
                     minDistR = currDist;
                     minBoundR = sqLoc;
                 }
             }
+            // System.out.println("minBoundL " + minBoundL + "(" + minDistL + ") minBoundR "
+            // + minBoundR + "(" + minDistR + ")");
             // if impass exists on both sides, choose dir with impass closest to tgt
             if (minBoundL != null && minBoundR != null) {
                 buhgDir = minDistL < minDistR ? Rot.LEFT : Rot.RIGHT;
