@@ -894,11 +894,9 @@ public strictfp class RobotPlayer {
     public static void trainToSixByDigging(RobotController rc, MapLocation nearestWater, int lowestDistToWater)
             throws GameActionException {
 
-        if (nearestWater != null) {
-            if (lowestDistToWater <= GameConstants.INTERACT_RADIUS_SQUARED
-                    && rc.canFill(nearestWater)) {
-                rc.fill(nearestWater);
-            }
+        if (nearestWater != null && lowestDistToWater <= GameConstants.INTERACT_RADIUS_SQUARED && rc.canFill(nearestWater)) {
+            rc.fill(nearestWater);
+
         } else {
             for (int i = directions.length - 1; i >= 0; i--) {
                 MapLocation addedLoc = rc.getLocation().add(directions[i]);
