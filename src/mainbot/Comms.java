@@ -66,6 +66,7 @@ public class Comms {
     // killed enemy unit respawn tracking
     public static int turnKillCount = 0;
     public static LinkedList<Pair> respawnTimer = new LinkedList<>();
+    public static MapLocation prevEndTurnLoc = null;
 
     public static void receive() throws GameActionException {
         // yea yea unroll this later
