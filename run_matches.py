@@ -12,7 +12,7 @@ emojiMap = {
     'Error': ':heavy_exclamation_mark:'
 }
 errors = []
-currentBot = 'mirror'
+currentBot = 'mirror2'
 
 bots = ['mainbot']
 botsSet = set(bots)
