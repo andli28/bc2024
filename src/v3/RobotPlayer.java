@@ -1,4 +1,4 @@
-package mirror;
+package v3;
 
 import battlecode.common.*;
 import battlecode.world.Flag;
