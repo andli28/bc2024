@@ -66,7 +66,6 @@ public class Comms {
     // killed enemy unit respawn tracking
     public static int turnKillCount = 0;
     public static LinkedList<Pair> respawnTimer = new LinkedList<>();
-    public static boolean prevHeldFlag = false;
 
     public static void receive() throws GameActionException {
         // yea yea unroll this later
@@ -103,7 +102,7 @@ public class Comms {
         // refresh the comms entries you are in charge of(1 turn lifespan)
         for (; refreshPtr >= 0; refreshPtr--) {
             // if you drop flag(purposefully or die) do not refresh that ping
-            if ((!rc.isSpawned() || (prevHeldFlag && !rc.hasFlag())) && refreshIdxs[refreshPtr] >= 9
+            if ((!rc.isSpawned()) && refreshIdxs[refreshPtr] >= 9
                     && refreshIdxs[refreshPtr] <= 11)
                 continue;
             write(refreshIdxs[refreshPtr], 0);
@@ -295,7 +294,6 @@ public class Comms {
                 }
             }
         }
-        prevHeldFlag = rc.hasFlag();
     }
 
     // if flag carrier killed the currentflag entry persists, after another duck
