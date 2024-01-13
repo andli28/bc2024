@@ -34,8 +34,11 @@ public class Pathfinder {
         // some variant buh g with wall avoidance
         Direction dirTo = src.directionTo(tgt);
 
+        // if direct is blocked
+        boolean directPassable = rc.senseMapInfo(src.add(dirTo)).isPassable();
+
         // direct greedily(8 dir) if can until impassible 1 tile no los, then buhg
-        if (rc.senseMapInfo(src.add(dirTo)).isPassable() && buhgDir == Rot.NONE) {
+        if (directPassable && buhgDir == Rot.NONE) {
             Direction bestDir = Direction.CENTER;
             int minDist = 9999;
             for (Direction d : Direction.allDirections()) {
@@ -84,6 +87,10 @@ public class Pathfinder {
         }
         turnsBuhgging++;
 
+        // flag for if we end up buhgging around a robot
+        // in this case do not update lastbuhgdir, as it may result in us circling
+        // around imaginary obstacles schizo
+        boolean unitBlock = false;
         // standard buhg movement once a dir decided
         if (buhgDir == Rot.LEFT) {
             // start scanning from ortho to last move if available, else just base off dir
@@ -91,13 +98,22 @@ public class Pathfinder {
             Direction moveDir = lastBuhgDir != Direction.CENTER ? lastBuhgDir.rotateRight()
                     : dirTo.rotateLeft();
             for (int i = 7; --i >= 0;) {
+                MapLocation currLoc = src.add(moveDir);
                 // wall avoidance
-                if (!rc.onTheMap(src.add(moveDir)))
+                if (!rc.onTheMap(currLoc)) {
+                    initBlockDist = src.distanceSquaredTo(tgt);
                     buhgDir = Rot.RIGHT;
+                    lastBuhgDir = Direction.CENTER;
+                    turnsBuhgging = 0;
+                    break;
+                }
                 if (rc.canMove(moveDir)) {
-                    lastBuhgDir = moveDir;
-                    // check for buhg exiting conditions(closer to goal than init buhgging dist)
-                    if (src.distanceSquaredTo(tgt) < initBlockDist || turnsBuhgging > 20) {
+                    if (!unitBlock)
+                        lastBuhgDir = moveDir;
+                    // check for buhg exiting conditions(closer to goal than init buhgging dist +
+                    // not blocked)
+                    if ((src.distanceSquaredTo(tgt) < initBlockDist && directPassable)
+                            || turnsBuhgging > 20) {
                         initBlockDist = 9999;
                         buhgDir = Rot.NONE;
                         turnsBuhgging = 0;
@@ -105,17 +121,27 @@ public class Pathfinder {
                     }
                     return moveDir;
                 }
+                // if blocked by robot set flag, else clear
+                unitBlock = rc.canSenseRobotAtLocation(currLoc);
                 moveDir = moveDir.rotateLeft();
             }
         } else {
             Direction moveDir = lastBuhgDir != Direction.CENTER ? lastBuhgDir.rotateLeft()
                     : dirTo.rotateRight();
-            if (!rc.onTheMap(src.add(moveDir)))
-                buhgDir = Rot.LEFT;
             for (int i = 7; --i >= 0;) {
+                MapLocation currLoc = src.add(moveDir);
+                if (!rc.onTheMap(currLoc)) {
+                    initBlockDist = src.distanceSquaredTo(tgt);
+                    buhgDir = Rot.LEFT;
+                    lastBuhgDir = Direction.CENTER;
+                    turnsBuhgging = 0;
+                    break;
+                }
                 if (rc.canMove(moveDir)) {
-                    lastBuhgDir = moveDir;
-                    if (src.distanceSquaredTo(tgt) < initBlockDist || turnsBuhgging > 20) {
+                    if (!unitBlock)
+                        lastBuhgDir = moveDir;
+                    if ((src.distanceSquaredTo(tgt) < initBlockDist && directPassable)
+                            || turnsBuhgging > 20) {
                         initBlockDist = 9999;
                         buhgDir = Rot.NONE;
                         turnsBuhgging = 0;
@@ -123,6 +149,7 @@ public class Pathfinder {
                     }
                     return moveDir;
                 }
+                unitBlock = rc.canSenseRobotAtLocation(currLoc);
                 moveDir = moveDir.rotateRight();
             }
         }
