@@ -164,4 +164,29 @@ public class Pathfinder {
         }
         return Direction.CENTER;
     }
+
+    public static Direction pathfindHome() throws GameActionException {
+        MapLocation[] spawnLocs = rc.getAllySpawnLocations();
+        // find closest spawnLoc:
+        MapLocation closestSpawn = null;
+        int closestSpawnDist = Integer.MAX_VALUE;
+        for (int i = spawnLocs.length - 1; i >= 0; i--) {
+            int distSqToSpawn = travelDistance(rc.getLocation(), spawnLocs[i]);
+            if (distSqToSpawn < closestSpawnDist) {
+                closestSpawnDist = distSqToSpawn;
+                closestSpawn = spawnLocs[i];
+            }
+        }                                  
+        rc.setIndicatorString("returning: " + closestSpawn.toString());
+        return Pathfinder.pathfind(rc.getLocation(), closestSpawn);
+
+    }
+
+    public static int travelDistance(MapLocation src, MapLocation tgt) throws GameActionException {
+        // distance between src and tgt is max(dx, dy)
+        int dx = Math.abs(src.x - tgt.x);
+        int dy = Math.abs(src.y - tgt.y);
+        int dist = Math.max(dx, dy);
+        return dist;
+    }
 }

@@ -491,26 +491,31 @@ public strictfp class RobotPlayer {
                     } else if (role == CAPTURING) {
                         // If you can pick up the flag, pick it up, otherwise calculate the nearest
                         // enemy flag, and go to it
-                        if (rc.canPickupFlag(rc.getLocation())) {
-                            rc.pickupFlag(rc.getLocation());
-                        } else {
-                            // find closest flagLoc:
-                            MapLocation closestFlag = null;
-                            int closestFlagDist = Integer.MAX_VALUE;
-                            for (int i = nearbyFlags.length - 1; i >= 0; i--) {
-                                if (!nearbyFlags[i].isPickedUp()) {
-                                    int distSqToSpawn = rc.getLocation()
-                                            .distanceSquaredTo(nearbyFlags[i].getLocation());
-                                    if (distSqToSpawn < closestFlagDist) {
-                                        closestFlagDist = distSqToSpawn;
-                                        closestFlag = nearbyFlags[i].getLocation();
-                                    }
+                        
+                        // find closest flagLoc:
+                        MapLocation closestFlag = null;
+                        int closestFlagDist = Integer.MAX_VALUE;
+                        for (int i = nearbyFlags.length - 1; i >= 0; i--) {
+                            if (!nearbyFlags[i].isPickedUp()) {
+                                int distSqToSpawn = rc.getLocation()
+                                        .distanceSquaredTo(nearbyFlags[i].getLocation());
+                                if (distSqToSpawn < closestFlagDist) {
+                                    closestFlagDist = distSqToSpawn;
+                                    closestFlag = nearbyFlags[i].getLocation();
                                 }
                             }
-                            Direction dir = Pathfinder.pathfind(rc.getLocation(), closestFlag);
-                            if (rc.canMove(dir)) {
-                                rc.move(dir);
-                            }
+                        }
+                        Direction dir;
+                        if (rc.canPickupFlag(closestFlag)) {
+                            rc.pickupFlag(closestFlag);
+                            dir = Pathfinder.pathfindHome();
+                        }
+                        else{                            
+                            dir = Pathfinder.pathfind(rc.getLocation(), closestFlag);
+                        }
+
+                        if (rc.canMove(dir)) {
+                            rc.move(dir);
                         }
 
                     } else if (role == RETURNING) {
@@ -518,19 +523,7 @@ public strictfp class RobotPlayer {
                         // an ally spawn zone to capture it! We use the check roundNum >= SETUP_ROUNDS
                         // to make sure setup phase has ended.
                         if (rc.hasFlag() && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS) {
-                            MapLocation[] spawnLocs = rc.getAllySpawnLocations();
-                            // find closest spawnLoc:
-                            MapLocation closestSpawn = null;
-                            int closestSpawnDist = Integer.MAX_VALUE;
-                            for (int i = spawnLocs.length - 1; i >= 0; i--) {
-                                int distSqToSpawn = rc.getLocation().distanceSquaredTo(spawnLocs[i]);
-                                if (distSqToSpawn < closestSpawnDist) {
-                                    closestSpawnDist = distSqToSpawn;
-                                    closestSpawn = spawnLocs[i];
-                                }
-                            }
-                            Direction dir = Pathfinder.pathfind(rc.getLocation(), closestSpawn);                            
-                            rc.setIndicatorString("returning: " + closestSpawn.toString());
+                            Direction dir = Pathfinder.pathfindHome();
                             if (rc.canMove(dir)) {
                                 rc.move(dir);
                             }
