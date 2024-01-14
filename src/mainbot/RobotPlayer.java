@@ -27,6 +27,7 @@ public strictfp class RobotPlayer {
      * your robots.
      */
     static int turnCount = 0;
+    static int turnsAlive = 0;
 
     /**
      * A random number generator.
@@ -68,6 +69,8 @@ public strictfp class RobotPlayer {
     static boolean lastTurnPursingWater = false;
     static MapLocation rememberThisTurnClosestStunTrap = null;
     static int turnsPursuingStun = 0;
+    static boolean retireSentry = false;
+    static MapLocation homeFlag = null;
 
     // Delegating Roles:
     // 1. Scouting - base role for units. Purpose: to explore the map, gather
@@ -82,12 +85,14 @@ public strictfp class RobotPlayer {
     static final int DEFENDING = 5;
     static final int HEALING = 6;
     static final int WOUNDED = 7;
+    static final int SENTRYING = 8;
 
     // Default unit to scouting.
     static int role = SCOUTING;
 
     // set specializations
     static boolean BUILDERSPECIALIST = false;
+    static boolean SENTRY = false;
 
     /**
      * run() is the method that is called when a robot is instantiated in the
@@ -125,9 +130,9 @@ public strictfp class RobotPlayer {
             turnCount += 1; // We have now been alive for one more turn!
 
             // Resignation at 500 turns for testing purposes
-            // if (turnCount == 500) {
-            // rc.resign();
-            // }
+//             if (turnCount == 1200) {
+//             rc.resign();
+//             }
 
             // Try/catch blocks stop unhandled exceptions, which cause your robot to
             // explode.
@@ -138,6 +143,7 @@ public strictfp class RobotPlayer {
                 // Robots not spawned in do not have vision of any tiles and cannot perform any
                 // actions.
                 if (!rc.isSpawned()) {
+                    turnsAlive = 0;
                     MapLocation[] spawnLocs = rc.getAllySpawnLocations();
                     // If theres a displaced flag, find the spawn location
                     // that has the smallest distance to the first displaced flag in the list and
@@ -201,9 +207,44 @@ public strictfp class RobotPlayer {
 
                 if (rc.isSpawned()) {
 
-                    // decide if this person should be a builder (if shortId <3)
-                    if (turnCount > 1 && Comms.shortId < 3) {
+                    //Turns Alive
+                    turnsAlive++;
+
+                    // decide if this person should be a builder (if shortId == an ID) (Diff ID's chosen to spawn at diff spawns)
+                    if (turnCount == 2 && (Comms.shortId == 2 || Comms.shortId == 29 || Comms.shortId == 47)) {
                         BUILDERSPECIALIST = true;
+                    }
+
+                    // decide if this person should be a sentry (Diff ID's chosen to spawn at diff spawns)
+                    // Create two shifts to swap out ducks and ensure these ducks can still get XP. Rotate shift every 500 turns.
+                    boolean sentryShiftOne = (Comms.shortId == 0 || Comms.shortId == 30 || Comms.shortId == 49);
+                    boolean sentryShiftTwo = (Comms.shortId == 1 || Comms.shortId == 31 || Comms.shortId == 48);
+                    boolean swapTurnOne = (turnCount == 2 || turnCount == 1000);
+                    boolean swapTurnTwo = (turnCount == 500 || turnCount == 1500);
+
+                    if (swapTurnOne && sentryShiftOne) {
+                        SENTRY = true;
+                    } else if (swapTurnOne && sentryShiftTwo) {
+                        SENTRY = false;
+                    } else if (swapTurnTwo && sentryShiftTwo) {
+                        SENTRY = true;
+                    } else if (swapTurnTwo && sentryShiftOne) {
+                        SENTRY = false;
+                    }
+
+                    if (turnsAlive == 2) {
+                        //Scan for flag defaults and get homeflag
+                        MapLocation[] allyFlagDefaults = Comms.getDefaultAllyFlagLocations();
+                        MapLocation closestAllyFlag = null;
+                        int closestAllyFlagDist = Integer.MAX_VALUE;
+                        for (int i = allyFlagDefaults.length-1; i>=0; i--) {
+                            int tempDist = rc.getLocation().distanceSquaredTo(allyFlagDefaults[i]);
+                            if (tempDist < closestAllyFlagDist) {
+                                closestAllyFlagDist = tempDist;
+                                closestAllyFlag = allyFlagDefaults[i];
+                            }
+                        }
+                        homeFlag = closestAllyFlag;
                     }
 
                     // 750 Turn upgrade + 1500 turn upgrade
@@ -403,6 +444,9 @@ public strictfp class RobotPlayer {
                     } else if (lowestCurrFriendlySeenHealth < GameConstants.DEFAULT_HEALTH) {
                         role = HEALING;
                         rc.setIndicatorString("Healing");
+                    } else if (SENTRY && !retireSentry) {
+                        role = SENTRYING;
+                        rc.setIndicatorString("Sentry");
                     } else {
                         role = SCOUTING;
                         rc.setIndicatorString("Scouting");
@@ -430,6 +474,9 @@ public strictfp class RobotPlayer {
                         // the else if is to account for the case where a crumb has been eaten before
                         // this unit has had a chance to pick it up, so add a case to prevent redudant
                         // persuit of a crumb that is not there
+                        // if you see the corner tiles from your spawn flag, and your spawn flag is
+                        // still there, and the corner tiles are not stun trapped, stun trap them if you have enough breadcrumbs
+                        Direction optimalDir = null;
                         if (nearbyCrumbs.length != 0) {
                             for (int i = nearbyCrumbs.length - 1; i >= 0; i--) {
                                 if (rc.sensePassability(nearbyCrumbs[i])) {
@@ -476,17 +523,62 @@ public strictfp class RobotPlayer {
                                 lastTurnPursingWater = false;
                             }
                         }
+                        optimalDir = Pathfinder.pathfind(rc.getLocation(), tgtLocation);
+                        rc.setIndicatorString("Scouting: Tgt: " + tgtLocation.toString());
 
-                        // Initialize Direction to Move
-                        Direction dir = Pathfinder.pathfind(rc.getLocation(), tgtLocation);
-                        // rc.setIndicatorString(tgtLocation.toString());
+                        // builders visit home during setup before turn 150 to see if they can trap their homes
+                        // if you have lvl 6 building, have over 100 crumbs, no enemies are around, and can sense your home location, check if you can stun trap corners.
+                        if (turnCount < 150 && homeFlag != null && rc.getExperience(SkillType.BUILD) >= 30 && rc.getCrumbs() >= 100) {
+                            optimalDir = Pathfinder.pathfind(rc.getLocation(), homeFlag);
+                            rc.setIndicatorString("Scouting: Going home to see if I can set traps");
+                        }
+                        if (rc.getExperience(SkillType.BUILD) >= 30 && rc.getCrumbs() >= 100 && rc.canSenseLocation(homeFlag)) {
+                            // TODO this is another opportunity to see if home flag still exists to update in comms
+                            boolean homeFlagStillExists = false;
+                            FlagInfo[] nearbyAllyFlags = rc.senseNearbyFlags(GameConstants.VISION_RADIUS_SQUARED, rc.getTeam());
+                            for (int i = nearbyAllyFlags.length-1; i>=0; i--){
+                                if (nearbyAllyFlags[i].getLocation().equals(homeFlag)) {
+                                    homeFlagStillExists = true;
+                                    break;
+                                }
+                            }
+                            if (homeFlagStillExists) {
+                                MapLocation closestCornerWithoutStun = null;
+                                int distToClosestCorner = Integer.MAX_VALUE;
+                                for (int i = 3; i >= 0; i--) {
+                                    MapLocation spawnCheck = null;
+                                    if (i == 3) {
+                                        spawnCheck = new MapLocation(homeFlag.x + 1, homeFlag.y + 1);
+                                    } else if (i == 2) {
+                                        spawnCheck = new MapLocation(homeFlag.x + 1, homeFlag.y - 1);
+                                    } else if (i == 1) {
+                                        spawnCheck = new MapLocation(homeFlag.x - 1, homeFlag.y - 1);
+                                    } else if (i == 0) {
+                                        spawnCheck = new MapLocation(homeFlag.x - 1, homeFlag.y + 1);
+                                    }
+                                    int distSqToCorner = rc.getLocation().distanceSquaredTo(spawnCheck);
+                                    if (rc.canSenseLocation(spawnCheck) && rc.senseMapInfo(spawnCheck).getTrapType() == TrapType.NONE && distSqToCorner < distToClosestCorner) {
+                                       distToClosestCorner = distSqToCorner;
+                                       closestCornerWithoutStun = spawnCheck;
+                                    }
+                                }
 
-                        // If can move to dir, move.
-                        if (rc.canMove(dir)) {
-                            rc.move(dir);
+                                if (closestCornerWithoutStun != null) {
+                                    rc.setIndicatorString("Scouting: Stun Trapping: " + closestCornerWithoutStun.toString());
+                                    if (rc.canBuild(TrapType.STUN, closestCornerWithoutStun)) {
+                                        rc.build(TrapType.STUN, closestCornerWithoutStun);
+                                    } else {
+                                        optimalDir = Pathfinder.pathfind(rc.getLocation(), closestCornerWithoutStun);
+                                    }
+                                }
+                            }
                         }
 
-                        rc.setIndicatorString("Scouting: Tgt: " + tgtLocation.toString());
+                        // If can move to dir, move.
+                        if (rc.canMove(optimalDir)) {
+                            rc.move(optimalDir);
+                        }
+
 
                     } else if (role == INCOMBAT) {
 
@@ -529,9 +621,11 @@ public strictfp class RobotPlayer {
 
                     } else if (role == BUILDING) {
 
+                        Direction optimalDir = null;
+
                         layTrapWithinRangeOfEnemy(rc, nearestExplosiveTrap, nearestStunTrap, closestHostile,
                                 explosiveTrapPreferredDist, stunTrapPreferredDist, buildThreshold);
-                        Direction optimalDir = findOptimalCombatDir(rc,enemies, averageDistSqFromEnemies, woundedRetreatThreshold, numHostiles, numFriendlies);
+                        optimalDir = findOptimalCombatDir(rc,enemies, averageDistSqFromEnemies, woundedRetreatThreshold, numHostiles, numFriendlies);
                         attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
 
                     } else if (role == CAPTURING) {
@@ -588,6 +682,21 @@ public strictfp class RobotPlayer {
                             rc.move(dir);
                         }
 
+                    } else if (role == SENTRYING) {
+
+                        // TODO this is an opportunity to update if homeFlag exists in comms
+                        //if you're location is the same as the closest default, check if its still there. If not, retire sentry.
+                        if (rc.getLocation().equals(homeFlag)) {
+                            FlagInfo[] allyFlags = rc.senseNearbyFlags(1, rc.getTeam());
+                            if (allyFlags.length == 0) {
+                                retireSentry = true;
+                            }
+                        }
+
+                        Direction dir = Pathfinder.pathfind(rc.getLocation(), homeFlag);
+                        if (rc.canMove(dir)) {
+                            rc.move(dir);
+                        }
                     } else if (role == WOUNDED) {
 
                         // enable units to go in any direction.
