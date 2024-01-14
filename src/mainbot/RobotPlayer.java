@@ -278,6 +278,19 @@ public strictfp class RobotPlayer {
                         }
                     }
 
+                    //Getting closest broadcast flag locations
+                    MapLocation[] broadcastLocations = rc.senseBroadcastFlagLocations();
+                    MapLocation closestBroadcast = null;
+                    int distToclosestBroadcast = Integer.MAX_VALUE;
+                    for (int i = broadcastLocations.length-1; i>=0; i--) {
+                        int dx = rc.getLocation().x-broadcastLocations[i].x;
+                        int dy = rc.getLocation().y-broadcastLocations[i].y;
+                        if (Math.max(dx,dy)<distToclosestBroadcast) {
+                            closestBroadcast = broadcastLocations[i];
+                            distToclosestBroadcast = Math.max(dx,dy);
+                        }
+                    }
+
                     // Enemy Counting, finding number of hostiles, number of hostiles in range, and
                     // the nearby hostile with the lowest HP
                     RobotInfo[] enemies = rc.senseNearbyRobots(rc.getLocation(), GameConstants.VISION_RADIUS_SQUARED,
@@ -453,8 +466,12 @@ public strictfp class RobotPlayer {
                             else if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||
                                     (rc.canSenseLocation(tgtLocation) && !rc.sensePassability(tgtLocation))
                                     || turnsNotReachedTgt > 50 || lastTurnPursingCrumb || lastTurnPursingWater) {
-                                tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
-                                        3, rc.getMapHeight() - 3);
+                                if (turnCount > GameConstants.SETUP_ROUNDS && closestBroadcast != null) {
+                                    tgtLocation = closestBroadcast;
+                                } else {
+                                    tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
+                                            3, rc.getMapHeight() - 3);
+                                }
                                 lastTurnPursingCrumb = false;
                                 lastTurnPursingWater = false;
                             }
@@ -624,6 +641,11 @@ public strictfp class RobotPlayer {
                     while (lowestCurrFriendly != null && rc.canHeal(lowestCurrFriendly)) {
                         rc.heal(lowestCurrFriendly);
                     }
+
+                    if (turnCount > 1900 && rc.getExperience(SkillType.BUILD) < 15) {
+                        trainToSixByDigging(rc, nearestWater, lowestDistToWater);
+                    }
+
                     // // default battlecode code:
                     // else {
                     // if (rc.canPickupFlag(rc.getLocation())) {
