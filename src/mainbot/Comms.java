@@ -48,6 +48,14 @@ public class Comms {
     // comms[19] unit count for random sampling and id sequencing
     // comms[20] enemy alive count(overestimate)
 
+    // this ordered wack since flag ids only added later
+    // comms[21:23] flag ids of ally flags, all ally flag info follows this order
+    // ex: comms[0] will always be same flag as comms[3] and comms[21]
+    // comms[24:26] flag ids of enemy flags, all enemy flag info follows this order
+
+    // comms[27:29][15][11:6][5:0] closest enemy loc to each ally flag(current if
+    // exist, otherwise default)
+
     public static final int[] ALLY_DEFAULT_FLAG_INDICES = { 0, 1, 2 };
     public static final int[] ALLY_CURRENT_FLAG_INDICES = { 3, 4, 5 };
     public static final int[] ENEMY_DEFAULT_FLAG_INDICES = { 6, 7, 8 };
@@ -60,8 +68,6 @@ public class Comms {
     public static RobotInfo[] nearbyEnemies;
     public static FlagInfo[] nearbyFlags;
     public static Team carrying;
-    public static int[] refreshIdxs = new int[6];
-    public static int refreshPtr = -1;
     public static Spec prevSpec = Spec.NONE;
     // killed enemy unit respawn tracking
     public static int turnKillCount = 0;
@@ -100,14 +106,6 @@ public class Comms {
     public static void update() throws GameActionException {
         // these can be called regardless of dead or alive
         sequence();
-        // refresh the comms entries you are in charge of(1 turn lifespan)
-        for (; refreshPtr >= 0; refreshPtr--) {
-            // if you drop flag(purposefully or die) do not refresh that ping
-            if ((!rc.isSpawned()) && refreshIdxs[refreshPtr] >= 9
-                    && refreshIdxs[refreshPtr] <= 11)
-                continue;
-            write(refreshIdxs[refreshPtr], 0);
-        }
 
         // current spec count
         Spec curSpec;
@@ -155,7 +153,7 @@ public class Comms {
             sampleRandomEnemies();
             nearbyFlags = rc.senseNearbyFlags(-1);
             updateFlagLocs();
-            updateCurrEnemyFlags();
+            updateCurrFlags();
         }
         prevEndTurnLoc = rc.isSpawned() ? rc.getLocation() : null;
 
@@ -185,6 +183,19 @@ public class Comms {
             // clear unit spec, sequence, sampled enemy counts
             write(19, 0);
             clearRandomEnemies();
+            // debug flag locations
+            // System.out.println("aid1: " + comms[21] + "\naid2: " + comms[22] + "\naid3: "
+            // + comms[23] + "\nafd1: "
+            // + decodeLoc(comms[0]) + "\nafd2: " + decodeLoc(comms[1]) + "\nafd3: "
+            // + decodeLoc(comms[2]) + "\nafc1: " + decodeLoc(comms[3]) + "\nafc2: " +
+            // decodeLoc(comms[4])
+            // + "\nafc3: " + decodeLoc(comms[5]));
+            // System.out.println("eid1: " + comms[24] + "\neid2: " + comms[25] + "\neid3: "
+            // + comms[26] + "\nefd1: "
+            // + decodeLoc(comms[6]) + "\nefd2: " + decodeLoc(comms[7]) + "\nefd3: "
+            // + decodeLoc(comms[8]) + "\nefc1: " + decodeLoc(comms[9]) + "\nefc2: " +
+            // decodeLoc(comms[10])
+            // + "\nefc3: " + decodeLoc(comms[11]));
         }
     }
 
@@ -233,47 +244,22 @@ public class Comms {
         return firstAvail;
     }
 
-    public static void flagPickup(FlagInfo finfo) throws GameActionException {
-        // picking up own flag must be setup relocation
-        if (finfo.getTeam() == rc.getTeam()) {
-            // remove entry from default ally flag locs
-            removeValue(encodeLoc(finfo.getLocation()), ALLY_DEFAULT_FLAG_INDICES);
+    // matches read id to recorded flag id index(both enemy and ally)
+    static int getFlagIndexFromID(int flagID) {
+        for (int i = 3; --i >= 0;) {
+            if (comms[i + 21] == flagID || comms[i + 24] == flagID)
+                return i;
         }
+        return -1;
     }
 
     public static void flagDrop(FlagInfo finfo) throws GameActionException {
+        // handle changing of default flags during ally setup
+        int id = finfo.getID();
         if (finfo.getTeam() == rc.getTeam()) {
-            // update default ally with drop location in setup
-            writeFlagLoc(finfo.getLocation(), ALLY_DEFAULT_FLAG_INDICES);
-        } else {
-            // previous ping is auto cleared on Comms.update(), but we need to replace the
-            // entry with where we dropped the flag
-            // current scuffed way of doing this is to invalidate refresh by changing index
-            // and just
-            // overwriting comm entry directly
-            MapLocation[] currEnemyFlags = getCurrentEnemyFlagLocations();
-            // must have a prev location if dropping a flag(pickup last turn)
-            int commIndex = -1;
-            // surely this is unrolled code and not just lazy
-            if (prevEndTurnLoc.equals(currEnemyFlags[0])) {
-                commIndex = 9;
-            } else if (prevEndTurnLoc.equals(currEnemyFlags[1])) {
-                commIndex = 10;
-            } else if (prevEndTurnLoc.equals(currEnemyFlags[2])) {
-                commIndex = 11;
-            }
-            // update comm entry with new current flag loc
-            // this should always enter(if you were carrying a flag last turn you should
-            // have wrote it)
-            if (commIndex != -1) {
-                // update current loc with where u dropped it
-                write(commIndex, encodeLoc(finfo.getLocation()));
-                // invalidate refresh
-                for (int i = refreshPtr; i >= 0; i--) {
-                    if (refreshIdxs[i] == commIndex)
-                        refreshIdxs[i] = 63;
-                }
-            }
+            // flagId should be between 0 and 2
+            int flagId = getFlagIndexFromID(id);
+            write(flagId, encodeLoc(finfo.getLocation()));
         }
     }
 
@@ -285,26 +271,33 @@ public class Comms {
             // setup phase default ally
             if (fi.getTeam() == rc.getTeam()) {
                 if (rc.getRoundNum() < 200 && !fi.isPickedUp()) {
-                    // default flag loc, record into comms if not there already
-                    writeFlagLoc(fi.getLocation(), ALLY_DEFAULT_FLAG_INDICES);
+                    // default flag loc, record into comms if not there already and assoc id slot
+                    int idx = getFlagIndexFromID(fi.getID());
+                    if (idx == -1) {
+                        int firstFree = writeFlagLoc(fi.getLocation(), ALLY_DEFAULT_FLAG_INDICES);
+                        write(21 + firstFree, fi.getID());
+                    }
                 } else if (rc.getRoundNum() > 200) {
-                    // current ally flag locs
-                    int idx = writeFlagLoc(fi.getLocation(), ALLY_CURRENT_FLAG_INDICES);
-                    // note idx for refresh next time it is this bots turn
+                    // use id to put in correct slot
+                    int idx = getFlagIndexFromID(fi.getID());
+                    // if our ducks have eyes this will always true
                     if (idx != -1) {
-                        refreshIdxs[++refreshPtr] = idx;
+                        write(3 + idx, encodeLoc(fi.getLocation()));
                     }
                 }
             } else {
                 // default/current enemy flag loc
                 if (!fi.isPickedUp()) {
-                    // check if this is a dropped flag before writing to default
+                    // use id to see if new flag or not, assoc id if new
                     MapLocation fl = fi.getLocation();
-                    MapLocation[] currEnemyFlags = getCurrentEnemyFlagLocations();
-                    if (!(fl.equals(currEnemyFlags[0]) || fl.equals(currEnemyFlags[1])
-                            || fl.equals(currEnemyFlags[2]))) {
-                        writeFlagLoc(fi.getLocation(), ENEMY_DEFAULT_FLAG_INDICES);
+                    int idx = getFlagIndexFromID(fi.getID());
+                    if (idx == -1) {
+                        // new default enemy flag found! naisu!
+                        int firstFree = writeFlagLoc(fi.getLocation(), ENEMY_DEFAULT_FLAG_INDICES);
+                        idx = firstFree - 6;
+                        write(24 + idx, fi.getID());
                     }
+                    write(9 + idx, encodeLoc(fi.getLocation()));
                 }
             }
 
@@ -313,19 +306,19 @@ public class Comms {
                 if (fi.getTeam() != rc.getTeam()) {
                     // enemy current pings persistent after death to avoid default dup(check
                     // currents)
-                    int idx = writeFlagLoc(fi.getLocation(), ENEMY_CURRENT_FLAG_INDICES);
+                    int idx = getFlagIndexFromID(fi.getID());
                     if (idx != -1) {
-                        refreshIdxs[++refreshPtr] = idx;
+                        write(9 + idx, encodeLoc(fi.getLocation()));
                     }
                 }
             }
         }
     }
 
-    // if flag carrier killed the currentflag entry persists, after another duck
-    // comes to verify this clears comm entry
-    public static void updateCurrEnemyFlags() throws GameActionException {
+    // update curr flags by invalidating dissapeared flags
+    public static void updateCurrFlags() throws GameActionException {
         for (int i = 3; --i >= 0;) {
+            // enemy flags
             MapLocation loc = decodeLoc(comms[9 + i]);
             // can only invalidate comm if you can see the loc
             if (loc == null || loc.distanceSquaredTo(rc.getLocation()) > GameConstants.VISION_RADIUS_SQUARED)
@@ -338,6 +331,21 @@ public class Comms {
             }
             if (!validComm)
                 write(9 + i, 0);
+        }
+
+        for (int i = 3; --i >= 0;) {
+            // ally flags
+            MapLocation loc = decodeLoc(comms[3 + i]);
+            if (loc == null || loc.distanceSquaredTo(rc.getLocation()) > GameConstants.VISION_RADIUS_SQUARED)
+                continue;
+            boolean validComm = false;
+            for (int j = nearbyFlags.length; --j >= 0;) {
+                if (nearbyFlags[j].getLocation().equals(loc)) {
+                    validComm = true;
+                }
+            }
+            if (!validComm)
+                write(3 + i, 0);
         }
     }
 
@@ -364,18 +372,11 @@ public class Comms {
     // contain null
     public static MapLocation[] getDisplacedEnemyFlags() {
         MapLocation[] displacedEnemyFlags = new MapLocation[] { null, null, null };
+        MapLocation[] defaultEnemy = getDefaultEnemyFlagLocations();
+        MapLocation[] currentEnemy = getCurrentEnemyFlagLocations();
         for (int i = 3; --i >= 0;) {
-            MapLocation loc = decodeLoc(comms[9 + i]);
-            if (loc == null)
-                continue;
-            boolean displaced = true;
-            for (int j = 3; --j >= 0;) {
-                MapLocation defaultLoc = decodeLoc(comms[6 + j]);
-                if (loc.equals(defaultLoc))
-                    displaced = false;
-            }
-            if (displaced) {
-                displacedEnemyFlags[i] = loc;
+            if (defaultEnemy[i] != null && defaultEnemy[i].equals(currentEnemy[i])) {
+                displacedEnemyFlags[i] = currentEnemy[i];
             }
         }
         return displacedEnemyFlags;
@@ -402,18 +403,11 @@ public class Comms {
     // contain null entries
     public static MapLocation[] getDisplacedAllyFlags() {
         MapLocation[] displacedAllyFlags = new MapLocation[] { null, null, null };
+        MapLocation[] defaultAlly = getDefaultAllyFlagLocations();
+        MapLocation[] currentAlly = getCurrentAllyFlagLocations();
         for (int i = 3; --i >= 0;) {
-            MapLocation loc = decodeLoc(comms[3 + i]);
-            if (loc == null)
-                continue;
-            boolean displaced = true;
-            for (int j = 3; --j >= 0;) {
-                MapLocation defaultLoc = decodeLoc(comms[j]);
-                if (loc.equals(defaultLoc))
-                    displaced = false;
-            }
-            if (displaced) {
-                displacedAllyFlags[i] = loc;
+            if (defaultAlly[i] != null && defaultAlly[i].equals(currentAlly[i])) {
+                displacedAllyFlags[i] = currentAlly[i];
             }
         }
         return displacedAllyFlags;
