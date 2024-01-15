@@ -193,11 +193,16 @@ public class Pathfinder {
 
     }
 
+    // Gives the travelDistance between 2 points on the map. Not accurate, but useful for ranking
     public static int travelDistance(MapLocation src, MapLocation tgt) throws GameActionException {
         // distance between src and tgt is max(dx, dy)
         int dx = Math.abs(src.x - tgt.x);
         int dy = Math.abs(src.y - tgt.y);
-        int dist = Math.max(dx, dy);
-        return dist;
+        int travelDist = 10 * Math.max(dx, dy); // given greater weight
+
+        // also take into account the distance between the 2 points on the map
+        int taxicabDistance = Math.abs(src.x - tgt.x) + Math.abs(src.y - tgt.y);
+
+        return travelDist + taxicabDistance;
     }
 }
