@@ -553,7 +553,7 @@ public strictfp class RobotPlayer {
                     } else if (numFlagsNearbyNotPickedUp != 0) {
                         role = CAPTURING;
                         rc.setIndicatorString("Capturing");
-                    } else if (closestDisplacedFlag != null) {
+                    } else if (closestDisplacedFlag != null && rc.senseMapInfo(rc.getLocation()).getTeamTerritory().equals(rc.getTeam())) {
                         role = DEFENDING;
                         rc.setIndicatorString("Defending");
                     } else if (lowestCurrFriendlySeenHealth < GameConstants.DEFAULT_HEALTH) {
