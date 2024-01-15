@@ -1,4 +1,4 @@
-package mirror2;
+package v4;
 
 import battlecode.common.*;
 

@@ -1,4 +1,4 @@
-package mirror2;
+package v5;
 
 import battlecode.common.*;
 
@@ -27,6 +27,17 @@ public class Pathfinder {
         return (dx1 * dx2 + dy1 * dy2) / ((dx1 * dx1 + dy1 * dy1) * (dx2 * dx2 + dy2 + dy2));
     }
 
+    // normalizes and calculates z of cross product of 2 2d vecs
+    public static double normZCross(int x1, int y1, int x2, int y2) {
+        double v1norm = Math.sqrt(x1 * x1 + y1 * y1);
+        double v2norm = Math.sqrt(x2 * x2 + y2 * y2);
+        double x1f = x1 / v1norm;
+        double y1f = y1 / v1norm;
+        double x2f = x2 / v2norm;
+        double y2f = y2 / v2norm;
+        return x1f * y2f - x2f * y1f;
+    }
+
     // does not explicitly check movement cd but does canmove checks
     public static Direction pathfind(MapLocation src, MapLocation tgt) throws GameActionException {
         if (!rc.isMovementReady() || src.equals(tgt))
@@ -45,7 +56,7 @@ public class Pathfinder {
                 MapLocation curr = src.add(d);
                 if (!rc.canMove(d) && d != Direction.CENTER)
                     continue;
-                int currDist = curr.distanceSquaredTo(tgt);
+                int currDist = travelDistance(curr, tgt);
                 if (minDist > currDist) {
                     minDist = currDist;
                     bestDir = d;
@@ -71,9 +82,9 @@ public class Pathfinder {
                 if (sqLoc.distanceSquaredTo(src) < 13 || nearbySqs[i].isPassable())
                     continue;
                 // get min dist to tgt from this impassible
-                int currDist = sqLoc.distanceSquaredTo(tgt);
+                int currDist = travelDistance(sqLoc, tgt);
                 // note the closest impass to tgt on both left and right
-                int zCross = (tgt.x - src.x) * (sqLoc.y - src.y) - (tgt.y - src.y) * (sqLoc.x - src.x);
+                double zCross = normZCross(tgt.x - src.x, tgt.y - src.y, sqLoc.x - src.x, sqLoc.y - src.y);
                 if (zCross > 0 && currDist < minDistL) {
                     minDistL = currDist;
                     minBoundL = sqLoc;
@@ -92,7 +103,7 @@ public class Pathfinder {
             } else {
                 buhgDir = minBoundL == null ? Rot.LEFT : Rot.RIGHT;
             }
-            initBlockDist = src.distanceSquaredTo(tgt);
+            initBlockDist = travelDistance(src, tgt);
         }
         turnsBuhgging++;
 
@@ -110,7 +121,7 @@ public class Pathfinder {
                 MapLocation currLoc = src.add(moveDir);
                 // wall avoidance
                 if (!rc.onTheMap(currLoc)) {
-                    initBlockDist = src.distanceSquaredTo(tgt);
+                    initBlockDist = travelDistance(src, tgt);
                     buhgDir = Rot.RIGHT;
                     lastBuhgDir = Direction.CENTER;
                     turnsBuhgging = 0;
@@ -121,7 +132,7 @@ public class Pathfinder {
                         lastBuhgDir = moveDir;
                     // check for buhg exiting conditions(closer to goal than init buhgging dist +
                     // not blocked)
-                    if ((src.distanceSquaredTo(tgt) < initBlockDist && directPassable)
+                    if ((travelDistance(src, tgt) < initBlockDist && directPassable)
                             || turnsBuhgging > 20) {
                         initBlockDist = 9999;
                         buhgDir = Rot.NONE;
@@ -140,7 +151,7 @@ public class Pathfinder {
             for (int i = 7; --i >= 0;) {
                 MapLocation currLoc = src.add(moveDir);
                 if (!rc.onTheMap(currLoc)) {
-                    initBlockDist = src.distanceSquaredTo(tgt);
+                    initBlockDist = travelDistance(src, tgt);
                     buhgDir = Rot.LEFT;
                     lastBuhgDir = Direction.CENTER;
                     turnsBuhgging = 0;
@@ -149,7 +160,7 @@ public class Pathfinder {
                 if (rc.canMove(moveDir)) {
                     if (!unitBlock)
                         lastBuhgDir = moveDir;
-                    if ((src.distanceSquaredTo(tgt) < initBlockDist && directPassable)
+                    if ((travelDistance(src, tgt) < initBlockDist && directPassable)
                             || turnsBuhgging > 20) {
                         initBlockDist = 9999;
                         buhgDir = Rot.NONE;
@@ -176,7 +187,7 @@ public class Pathfinder {
                 closestSpawnDist = distSqToSpawn;
                 closestSpawn = spawnLocs[i];
             }
-        }                                  
+        }
         rc.setIndicatorString("returning: " + closestSpawn.toString());
         return Pathfinder.pathfind(rc.getLocation(), closestSpawn);
 
