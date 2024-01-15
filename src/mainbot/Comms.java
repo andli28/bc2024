@@ -493,6 +493,21 @@ public class Comms {
         return new MapLocation[] { decodeLoc(comms[27]), decodeLoc(comms[28]), decodeLoc(comms[29]) };
     }
 
+    // absurdlyLongCamelCaseFunctionNameShowcaseNumberOne.png
+    public static int[] getClosestEnemyDistanceToAllyFlags() throws GameActionException {
+        int[] dists = { 9999, 9999, 9999 };
+        MapLocation[] closestEnemies = getClosestEnemyToAllyFlags();
+        MapLocation[] currentAllyFlagLocs = getCurrentAllyFlagLocations();
+        MapLocation[] defaultAllyFlagLocs = getDefaultAllyFlagLocations();
+        for (int i = 3; --i >= 0;) {
+            MapLocation flagRef = currentAllyFlagLocs[i] == null ? defaultAllyFlagLocs[i] : currentAllyFlagLocs[i];
+            MapLocation enemyLoc = closestEnemies[i];
+            if (enemyLoc != null)
+                dists[i] = Pathfinder.travelDistance(enemyLoc, flagRef);
+        }
+        return dists;
+    }
+
     public static void updateClosestEnemyToAllyFlags() throws GameActionException {
         // calculate each enemy's dist to each ally flag, write if closer than whats in
         // comms, remember to refresh by urself next turn so all teammates get info
@@ -523,6 +538,8 @@ public class Comms {
         for (int i = 3; --i >= 0;) {
             MapLocation commClosestEnemy = decodeLoc(27 + i);
             MapLocation localClosestEnemy = closestEnemiesToFlags[i];
+            if (localClosestEnemy == null)
+                continue;
             MapLocation allyFlagLoc = currentAllyFlagLocs[i] == null ? defaultAllyFlagLocs[i] : currentAllyFlagLocs[i];
             if (commClosestEnemy == null || Pathfinder.travelDistance(allyFlagLoc, commClosestEnemy) > Pathfinder
                     .travelDistance(allyFlagLoc, localClosestEnemy)) {
