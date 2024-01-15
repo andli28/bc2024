@@ -207,6 +207,11 @@ public class Comms {
             // + decodeLoc(comms[8]) + "\nefc1: " + decodeLoc(comms[9]) + "\nefc2: " +
             // decodeLoc(comms[10])
             // + "\nefc3: " + decodeLoc(comms[11]));
+            System.out.println("afd1: "
+                    + decodeLoc(comms[0]) + "\nafd2: " + decodeLoc(comms[1]) + "\nafd3: "
+                    + decodeLoc(comms[2]));
+            System.out.println("ce1: " + decodeLoc(comms[27]) + "\nce2: " + decodeLoc(comms[28]) + "\nce3: "
+                    + decodeLoc(comms[29]));
         }
     }
 
