@@ -1415,7 +1415,7 @@ public strictfp class RobotPlayer {
             }
         }
 
-        if (turnCount > GameConstants.SETUP_ROUNDS + 2 && (rc.getHealth() < dmg || numHostiles-2 >= numFriendlies || !rc.isActionReady())) {
+        if (rc.getHealth() < dmg || numHostiles-2 >= numFriendlies || !rc.isActionReady()) {
             optimalDir = bestRetreat;
             if (optimalDir != null) {
                 rc.setIndicatorString("In combat bestRetreat: " + bestRetreat.toString());
