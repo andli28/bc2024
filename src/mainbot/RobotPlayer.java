@@ -1333,8 +1333,7 @@ public strictfp class RobotPlayer {
         float bestRetreatDist = averageDistFromEnemies;
         float bestAttackDist = Integer.MAX_VALUE;
 
-        Direction[] validCombatDirs = rc.getHealth() < GameConstants.DEFAULT_HEALTH
-                * woundedRetreatThreshold ? directions : allCombatDirs;
+        Direction[] validCombatDirs = directions;
         for (int i = validCombatDirs.length - 1; i >= 0; i--) {
             MapLocation tempLoc = rc.getLocation().add(validCombatDirs[i]);
 
@@ -1373,7 +1372,7 @@ public strictfp class RobotPlayer {
             }
         }
 
-        if (rc.getHealth() < dmg || numHostiles-1 > numFriendlies || !rc.isActionReady()) {
+        if (rc.getHealth() < dmg || numHostiles-1 >= numFriendlies || !rc.isActionReady()) {
             optimalDir = bestRetreat;
             if (optimalDir != null) {
                 rc.setIndicatorString("In combat bestRetreat: " + bestRetreat.toString());
