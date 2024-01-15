@@ -165,6 +165,7 @@ public class Comms {
             nearbyFlags = rc.senseNearbyFlags(-1);
             updateFlagLocs();
             updateCurrFlags();
+            updateClosestEnemyToAllyFlags();
         }
         prevEndTurnLoc = rc.isSpawned() ? rc.getLocation() : null;
 
