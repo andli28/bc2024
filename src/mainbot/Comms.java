@@ -105,11 +105,14 @@ public class Comms {
         if (comms[19] == 0) {
             write(20, 50);
         }
+        sequence();
     }
 
     public static void update() throws GameActionException {
         // these can be called regardless of dead or alive
-        sequence();
+        if (rc.getRoundNum() > 1) {
+            sequence();
+        }
 
         // refresh the indices you are in charge of(enemy locs mostly)
         // logic for this instead of end of turn clear is so that units that execute
