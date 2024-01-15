@@ -679,6 +679,8 @@ public strictfp class RobotPlayer {
                             if (!SENTRY || (SENTRY && rc.getLocation().add(optimalDir).distanceSquaredTo(homeFlag) < sentryWanderingLimit)) {
                                 attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
                             }
+                        } else {
+                            rc.setIndicatorString("combat null: " + averageDistSqFromEnemies);
                         }
 
                     } else if (role == BUILDING) {
@@ -689,6 +691,9 @@ public strictfp class RobotPlayer {
                                 explosiveTrapPreferredDist, stunTrapPreferredDist, buildThreshold);
                         optimalDir = findOptimalCombatDir(rc,enemies, averageDistSqFromEnemies, woundedRetreatThreshold, numHostiles, numFriendlies);
                         attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
+                        if (optimalDir == null) {
+                            rc.setIndicatorString("building null: " + averageDistSqFromEnemies);
+                        }
 
                     } else if (role == CAPTURING) {
                         // If you can pick up the flag, pick it up, otherwise calculate the nearest
@@ -742,9 +747,7 @@ public strictfp class RobotPlayer {
                         //if you're a sentry, you cannot leave sight of the flag, so you are confined to a wandering limit
                         Direction dir = Pathfinder.pathfind(rc.getLocation(), lowestCurrFriendlySeen);
                         if (!SENTRY || (SENTRY && rc.getLocation().add(dir).distanceSquaredTo(homeFlag) < sentryWanderingLimit)) {
-                            if (rc.canMove(dir)) {
-                                rc.move(dir);
-                            }
+                            healMove(rc, dir, lowestCurrFriendly, lowestCurrFriendlyHealth);
                         }
 
                     } else if (role == SENTRYING) {
@@ -1218,6 +1221,76 @@ public strictfp class RobotPlayer {
         }
     }
 
+    public static void healMove(RobotController rc, Direction optimalDir, MapLocation lowestCurrFriend,
+                                  int lowestCurrFriendHealth) throws GameActionException {
+        // Calculate what would be the lowest health of a friend after a movement.
+        MapLocation aflowestCurrFriend = null;
+        int aflowestCurrFriendHealth = Integer.MAX_VALUE;
+
+        if (optimalDir != null) {
+            RobotInfo[] affriends = rc.senseNearbyRobots(rc.getLocation().add(optimalDir),
+                    GameConstants.ATTACK_RADIUS_SQUARED, rc.getTeam());
+
+            for (int i = affriends.length - 1; i >= 0; i--) {
+
+                if (affriends[i].getHealth() < aflowestCurrFriendHealth) {
+                    aflowestCurrFriendHealth = affriends[i].getHealth();
+                    aflowestCurrFriend = affriends[i].getLocation();
+                }
+
+            }
+        }
+
+        // 1. if there is a friend within range and not one after you move,
+        // while you can heal it, do so and move to the optimal dir
+        // 2. else if there is a friend after moving and not one currently, move, then
+        // heal
+        // 3. else if, if both exist, choose move or heal order based on which would
+        // yield heal to the lowest health friend.
+        // 4. else if they both don't exist, move in optimal dir
+        if (aflowestCurrFriend == null && lowestCurrFriend != null) {
+            while (rc.canHeal(lowestCurrFriend)) {
+                rc.heal(lowestCurrFriend);
+            }
+            if (optimalDir != null) {
+                if (rc.canMove(optimalDir)) {
+                    rc.move(optimalDir);
+                }
+            }
+        } else if (aflowestCurrFriend != null && lowestCurrFriend == null) {
+            if (rc.canMove(optimalDir)) {
+                rc.move(optimalDir);
+            }
+            while (rc.canHeal(aflowestCurrFriend)) {
+                rc.heal(aflowestCurrFriend);
+            }
+        } else if (aflowestCurrFriend != null && lowestCurrFriend != null) {
+            if (aflowestCurrFriendHealth < lowestCurrFriendHealth) {
+                if (rc.canMove(optimalDir)) {
+                    rc.move(optimalDir);
+                }
+                while (rc.canHeal(aflowestCurrFriend)) {
+                    rc.heal(aflowestCurrFriend);
+                }
+            } else {
+                while (lowestCurrFriend != null && rc.canHeal(lowestCurrFriend)) {
+                    rc.heal(lowestCurrFriend);
+                }
+                if (optimalDir != null) {
+                    if (rc.canMove(optimalDir)) {
+                        rc.move(optimalDir);
+                    }
+                }
+            }
+        } else {
+            if (optimalDir != null) {
+                if (rc.canMove(optimalDir)) {
+                    rc.move(optimalDir);
+                }
+            }
+        }
+    }
+
     /**
      * Builders can train to level 6 by digging, so this method does this by filling
      * nearby water and creating holes
@@ -1258,7 +1331,7 @@ public strictfp class RobotPlayer {
         Direction bestRetreat = null;
         Direction bestAttack = null;
         float bestRetreatDist = averageDistFromEnemies;
-        float bestAttackDist = averageDistFromEnemies;
+        float bestAttackDist = Integer.MAX_VALUE;
 
         Direction[] validCombatDirs = rc.getHealth() < GameConstants.DEFAULT_HEALTH
                 * woundedRetreatThreshold ? directions : allCombatDirs;
@@ -1268,8 +1341,8 @@ public strictfp class RobotPlayer {
             if (rc.canSenseLocation(tempLoc) && rc.sensePassability(tempLoc)
                     && !rc.canSenseRobotAtLocation(tempLoc)) {
                 float averageDist = (float) averageDistanceSquaredFrom(enemies, tempLoc);
-                if (Math.abs(averageDist - GameConstants.ATTACK_RADIUS_SQUARED) < bestAttackDist) {
-                    bestAttackDist = Math.abs(averageDist - GameConstants.ATTACK_RADIUS_SQUARED);
+                if (averageDist > 3 && averageDist < bestAttackDist) {
+                    bestAttackDist = averageDist;
                     bestAttack = validCombatDirs[i];
                 }
                 if (averageDist > bestRetreatDist) {
@@ -1287,13 +1360,6 @@ public strictfp class RobotPlayer {
         // go to best retreat dir. Otherwise, go to the best Attack dir.
         Direction optimalDir = null;
 
-        // at what decimal place of the max health will you retreat? Default .5, for a
-        // builder specialist, .9.
-        double inCombatRetreatThreshold = .5;
-        if (BUILDERSPECIALIST) {
-            inCombatRetreatThreshold = .9;
-        }
-
         // count damage you can take next round if you move bestAttack
         MapLocation advanceLoc = bestAttack == null ? rc.getLocation()
                 : rc.getLocation().add(bestAttack);
@@ -1307,10 +1373,16 @@ public strictfp class RobotPlayer {
             }
         }
 
-        if (rc.getHealth() < dmg || numHostiles > numFriendlies || !rc.isActionReady()) {
+        if (rc.getHealth() < dmg || numHostiles-1 > numFriendlies || !rc.isActionReady()) {
             optimalDir = bestRetreat;
+            if (optimalDir != null) {
+                rc.setIndicatorString("In combat bestRetreat: " + bestRetreat.toString());
+            }
         } else {
             optimalDir = bestAttack;
+            if (optimalDir != null) {
+                rc.setIndicatorString("In combat bestAttack: " + bestAttack.toString());
+            }
         }
         return optimalDir;
     }
