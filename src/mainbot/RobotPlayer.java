@@ -545,7 +545,7 @@ public strictfp class RobotPlayer {
                         //if its time to change shift, and you can't see your home flag location, go suicide to respawn
                         role = RESPAWN;
                         rc.setIndicatorString("Respawning");
-                    } else if (bigCloseCrumb != null && turnCount > turnsTillAllowingCombat) {
+                    } else if (bigCloseCrumb != null && turnCount > GameConstants.SETUP_ROUNDS-10) {
                         role = CRUMBS;
                         rc.setIndicatorString("CRUMBS: " + bigCloseCrumb.toString());
                     }else if (enemies.length != 0 && turnCount > turnsTillAllowingCombat) {
