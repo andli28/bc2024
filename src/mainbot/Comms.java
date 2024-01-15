@@ -375,7 +375,7 @@ public class Comms {
         MapLocation[] defaultEnemy = getDefaultEnemyFlagLocations();
         MapLocation[] currentEnemy = getCurrentEnemyFlagLocations();
         for (int i = 3; --i >= 0;) {
-            if (defaultEnemy[i] != null && defaultEnemy[i].equals(currentEnemy[i])) {
+            if (defaultEnemy[i] != null && !defaultEnemy[i].equals(currentEnemy[i])) {
                 displacedEnemyFlags[i] = currentEnemy[i];
             }
         }
@@ -406,7 +406,7 @@ public class Comms {
         MapLocation[] defaultAlly = getDefaultAllyFlagLocations();
         MapLocation[] currentAlly = getCurrentAllyFlagLocations();
         for (int i = 3; --i >= 0;) {
-            if (defaultAlly[i] != null && defaultAlly[i].equals(currentAlly[i])) {
+            if (defaultAlly[i] != null && !defaultAlly[i].equals(currentAlly[i])) {
                 displacedAllyFlags[i] = currentAlly[i];
             }
         }
