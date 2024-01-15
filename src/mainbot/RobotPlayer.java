@@ -568,129 +568,118 @@ public strictfp class RobotPlayer {
                     }
 
                     if (role == SCOUTING) {
-                        // FLOW OF LOGIC:
-                        // 1. Randomly target a certain point on the map and when the target has been
-                        // reached,
-                        // designate a new target (ie. random scouting).
-                        // 2. IF a breadcrumb is seen within vision radius, go to that square, otherwise
-                        // continue
-                        // random scouting
-                        // 3. IF nearby water is not null, go to that square and clear it.
-
-                        // Get the location of all nearby crumbs
                         boolean activelyPursuingCrumb = false;
-
-                        // If nearbyCrumbs is not empty, go to the crumb that is first in the list,
-                        // else,
-                        // continue to random target. If random target has not been chosen, or the bot
-                        // is
-                        // at the random target, generate a new random tgt.
-                        // the else if is to account for the case where a crumb has been eaten before
-                        // this unit has had a chance to pick it up, so add a case to prevent redudant
-                        // persuit of a crumb that is not there
-                        // if you see the corner tiles from your spawn flag, and your spawn flag is
-                        // still there, and the corner tiles are not stun trapped, stun trap them if you have enough breadcrumbs
                         Direction optimalDir = null;
-                        if (nearbyCrumbs.length != 0) {
-                            for (int i = nearbyCrumbs.length - 1; i >= 0; i--) {
-                                if (rc.sensePassability(nearbyCrumbs[i])) {
-                                    tgtLocation = nearbyCrumbs[i];
-                                    activelyPursuingCrumb = true;
-                                    lastTurnPursingCrumb = true;
+
+                        // if you're a builder and you have the experience and crumbs, and its before a certain turn, go home to set a stun trap
+                        // if you are near home, sense if you can set a stun trap
+
+                        // Otherwise, if optimalDir is null after these builder specific conditions, pursue nearby crumbs
+                        // If there are no nearby crumbs, pursue nearby water
+                        // if there is no nearby water, go to either a random location, or if it is beyond a certain turn, go to the targetFlag.
+
+                        // builders visit home during setup before turn 150 to see if they can trap their homes
+                        // if you have lvl 6 building, have over 100 crumbs, no enemies are around, and can sense your home location, check if you can stun trap corners.
+                        if (rc.getExperience(SkillType.BUILD) >= 30 && rc.getCrumbs() >= 100) {
+                            if (turnCount < turnsTillAllowingCombat && homeFlag != null && !rc.canSenseLocation(homeFlag)) {
+                                optimalDir = Pathfinder.pathfind(rc.getLocation(), homeFlag);
+                                rc.setIndicatorString("Scouting: Going home to see if I can set traps");
+                            } else if (rc.canSenseLocation(homeFlag)) {
+                                // TODO this is another opportunity to see if home flag still exists to update in comms
+                                boolean homeFlagStillExists = false;
+                                FlagInfo[] nearbyAllyFlags = rc.senseNearbyFlags(GameConstants.VISION_RADIUS_SQUARED, rc.getTeam());
+                                for (int i = nearbyAllyFlags.length - 1; i >= 0; i--) {
+                                    if (nearbyAllyFlags[i].getLocation().equals(homeFlag)) {
+                                        homeFlagStillExists = true;
+                                        break;
+                                    }
+                                }
+                                if (homeFlagStillExists) {
+                                    MapLocation closestCornerWithoutStun = null;
+                                    int distToClosestCorner = Integer.MAX_VALUE;
+                                    for (int i = 3; i >= 0; i--) {
+                                        MapLocation spawnCheck = null;
+                                        if (i == 3) {
+                                            spawnCheck = new MapLocation(homeFlag.x + 1, homeFlag.y + 1);
+                                        } else if (i == 2) {
+                                            spawnCheck = new MapLocation(homeFlag.x + 1, homeFlag.y - 1);
+                                        } else if (i == 1) {
+                                            spawnCheck = new MapLocation(homeFlag.x - 1, homeFlag.y - 1);
+                                        } else if (i == 0) {
+                                            spawnCheck = new MapLocation(homeFlag.x - 1, homeFlag.y + 1);
+                                        }
+                                        int distSqToCorner = rc.getLocation().distanceSquaredTo(spawnCheck);
+                                        if (rc.canSenseLocation(spawnCheck) && rc.senseMapInfo(spawnCheck).getTrapType() == TrapType.NONE && distSqToCorner < distToClosestCorner) {
+                                            distToClosestCorner = distSqToCorner;
+                                            closestCornerWithoutStun = spawnCheck;
+                                        }
+                                    }
+
+                                    if (closestCornerWithoutStun != null) {
+                                        rc.setIndicatorString("Scouting: Stun Trapping: " + closestCornerWithoutStun.toString());
+                                        if (rc.canBuild(TrapType.STUN, closestCornerWithoutStun)) {
+                                            rc.build(TrapType.STUN, closestCornerWithoutStun);
+                                        } else {
+                                            optimalDir = Pathfinder.pathfind(rc.getLocation(), closestCornerWithoutStun);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if (optimalDir == null) {
+                            if (nearbyCrumbs.length != 0) {
+                                for (int i = nearbyCrumbs.length - 1; i >= 0; i--) {
+                                    if (rc.sensePassability(nearbyCrumbs[i])) {
+                                        tgtLocation = nearbyCrumbs[i];
+                                        activelyPursuingCrumb = true;
+                                        lastTurnPursingCrumb = true;
+                                        lastTurnPursingWater = false;
+                                        turnsNotReachedTgt = 0;
+                                    }
+                                }
+                            }
+
+                            // If we are not actively pursuing a crumb, check if we can clear/pursue a
+                            // water tile, otherwise generate a random target.
+                            if (!activelyPursuingCrumb) {
+                                if (nearestWater != null) {
+                                    if (lowestDistToWater <= GameConstants.INTERACT_RADIUS_SQUARED
+                                            && rc.canFill(nearestWater)) {
+                                        rc.fill(nearestWater);
+                                    } else {
+                                        tgtLocation = nearestWater;
+                                        lastTurnPursingWater = true;
+                                        lastTurnPursingCrumb = false;
+                                        turnsNotReachedTgt = 0;
+
+                                    }
+                                }
+                                // Generating a random target:
+                                // if tgtLocation is null, the current location equals the target location,
+                                // or the target location can be sensed and is impassible, or turnsNotReachedTgt
+                                // > 50,
+                                // generate a new random target location.
+                                // Note: the bounds are 3 to the bounds-3 because the robots have a vision
+                                // radius of sqrt(20), so
+                                // they only need to get within 3 units of each edge to see the full edge of the
+                                // map, including the corners.
+                                else if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||
+                                        (rc.canSenseLocation(tgtLocation) && !rc.sensePassability(tgtLocation))
+                                        || turnsNotReachedTgt > 50 || lastTurnPursingCrumb || lastTurnPursingWater) {
+                                    if (turnCount > turnsTillAllowingCombat && targetFlag != null) {
+                                        tgtLocation = targetFlag;
+                                    } else {
+                                        tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
+                                                3, rc.getMapHeight() - 3);
+                                    }
+                                    lastTurnPursingCrumb = false;
                                     lastTurnPursingWater = false;
                                     turnsNotReachedTgt = 0;
                                 }
                             }
-                        }
-
-                        // If we are not actively pursuing a crumb, check if we can clear/pursue a
-                        // water tile, otherwise generate a random target.
-                        if (!activelyPursuingCrumb) {
-                            if (nearestWater != null) {
-                                if (lowestDistToWater <= GameConstants.INTERACT_RADIUS_SQUARED
-                                        && rc.canFill(nearestWater)) {
-                                    rc.fill(nearestWater);
-                                } else {
-                                    tgtLocation = nearestWater;
-                                    lastTurnPursingWater = true;
-                                    lastTurnPursingCrumb = false;
-                                    turnsNotReachedTgt = 0;
-
-                                }
-                            }
-                            // Generating a random target:
-                            // if tgtLocation is null, the current location equals the target location,
-                            // or the target location can be sensed and is impassible, or turnsNotReachedTgt
-                            // > 50,
-                            // generate a new random target location.
-                            // Note: the bounds are 3 to the bounds-3 because the robots have a vision
-                            // radius of sqrt(20), so
-                            // they only need to get within 3 units of each edge to see the full edge of the
-                            // map, including the corners.
-                            else if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||
-                                    (rc.canSenseLocation(tgtLocation) && !rc.sensePassability(tgtLocation))
-                                    || turnsNotReachedTgt > 50 || lastTurnPursingCrumb || lastTurnPursingWater) {
-                                if (turnCount > turnsTillAllowingCombat && targetFlag != null) {
-                                    tgtLocation = targetFlag;
-                                } else {
-                                    tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
-                                            3, rc.getMapHeight() - 3);
-                                }
-                                lastTurnPursingCrumb = false;
-                                lastTurnPursingWater = false;
-                                turnsNotReachedTgt = 0;
-                            }
-                        }
-                        optimalDir = Pathfinder.pathfind(rc.getLocation(), tgtLocation);
-                        if (tgtLocation != null) {
-                            rc.setIndicatorString("Scouting: Tgt: " + tgtLocation.toString());
-                        }
-
-                        // builders visit home during setup before turn 150 to see if they can trap their homes
-                        // if you have lvl 6 building, have over 100 crumbs, no enemies are around, and can sense your home location, check if you can stun trap corners.
-                        if (turnCount < turnsTillAllowingCombat && homeFlag != null && rc.getExperience(SkillType.BUILD) >= 30 && rc.getCrumbs() >= 100) {
-                            optimalDir = Pathfinder.pathfind(rc.getLocation(), homeFlag);
-                            rc.setIndicatorString("Scouting: Going home to see if I can set traps");
-                        }
-                        if (rc.getExperience(SkillType.BUILD) >= 30 && rc.getCrumbs() >= 100 && rc.canSenseLocation(homeFlag)) {
-                            // TODO this is another opportunity to see if home flag still exists to update in comms
-                            boolean homeFlagStillExists = false;
-                            FlagInfo[] nearbyAllyFlags = rc.senseNearbyFlags(GameConstants.VISION_RADIUS_SQUARED, rc.getTeam());
-                            for (int i = nearbyAllyFlags.length-1; i>=0; i--){
-                                if (nearbyAllyFlags[i].getLocation().equals(homeFlag)) {
-                                    homeFlagStillExists = true;
-                                    break;
-                                }
-                            }
-                            if (homeFlagStillExists) {
-                                MapLocation closestCornerWithoutStun = null;
-                                int distToClosestCorner = Integer.MAX_VALUE;
-                                for (int i = 3; i >= 0; i--) {
-                                    MapLocation spawnCheck = null;
-                                    if (i == 3) {
-                                        spawnCheck = new MapLocation(homeFlag.x + 1, homeFlag.y + 1);
-                                    } else if (i == 2) {
-                                        spawnCheck = new MapLocation(homeFlag.x + 1, homeFlag.y - 1);
-                                    } else if (i == 1) {
-                                        spawnCheck = new MapLocation(homeFlag.x - 1, homeFlag.y - 1);
-                                    } else if (i == 0) {
-                                        spawnCheck = new MapLocation(homeFlag.x - 1, homeFlag.y + 1);
-                                    }
-                                    int distSqToCorner = rc.getLocation().distanceSquaredTo(spawnCheck);
-                                    if (rc.canSenseLocation(spawnCheck) && rc.senseMapInfo(spawnCheck).getTrapType() == TrapType.NONE && distSqToCorner < distToClosestCorner) {
-                                       distToClosestCorner = distSqToCorner;
-                                       closestCornerWithoutStun = spawnCheck;
-                                    }
-                                }
-
-                                if (closestCornerWithoutStun != null) {
-                                    rc.setIndicatorString("Scouting: Stun Trapping: " + closestCornerWithoutStun.toString());
-                                    if (rc.canBuild(TrapType.STUN, closestCornerWithoutStun)) {
-                                        rc.build(TrapType.STUN, closestCornerWithoutStun);
-                                    } else {
-                                        optimalDir = Pathfinder.pathfind(rc.getLocation(), closestCornerWithoutStun);
-                                    }
-                                }
+                            optimalDir = Pathfinder.pathfind(rc.getLocation(), tgtLocation);
+                            if (tgtLocation != null) {
+                                rc.setIndicatorString("Scouting: Tgt: " + tgtLocation.toString());
                             }
                         }
 
