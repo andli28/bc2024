@@ -179,22 +179,12 @@ public strictfp class RobotPlayer {
                     // finding the spawn/flag that is in danger with closest enemies.
                     MapLocation closestSpawnInDanger = null;
                     int enemyDistToClosestSpawnInDanger = Integer.MAX_VALUE;
-                    for (int i = 2; i>=0; i--) {
-                        if (i == 2) {
-                            if (Comms.comms[50] < enemyDistToClosestSpawnInDanger) {
-                                closestSpawnInDanger = Comms.decodeLoc(Comms.comms[53]);
-                                enemyDistToClosestSpawnInDanger = Comms.comms[50];
-                            }
-                        } else if (i == 1) {
-                            if (Comms.comms[51] < enemyDistToClosestSpawnInDanger) {
-                                closestSpawnInDanger = Comms.decodeLoc(Comms.comms[54]);
-                                enemyDistToClosestSpawnInDanger = Comms.comms[51];
-                            }
-                        } else if (i == 0) {
-                            if (Comms.comms[52] < enemyDistToClosestSpawnInDanger) {
-                                closestSpawnInDanger = Comms.decodeLoc(Comms.comms[55]);
-                                enemyDistToClosestSpawnInDanger = Comms.comms[52];
-                            }
+                    MapLocation[] closestEnemiesToFlags = Comms.getClosestEnemyToAllyFlags();
+                    int[] distsClosestEnemiesToFlags = Comms.getClosestEnemyDistanceToAllyFlags();
+                    for (int i = closestEnemiesToFlags.length-1; i>=0; i--) {
+                        if (closestEnemiesToFlags[i] != null && distsClosestEnemiesToFlags[i] < enemyDistToClosestSpawnInDanger) {
+                            closestSpawnInDanger = Comms.getCurrentAllyFlagLocations()[i];
+                            enemyDistToClosestSpawnInDanger = distsClosestEnemiesToFlags[i];
                         }
                     }
 
@@ -873,37 +863,12 @@ public strictfp class RobotPlayer {
 
                     //Sentry comm updates to information about home flags.
                     if (SENTRY) {
-                        // default to the highest number comms can store
-                        int distToHomeFlag = 60000;
-                        if (closestHostile != null) {
-                            distToHomeFlag = closestHostile.distanceSquaredTo(homeFlag);
-                        }
-                        if (rc.canSenseLocation(homeFlag)) {
-                            if (Comms.shortId == 0 || Comms.shortId == 1) {
-                                Comms.write(50, Math.min(60000, distToClosestHostile));
-                                Comms.write(53, Comms.encodeLoc(homeFlag));
-                            } else if (Comms.shortId == 30 || Comms.shortId == 31) {
-                                Comms.write(51, Math.min(60000, distToClosestHostile));
-                                Comms.write(54, Comms.encodeLoc(homeFlag));
-                            } else if (Comms.shortId == 48 || Comms.shortId == 49) {
-                                Comms.write(52, Math.min(60000, distToClosestHostile));
-                                Comms.write(55, Comms.encodeLoc(homeFlag));
-                            }
-                        }
-
                         // TODO this is an opportunity to update if homeFlag exists in comms
                         //if you're location is the same as the closest default, check if its still there. If not, retire sentry.
                         if (rc.getLocation().equals(homeFlag)) {
                             FlagInfo[] allyFlags = rc.senseNearbyFlags(1, rc.getTeam());
                             if (allyFlags.length == 0) {
                                 retireSentry = true;
-                            }
-                            if (Comms.shortId == 0 || Comms.shortId == 1) {
-                                Comms.write(50, 60000);
-                            } else if (Comms.shortId == 30 || Comms.shortId == 31) {
-                                Comms.write(51, 60000);
-                            } else if (Comms.shortId == 48 || Comms.shortId == 49) {
-                                Comms.write(52, 60000);
                             }
                         }
                     }
