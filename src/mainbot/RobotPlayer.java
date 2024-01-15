@@ -252,6 +252,10 @@ public strictfp class RobotPlayer {
                     boolean shiftTwoSwapIn = ((turnCount > 475 && turnCount < 1000) || (turnCount > 1475 && turnCount < 2000));
                     boolean shiftOneSwapIn = (turnCount > 975 && turnCount < 1500);
 
+                    boolean attackSquadOne = (Comms.shortId < 16);
+                    boolean attackSquadTwo = (Comms.shortId >= 16 && Comms.shortId < 32);
+                    boolean attackSquadThree = (Comms.shortId >= 32);
+
                     if (swapTurnOne && sentryShiftOne) {
                         SENTRY = true;
                     } else if (swapTurnOne && sentryShiftTwo) {
@@ -355,18 +359,57 @@ public strictfp class RobotPlayer {
                         }
                     }
 
-                    //Getting closest broadcast flag locations
-                    MapLocation[] broadcastLocations = rc.senseBroadcastFlagLocations();
-                    MapLocation closestBroadcast = null;
-                    int distToclosestBroadcast = Integer.MAX_VALUE;
-                    for (int i = broadcastLocations.length-1; i>=0; i--) {
-                        int dx = rc.getLocation().x-broadcastLocations[i].x;
-                        int dy = rc.getLocation().y-broadcastLocations[i].y;
-                        if (Math.max(dx,dy)<distToclosestBroadcast) {
-                            closestBroadcast = broadcastLocations[i];
-                            distToclosestBroadcast = Math.max(dx,dy);
+                    //Splitting units into groups that equally attack all flags. If it exists in comms,
+                    // set target as that, otherwise use broadcase
+                    MapLocation targetFlag = null;
+                    MapLocation[] enemyFlagLocs = Comms.getCurrentEnemyFlagLocations();
+                    MapLocation[] broadCastLocs = rc.senseBroadcastFlagLocations();;
+                    if (attackSquadOne) {
+                        if (enemyFlagLocs[0] != null) {
+                            targetFlag = enemyFlagLocs[0];
+                        } else if (enemyFlagLocs[1] != null){
+                            targetFlag = enemyFlagLocs[1];
+                        } else if (enemyFlagLocs[2] != null) {
+                            targetFlag = enemyFlagLocs[2];
+                        }
+                    } else if (attackSquadTwo) {
+                        if (enemyFlagLocs[1] != null) {
+                            targetFlag = enemyFlagLocs[1];
+                        }  else if (enemyFlagLocs[0] != null){
+                            targetFlag = enemyFlagLocs[0];
+                        } else if (enemyFlagLocs[2] != null) {
+                            targetFlag = enemyFlagLocs[2];
+                        }
+                    } else if (attackSquadThree) {
+                        if (enemyFlagLocs[2] != null) {
+                            targetFlag = enemyFlagLocs[2];
+                        } else if (enemyFlagLocs[1] != null){
+                            targetFlag = enemyFlagLocs[1];
+                        } else if (enemyFlagLocs[0] != null) {
+                            targetFlag = enemyFlagLocs[0];
                         }
                     }
+
+                    if (targetFlag == null) {
+                        if (broadCastLocs.length == 1) {
+                            targetFlag = broadCastLocs[0];
+                        } else if (broadCastLocs.length == 2) {
+                            if (Comms.shortId > 25) {
+                                targetFlag = broadCastLocs[0];
+                            } else {
+                                targetFlag = broadCastLocs[1];
+                            }
+                        } else if (broadCastLocs.length == 3) {
+                            if (attackSquadOne) {
+                                targetFlag = broadCastLocs[0];
+                            } else if (attackSquadTwo) {
+                                targetFlag = broadCastLocs[1];
+                            } else {
+                                targetFlag = broadCastLocs[2];
+                            }
+                        }
+                    }
+
 
                     // Enemy Counting, finding number of hostiles, number of hostiles in range, and
                     // the nearby hostile with the lowest HP
@@ -500,7 +543,7 @@ public strictfp class RobotPlayer {
                         //if its time to change shift, and you can't see your home flag location, go suicide to respawn
                         role = RESPAWN;
                         rc.setIndicatorString("Respawning");
-                    } else if (bigCloseCrumb != null) {
+                    } else if (bigCloseCrumb != null && turnCount > turnsTillAllowingCombat) {
                         role = CRUMBS;
                         rc.setIndicatorString("CRUMBS: " + bigCloseCrumb.toString());
                     }else if (enemies.length != 0 && turnCount > turnsTillAllowingCombat) {
@@ -587,8 +630,8 @@ public strictfp class RobotPlayer {
                             else if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||
                                     (rc.canSenseLocation(tgtLocation) && !rc.sensePassability(tgtLocation))
                                     || turnsNotReachedTgt > 50 || lastTurnPursingCrumb || lastTurnPursingWater) {
-                                if (turnCount > turnsTillAllowingCombat && closestBroadcast != null) {
-                                    tgtLocation = closestBroadcast;
+                                if (turnCount > turnsTillAllowingCombat && targetFlag != null) {
+                                    tgtLocation = targetFlag;
                                 } else {
                                     tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
                                             3, rc.getMapHeight() - 3);
@@ -785,14 +828,14 @@ public strictfp class RobotPlayer {
                                 healMove(rc, dir, lowestCurrFriendly, lowestCurrFriendlyHealth);
                             }
                             rc.setIndicatorString("Respawning target: Hostile " + closestHostile.toString());
-                        }  else if (closestBroadcast != null ){
-                            Direction dir = Pathfinder.pathfind(rc.getLocation(), closestBroadcast);
+                        }  else if (targetFlag != null ){
+                            Direction dir = Pathfinder.pathfind(rc.getLocation(), targetFlag);
                             if (enemies.length != 0) {
                                 attackMove(rc, dir, lowestCurrHostile, lowestCurrHostileHealth);
                             } else {
                                 healMove(rc, dir, lowestCurrFriendly, lowestCurrFriendlyHealth);
                             }
-                            rc.setIndicatorString("Respawning target: Broadcast " + closestBroadcast.toString());
+                            rc.setIndicatorString("Respawning target: Broadcast " + targetFlag.toString());
                         }
                     } else if (role == CRUMBS) {
 
