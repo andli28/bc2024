@@ -74,6 +74,10 @@ public class Comms {
     public static LinkedList<Pair> respawnTimer = new LinkedList<>();
     public static MapLocation prevEndTurnLoc = null;
 
+    // comms indices you are in charge of refreshing
+    public static int[] refreshIdxs = new int[8];
+    public static int refreshPtr = -1;
+
     public static void receive() throws GameActionException {
         // yea yea unroll this later
         for (int i = 64; --i >= 0;) {
@@ -106,6 +110,13 @@ public class Comms {
     public static void update() throws GameActionException {
         // these can be called regardless of dead or alive
         sequence();
+
+        // refresh the indices you are in charge of(enemy locs mostly)
+        // logic for this instead of end of turn clear is so that units that execute
+        // code first in turn(shortid = 1) have sufficient info
+        for (; refreshPtr >= 0; refreshPtr--) {
+            write(refreshIdxs[refreshPtr], 0);
+        }
 
         // current spec count
         Spec curSpec;
@@ -180,9 +191,8 @@ public class Comms {
 
         // clear comms if last unit for next turn
         if (shortId == 49) {
-            // clear unit spec, sequence, sampled enemy counts
+            // clear unit spec, sequence
             write(19, 0);
-            clearRandomEnemies();
             // debug flag locations
             // System.out.println("aid1: " + comms[21] + "\naid2: " + comms[22] + "\naid3: "
             // + comms[23] + "\nafd1: "
@@ -382,7 +392,7 @@ public class Comms {
         return displacedEnemyFlags;
     }
 
-    public static MapLocation closestDisplacedEnemyFlag() {
+    public static MapLocation closestDisplacedEnemyFlag() throws GameActionException {
         MapLocation closest = null;
         int dist = 9999;
         MapLocation src = rc.getLocation();
@@ -391,9 +401,9 @@ public class Comms {
             MapLocation loc = displayedEnemyFlags[i];
             if (loc == null)
                 continue;
-            if (closest == null || dist > loc.distanceSquaredTo(src)) {
+            if (closest == null || dist > Pathfinder.travelDistance(loc, src)) {
                 closest = loc;
-                dist = src.distanceSquaredTo(loc);
+                dist = Pathfinder.travelDistance(loc, src);
             }
         }
         return closest;
@@ -413,7 +423,7 @@ public class Comms {
         return displacedAllyFlags;
     }
 
-    public static MapLocation closestDisplacedAllyFlag() {
+    public static MapLocation closestDisplacedAllyFlag() throws GameActionException {
         MapLocation closest = null;
         int dist = 9999;
         MapLocation src = rc.getLocation();
@@ -422,9 +432,9 @@ public class Comms {
             MapLocation loc = displayedAllyFlags[i];
             if (loc == null)
                 continue;
-            if (closest == null || dist > loc.distanceSquaredTo(src)) {
+            if (closest == null || dist > Pathfinder.travelDistance(loc, src)) {
                 closest = loc;
-                dist = src.distanceSquaredTo(loc);
+                dist = Pathfinder.travelDistance(loc, src);
             }
         }
         return closest;
@@ -442,8 +452,11 @@ public class Comms {
             for (int i = 4; --i >= 0;) {
                 RobotInfo r = nearbyEnemies[RobotPlayer.rng.nextInt(nearbyEnemies.length)];
                 MapLocation currSight = decodeLoc(comms[15 + i]);
-                if (currSight == null || (RobotPlayer.rng.nextDouble() < 1.f / (comms[19]))) {
+                // TODO now that enemy sighting clear is controlled by writer idt this pr calc
+                // is correct
+                if (currSight == null || (RobotPlayer.rng.nextDouble() < 1.f / 50)) {
                     write(15 + i, encodeLoc(r.getLocation()));
+                    refreshIdxs[++refreshPtr] = 15 + i;
                     break;
                 }
             }
@@ -451,7 +464,7 @@ public class Comms {
     }
 
     // returns arr of len 4 of sampled enemies, can contain null entries
-    public static MapLocation[] getSampledEnemies() {
+    public static MapLocation[] getSampledEnemies() throws GameActionException {
         MapLocation[] enemies = new MapLocation[4];
         for (int i = 4; --i >= 0;) {
             enemies[i] = decodeLoc(comms[15 + i]);
@@ -459,18 +472,63 @@ public class Comms {
         return enemies;
     }
 
-    public static MapLocation getClosestSampleEnemy() {
+    public static MapLocation getClosestSampleEnemy() throws GameActionException {
         MapLocation closestSampleEnemyLoc = null;
         MapLocation[] sampledEnemies = getSampledEnemies();
         for (int i = 4; --i >= 0;) {
             MapLocation enemy = sampledEnemies[i];
             if (closestSampleEnemyLoc == null
-                    || (closestSampleEnemyLoc.distanceSquaredTo(rc.getLocation()) > enemy
-                            .distanceSquaredTo(rc.getLocation()))) {
+                    || (Pathfinder.travelDistance(closestSampleEnemyLoc, rc.getLocation()) > Pathfinder
+                            .travelDistance(enemy, rc.getLocation()))) {
                 closestSampleEnemyLoc = enemy;
             }
         }
         return closestSampleEnemyLoc;
+    }
+
+    // returns arr of size 3 containing enemy locations closest to each ally
+    // flag(current if exists, otherwise default), can have null entries
+    public static MapLocation[] getClosestEnemyToAllyFlags() throws GameActionException {
+        return new MapLocation[] { decodeLoc(comms[27]), decodeLoc(comms[28]), decodeLoc(comms[29]) };
+    }
+
+    public static void updateClosestEnemyToAllyFlags() throws GameActionException {
+        // calculate each enemy's dist to each ally flag, write if closer than whats in
+        // comms, remember to refresh by urself next turn so all teammates get info
+        MapLocation[] currentAllyFlagLocs = getCurrentAllyFlagLocations();
+        MapLocation[] defaultAllyFlagLocs = getDefaultAllyFlagLocations();
+        MapLocation[] closestEnemiesToFlags = { null, null, null };
+        for (int i = nearbyEnemies.length; --i >= 0;) {
+            MapLocation enemyLoc = nearbyEnemies[i].getLocation();
+            for (int j = 3; --j >= 0;) {
+                // use current flag loc if avail, otherwise default
+                MapLocation currAlly = currentAllyFlagLocs[j];
+                if (currAlly != null) {
+                    if (closestEnemiesToFlags[j] == null || Pathfinder.travelDistance(currAlly, enemyLoc) < Pathfinder
+                            .travelDistance(currAlly, closestEnemiesToFlags[j])) {
+                        closestEnemiesToFlags[j] = enemyLoc;
+                    }
+                } else {
+                    // default flags should be ok
+                    MapLocation defaultAlly = defaultAllyFlagLocs[j];
+                    if (closestEnemiesToFlags[j] == null || Pathfinder.travelDistance(defaultAlly,
+                            enemyLoc) < Pathfinder.travelDistance(defaultAlly, closestEnemiesToFlags[j])) {
+                        closestEnemiesToFlags[j] = enemyLoc;
+                    }
+                }
+            }
+        }
+        // write these to comms if closer than whats in comms
+        for (int i = 3; --i >= 0;) {
+            MapLocation commClosestEnemy = decodeLoc(27 + i);
+            MapLocation localClosestEnemy = closestEnemiesToFlags[i];
+            MapLocation allyFlagLoc = currentAllyFlagLocs[i] == null ? defaultAllyFlagLocs[i] : currentAllyFlagLocs[i];
+            if (commClosestEnemy == null || Pathfinder.travelDistance(allyFlagLoc, commClosestEnemy) > Pathfinder
+                    .travelDistance(allyFlagLoc, localClosestEnemy)) {
+                write(27 + i, encodeLoc(localClosestEnemy));
+                refreshIdxs[++refreshPtr] = 27 + i;
+            }
+        }
     }
 
     static int encodeLoc(MapLocation loc) {
