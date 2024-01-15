@@ -516,6 +516,8 @@ public strictfp class RobotPlayer {
                     int turnsTillAllowingCombat = 150;
                     // distance squared the sentry can be from the home flag
                     int sentryWanderingLimit = 12;
+                    // distance squared to defend a flag
+                    int distanceForDefense = 200;
 
                     // Role Delegation (outdated)
                     // If you have a flag, return
@@ -536,7 +538,7 @@ public strictfp class RobotPlayer {
                         // && rc.getHealth() < GameConstants.DEFAULT_HEALTH * woundedRetreatThreshold) {
                         // role = WOUNDED;
                         // rc.setIndicatorString("Wounded");
-                    } else if (rc.getExperience(SkillType.BUILD) >= 30 && rc.getCrumbs() > 250 && (enemies.length != 0 && turnCount > turnsTillAllowingCombat)) {
+                    } else if (rc.getExperience(SkillType.BUILD) >= 30 && rc.getCrumbs() > 250 && (enemies.length != 0 && turnCount > GameConstants.SETUP_ROUNDS)) {
                         role = BUILDING;
                         rc.setIndicatorString("Building");
                     } else if (shouldRespawn) {
@@ -553,7 +555,9 @@ public strictfp class RobotPlayer {
                     } else if (numFlagsNearbyNotPickedUp != 0) {
                         role = CAPTURING;
                         rc.setIndicatorString("Capturing");
-                    } else if (closestDisplacedFlag != null && rc.senseMapInfo(rc.getLocation()).getTeamTerritory().equals(rc.getTeam())) {
+                    } else if (closestDisplacedFlag != null &&
+                            rc.senseMapInfo(rc.getLocation()).getTeamTerritory().equals(rc.getTeam())
+                            && rc.getLocation().distanceSquaredTo(closestDisplacedFlag) < distanceForDefense) {
                         role = DEFENDING;
                         rc.setIndicatorString("Defending");
                     } else if (lowestCurrFriendlySeenHealth < GameConstants.DEFAULT_HEALTH) {
