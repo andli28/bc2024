@@ -12,9 +12,9 @@ emojiMap = {
     'Error': ':heavy_exclamation_mark:'
 }
 errors = []
-currentBot = 'mirror2'
+currentBot = 'mainbot'
 
-bots = ['mainbot']
+bots = ['v5']
 botsSet = set(bots)
 
 initialMaps = ['DefaultHuge', 'DefaultLarge', 'DefaultMedium', 'DefaultSmall']
