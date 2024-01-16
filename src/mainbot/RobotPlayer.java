@@ -97,6 +97,11 @@ public strictfp class RobotPlayer {
     // set specializations
     static boolean BUILDERSPECIALIST = false;
     static boolean SENTRY = false;
+    static boolean sentryShiftOne = false;
+    static boolean sentryShiftTwo = false;
+    static boolean attackSquadOne = false;
+    static boolean attackSquadTwo = false;
+    static boolean attackSquadThree = false;
 
     /**
      * run() is the method that is called when a robot is instantiated in the
@@ -134,9 +139,9 @@ public strictfp class RobotPlayer {
             turnCount += 1; // We have now been alive for one more turn!
 
             // Resignation at 500 turns for testing purposes
-            // if (turnCount == 500) {
-            // rc.resign();
-            // }
+//             if (turnCount == 800) {
+//             rc.resign();
+//             }
 
             // Try/catch blocks stop unhandled exceptions, which cause your robot to
             // explode.
@@ -153,6 +158,45 @@ public strictfp class RobotPlayer {
                 if (!rc.isSpawned()) {
                     turnsAlive = 0;
                     haveSeenCombat = false;
+
+                    // decide if this person should be a builder (if shortId == an ID) (Diff ID's
+                    // chosen to spawn at diff spawns)
+                    if (turnCount == 1) {
+                        if (Comms.shortId == 2 || Comms.shortId == 29 || Comms.shortId == 47) {
+                            BUILDERSPECIALIST = true;
+                        }
+
+                        // decide if this person should be a sentry (Diff ID's chosen to spawn at diff
+                        // spawns)
+                        // Create two shifts to swap out ducks and ensure these ducks can still get XP.
+                        // Rotate shift every 500 turns.
+                        sentryShiftOne = (Comms.shortId == 0 || Comms.shortId == 30 || Comms.shortId == 49);
+                        sentryShiftTwo = (Comms.shortId == 1 || Comms.shortId == 31 || Comms.shortId == 48);
+
+                        if (sentryShiftOne) {
+                            SENTRY = true;
+                        }
+
+                        attackSquadOne = (Comms.shortId < 16);
+                        attackSquadTwo = (Comms.shortId >= 16 && Comms.shortId < 32);
+                        attackSquadThree = (Comms.shortId >= 32);
+                    }
+
+                    //ensure sentries and builderspecialsits spawn at their appropriate spawns
+                    if (turnCount == 2) {
+                        MapLocation[] homeFlags = Comms.getDefaultAllyFlagLocations();
+                        if (Comms.shortId == 0 || Comms.shortId == 1 || Comms.shortId == 2) {
+                            homeFlag = homeFlags[0];
+                            System.out.println(homeFlag.toString());
+                        } else if (Comms.shortId == 30 || Comms.shortId == 31 || Comms.shortId == 29) {
+                            homeFlag = homeFlags[1];
+                            System.out.println(homeFlag.toString());
+                        } else if (Comms.shortId == 48 || Comms.shortId == 49 || Comms.shortId == 47) {
+                            homeFlag = homeFlags[2];
+                            System.out.println(homeFlag.toString());
+                        }
+                    }
+
                     MapLocation[] spawnLocs = rc.getAllySpawnLocations();
                     // If theres a displaced flag, find the spawn location
                     // that has the smallest distance to the first displaced flag in the list and
@@ -197,15 +241,10 @@ public strictfp class RobotPlayer {
 
                     // spawn location for sentries must be their home
                     MapLocation sentrySpawn = null;
-                    if (turnCount > 2) {
-                        if (Comms.shortId == 0 || Comms.shortId == 1) {
-                            sentrySpawn = Comms.decodeLoc(Comms.comms[53]);
-                        } else if (Comms.shortId == 30 || Comms.shortId == 31) {
-                            sentrySpawn = Comms.decodeLoc(Comms.comms[54]);
-                        } else if (Comms.shortId == 48 || Comms.shortId == 49) {
-                            sentrySpawn = Comms.decodeLoc(Comms.comms[55]);
-                        }
+                    if (SENTRY && !retireSentry) {
+                        sentrySpawn = homeFlag;
                     }
+
                     // Spwwn at the closest location to a given MapLocation:
                     MapLocation targetSpawnClosestTo = null;
                     if (sentrySpawn != null) {
@@ -218,24 +257,24 @@ public strictfp class RobotPlayer {
                         targetSpawnClosestTo = sampledEnemy;
                     }
 
-                    // find closest spawn location to intended target, otherwise if null, just
-                    // iterate through spawn locations.
-                    if (targetSpawnClosestTo != null) {
-                        int distToTarget = Integer.MAX_VALUE;
-                        MapLocation closestToTarget = null;
-                        for (int i = spawnLocs.length - 1; i >= 0; i--) {
-                            if (rc.canSpawn(spawnLocs[i])
-                                    && spawnLocs[i].distanceSquaredTo(targetSpawnClosestTo) < distToTarget) {
-                                distToTarget = spawnLocs[i].distanceSquaredTo(targetSpawnClosestTo);
-                                closestToTarget = spawnLocs[i];
+                    // don't spawn specialists on turn one becuase they won't have a home. spawn everyone else equally amongst the spawns
+                    if (!(turnCount == 1 && (sentryShiftOne || sentryShiftTwo || BUILDERSPECIALIST))) {
+                        if (targetSpawnClosestTo != null) {
+                            int distToTarget = Integer.MAX_VALUE;
+                            MapLocation closestToTarget = null;
+                            for (int i = spawnLocs.length - 1; i >= 0; i--) {
+                                if (rc.canSpawn(spawnLocs[i])
+                                        && spawnLocs[i].distanceSquaredTo(targetSpawnClosestTo) < distToTarget) {
+                                    distToTarget = spawnLocs[i].distanceSquaredTo(targetSpawnClosestTo);
+                                    closestToTarget = spawnLocs[i];
+                                }
                             }
-                        }
-                        if (rc.canSpawn(closestToTarget)) {
-                            rc.spawn(closestToTarget);
-                        }
-                    } else {
-                        for (int i = spawnLocs.length; --i >= 0;) {
-                            MapLocation loc = spawnLocs[i];
+                            if (rc.canSpawn(closestToTarget)) {
+                                rc.spawn(closestToTarget);
+                            }
+                        } else {
+
+                            MapLocation loc = spawnLocs[Comms.shortId % spawnLocs.length];
                             if (rc.canSpawn(loc))
                                 rc.spawn(loc);
                         }
@@ -247,29 +286,15 @@ public strictfp class RobotPlayer {
                     // Turns Alive
                     turnsAlive++;
 
-                    // decide if this person should be a builder (if shortId == an ID) (Diff ID's
-                    // chosen to spawn at diff spawns)
-                    if (turnCount == 2 && (Comms.shortId == 2 || Comms.shortId == 29 || Comms.shortId == 47)) {
-                        BUILDERSPECIALIST = true;
-                    }
-
-                    // decide if this person should be a sentry (Diff ID's chosen to spawn at diff
-                    // spawns)
                     // Create two shifts to swap out ducks and ensure these ducks can still get XP.
                     // Rotate shift every 500 turns.
-                    boolean sentryShiftOne = (Comms.shortId == 0 || Comms.shortId == 30 || Comms.shortId == 49);
-                    boolean sentryShiftTwo = (Comms.shortId == 1 || Comms.shortId == 31 || Comms.shortId == 48);
-                    boolean swapTurnOne = ((turnCount > 2 && turnCount < 500)
+                    boolean swapTurnOne = ((turnCount >= 2 && turnCount < 500)
                             || (turnCount > 1000 && turnCount < 1500));
                     boolean swapTurnTwo = ((turnCount > 500 && turnCount < 1000)
                             || (turnCount > 1500 && turnCount < 2000));
                     boolean shiftTwoSwapIn = ((turnCount > 475 && turnCount < 1000)
                             || (turnCount > 1475 && turnCount < 2000));
                     boolean shiftOneSwapIn = (turnCount > 975 && turnCount < 1500);
-
-                    boolean attackSquadOne = (Comms.shortId < 16);
-                    boolean attackSquadTwo = (Comms.shortId >= 16 && Comms.shortId < 32);
-                    boolean attackSquadThree = (Comms.shortId >= 32);
 
                     if (swapTurnOne && sentryShiftOne) {
                         SENTRY = true;
@@ -286,21 +311,6 @@ public strictfp class RobotPlayer {
                     if ((sentryShiftOne && shiftOneSwapIn || sentryShiftTwo && shiftTwoSwapIn)
                             && !rc.canSenseLocation(homeFlag) && !retireSentry) {
                         shouldRespawn = true;
-                    }
-
-                    if (turnsAlive == 2) {
-                        // Scan for flag defaults and get homeflag
-                        MapLocation[] allyFlagDefaults = Comms.getDefaultAllyFlagLocations();
-                        MapLocation closestAllyFlag = null;
-                        int closestAllyFlagDist = Integer.MAX_VALUE;
-                        for (int i = allyFlagDefaults.length - 1; i >= 0; i--) {
-                            int tempDist = rc.getLocation().distanceSquaredTo(allyFlagDefaults[i]);
-                            if (tempDist < closestAllyFlagDist) {
-                                closestAllyFlagDist = tempDist;
-                                closestAllyFlag = allyFlagDefaults[i];
-                            }
-                        }
-                        homeFlag = closestAllyFlag;
                     }
 
                     // 750 Turn upgrade + 1500 turn upgrade
