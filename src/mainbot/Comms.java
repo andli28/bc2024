@@ -55,7 +55,6 @@ public class Comms {
 
     // comms[27:29][15][11:6][5:0] closest enemy loc to each ally flag(current if
     // exist, otherwise default)
-    // comms[30:32] stores the reporter that must refresh for comms 27:29 (closest enemy to flag)
 
     public static final int[] ALLY_DEFAULT_FLAG_INDICES = { 0, 1, 2 };
     public static final int[] ALLY_CURRENT_FLAG_INDICES = { 3, 4, 5 };
@@ -77,6 +76,7 @@ public class Comms {
 
     // comms indices you are in charge of refreshing
     public static int[] refreshIdxs = new int[8];
+    public static int[] prevVals = new int[8];
     public static int refreshPtr = -1;
 
     public static void receive() throws GameActionException {
@@ -119,15 +119,9 @@ public class Comms {
         // logic for this instead of end of turn clear is so that units that execute
         // code first in turn(shortid = 1) have sufficient info
         for (; refreshPtr >= 0; refreshPtr--) {
-            write(refreshIdxs[refreshPtr], 0);
-        }
-
-        // for the closest enemies to each home base, if you were the person who put in the closest
-        // enemy to home base last turn, you refresh this turn.
-        for (int i = 2; i >=0; i--) {
-            if (rc.readSharedArray(30+i) == shortId) {
-                write(27+i, 0);
-            }
+            int idx = refreshIdxs[refreshPtr];
+            if (comms[idx] == prevVals[refreshPtr])
+                write(idx, 0);
         }
 
         // current spec count
@@ -468,8 +462,10 @@ public class Comms {
                 // TODO now that enemy sighting clear is controlled by writer idt this pr calc
                 // is correct
                 if (currSight == null || (RobotPlayer.rng.nextDouble() < 1.f / 50)) {
-                    write(15 + i, encodeLoc(r.getLocation()));
+                    int toWrite = encodeLoc(r.getLocation());
+                    write(15 + i, toWrite);
                     refreshIdxs[++refreshPtr] = 15 + i;
+                    prevVals[refreshPtr] = toWrite;
                     break;
                 }
             }
@@ -555,9 +551,10 @@ public class Comms {
             MapLocation allyFlagLoc = currentAllyFlagLocs[i] == null ? defaultAllyFlagLocs[i] : currentAllyFlagLocs[i];
             if (commClosestEnemy == null || Pathfinder.travelDistance(allyFlagLoc, commClosestEnemy) > Pathfinder
                     .travelDistance(allyFlagLoc, localClosestEnemy)) {
-                write(27 + i, encodeLoc(localClosestEnemy));
-                // refreshIdxs[++refreshPtr] = 27 + i;
-                write(30+i, shortId);
+                int toWrite = encodeLoc(localClosestEnemy);
+                write(27 + i, toWrite);
+                refreshIdxs[++refreshPtr] = 27 + i;
+                prevVals[refreshPtr] = toWrite;
             }
         }
     }

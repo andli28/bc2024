@@ -139,9 +139,9 @@ public strictfp class RobotPlayer {
             turnCount += 1; // We have now been alive for one more turn!
 
             // Resignation at 500 turns for testing purposes
-//             if (turnCount == 800) {
-//             rc.resign();
-//             }
+            // if (turnCount == 800) {
+            // rc.resign();
+            // }
 
             // Try/catch blocks stop unhandled exceptions, which cause your robot to
             // explode.
@@ -182,7 +182,7 @@ public strictfp class RobotPlayer {
                         attackSquadThree = (Comms.shortId >= 32);
                     }
 
-                    //ensure sentries and builderspecialsits spawn at their appropriate spawns
+                    // ensure sentries and builderspecialsits spawn at their appropriate spawns
                     if (turnCount == 2) {
                         MapLocation[] homeFlags = Comms.getDefaultAllyFlagLocations();
                         if (Comms.shortId == 0 || Comms.shortId == 1 || Comms.shortId == 2) {
@@ -254,7 +254,8 @@ public strictfp class RobotPlayer {
                         targetSpawnClosestTo = sampledEnemy;
                     }
 
-                    // don't spawn specialists on turn one becuase they won't have a home. spawn everyone else equally amongst the spawns
+                    // don't spawn specialists on turn one becuase they won't have a home. spawn
+                    // everyone else equally amongst the spawns
                     if (!(turnCount == 1 && (sentryShiftOne || sentryShiftTwo || BUILDERSPECIALIST))) {
                         if (targetSpawnClosestTo != null) {
                             int distToTarget = Integer.MAX_VALUE;
