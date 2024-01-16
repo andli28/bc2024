@@ -187,13 +187,10 @@ public strictfp class RobotPlayer {
                         MapLocation[] homeFlags = Comms.getDefaultAllyFlagLocations();
                         if (Comms.shortId == 0 || Comms.shortId == 1 || Comms.shortId == 2) {
                             homeFlag = homeFlags[0];
-                            System.out.println(homeFlag.toString());
                         } else if (Comms.shortId == 30 || Comms.shortId == 31 || Comms.shortId == 29) {
                             homeFlag = homeFlags[1];
-                            System.out.println(homeFlag.toString());
                         } else if (Comms.shortId == 48 || Comms.shortId == 49 || Comms.shortId == 47) {
                             homeFlag = homeFlags[2];
-                            System.out.println(homeFlag.toString());
                         }
                     }
 
