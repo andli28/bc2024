@@ -267,7 +267,7 @@ public strictfp class RobotPlayer {
                                     closestToTarget = spawnLocs[i];
                                 }
                             }
-                            if (rc.canSpawn(closestToTarget)) {
+                            if (closestToTarget != null && rc.canSpawn(closestToTarget)) {
                                 rc.spawn(closestToTarget);
                             }
                         } else {
@@ -729,9 +729,13 @@ public strictfp class RobotPlayer {
                         }
 
                         // If can move to dir, move.
-                        if (rc.canMove(optimalDir)) {
-                            rc.move(optimalDir);
+                        if (nearestWater != null){
+                            if (lowestDistToWater <= GameConstants.INTERACT_RADIUS_SQUARED
+                                    && rc.canFill(nearestWater)) {
+                                rc.fill(nearestWater);
+                            }
                         }
+                        healMove(rc, optimalDir, lowestCurrFriendly, lowestCurrFriendlyHealth);
 
                     } else if (role == INCOMBAT) {
 
@@ -890,6 +894,12 @@ public strictfp class RobotPlayer {
                         Direction pathToCrumb = Pathfinder.pathfind(rc.getLocation(), bigCloseCrumb);
                         if (enemies.length != 0) {
                             attackMove(rc, pathToCrumb, lowestCurrHostile, lowestCurrHostileHealth);
+                        } else if (nearestWater != null){
+                            if (lowestDistToWater <= GameConstants.INTERACT_RADIUS_SQUARED
+                                    && rc.canFill(nearestWater)) {
+                                rc.fill(nearestWater);
+                            }
+                            healMove(rc, pathToCrumb, lowestCurrFriendly, lowestCurrFriendlyHealth);
                         } else {
                             healMove(rc, pathToCrumb, lowestCurrFriendly, lowestCurrFriendlyHealth);
                         }
