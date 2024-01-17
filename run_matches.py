@@ -17,10 +17,12 @@ currentBot = 'mainbot'
 bots = ['v5']
 botsSet = set(bots)
 
+sprint1Maps = ['AceOfSpades', 'Alien', 'Ambush', 'Battlecode24', 'BigDucksBigPond', 'Canals', 'CH3353C4K3F4CT0RY',
+    'Duck', 'Fountain', 'Hockey', 'MazeRunner', 'Rivers', 'Snake', 'Soccer', 'SteamboatMickey', 'Yinyang']
 initialMaps = ['DefaultHuge', 'DefaultLarge', 'DefaultMedium', 'DefaultSmall']
 customMaps = ['pathfinder', 'bridge_aquifer', 'buh', 'crashtest1', 'Maze', 'one_on_one', 'pathfinder2', 'two_moats']
 
-maps = initialMaps + customMaps
+maps = initialMaps + sprint1Maps # + customMaps
 mapsSet = set(maps)
 
 matches = set(product(bots, maps))
