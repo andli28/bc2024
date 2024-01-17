@@ -40,6 +40,10 @@ public class Pathfinder {
 
     // does not explicitly check movement cd but does canmove checks
     public static Direction pathfind(MapLocation src, MapLocation tgt) throws GameActionException {
+        // if tgt is null throw an error
+        if (tgt == null)
+            throw new GameActionException(GameActionExceptionType.CANT_DO_THAT, "tgt is null");
+
         if (!rc.isMovementReady() || src.equals(tgt))
             return Direction.CENTER;
         // some variant buh g with wall avoidance
