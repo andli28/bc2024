@@ -58,30 +58,30 @@ def run_match(bot, map, toAddWins):
     except subprocess.CalledProcessError as exc:
         print("Status: FAIL", exc.returncode, exc.output)
         return 'Error'
+    
+    winAString = '{} (A) wins'.format(currentBot)
+    winBString = '{} (B) wins'.format(currentBot)
+    loseAString = '{} (B) wins'.format(bot)
+    loseBString = '{} (A) wins'.format(bot)
+    
+    numWins = 0
+    
+    gameLengthA = retrieveGameLength(outputA)
+    gameLengthB = retrieveGameLength(outputB)
+    
+    if winAString in outputA:
+        numWins += 1
+        toAddWins += 1
     else:
-        winAString = '{} (A) wins'.format(currentBot)
-        winBString = '{} (B) wins'.format(currentBot)
-        loseAString = '{} (B) wins'.format(bot)
-        loseBString = '{} (A) wins'.format(bot)
-        
-        numWins = 0
-        
-        gameLengthA = retrieveGameLength(outputA)
-        gameLengthB = retrieveGameLength(outputB)
-        
-        if winAString in outputA:
-            numWins += 1
-            toAddWins += 1
-        else:
-            if not loseAString in outputA:
-                return 'Error'
-        if winBString in outputB:
-            numWins += 1
-            toAddWins += 1
-        else:
-            if not loseBString in outputB:
-                return 'Error'
-        return numWinsMapping[numWins] + ' (' + ', '.join([gameLengthA, gameLengthB]) + ')', toAddWins
+        if not loseAString in outputA:
+            return 'Error'
+    if winBString in outputB:
+        numWins += 1
+        toAddWins += 1
+    else:
+        if not loseBString in outputB:
+            return 'Error'
+    return numWinsMapping[numWins] + ' (' + ', '.join([gameLengthA, gameLengthB]) + ')', toAddWins
 
 
 results = {}
