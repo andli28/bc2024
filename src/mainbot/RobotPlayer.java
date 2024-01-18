@@ -4,6 +4,7 @@ import battlecode.common.*;
 import battlecode.world.Flag;
 
 import java.awt.*;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -91,6 +92,7 @@ public strictfp class RobotPlayer {
     static final int SENTRYING = 8;
     static final int RESPAWN = 9;
     static final int CRUMBS = 10;
+    static final int LINEUP = 11;
 
     // Default unit to scouting.
     static int role = SCOUTING;
@@ -347,11 +349,13 @@ public strictfp class RobotPlayer {
                     MapLocation nearestExplosiveTrap = null;
                     MapLocation nearestWaterTrap = null;
                     MapLocation nearestWater = null;
+                    MapLocation nearestDividerWithOpenNeighbor = null;
 
                     int lowestDistToStunTrap = Integer.MAX_VALUE;
                     int lowestDistToExplosiveTrap = Integer.MAX_VALUE;
                     int lowestDistToWaterTrap = Integer.MAX_VALUE;
                     int lowestDistToWater = Integer.MAX_VALUE;
+                    int lowestDIstToDividerWithOpenNeighbor = Integer.MAX_VALUE;
 
                     MapInfo[] nearbyMap = rc.senseNearbyMapInfos();
 
@@ -373,6 +377,10 @@ public strictfp class RobotPlayer {
                                 && distToSingleMap < lowestDistToWaterTrap) {
                             lowestDistToWaterTrap = distToSingleMap;
                             nearestWaterTrap = singleMap.getMapLocation();
+                        }
+                        if (singleMap.isDam() && areNeighborsOpen(rc, singleMap.getMapLocation()) && distToSingleMap < lowestDIstToDividerWithOpenNeighbor) {
+                            lowestDIstToDividerWithOpenNeighbor = distToSingleMap;
+                            nearestDividerWithOpenNeighbor = singleMap.getMapLocation();
                         }
                     }
                     rememberThisTurnClosestStunTrap = nearestStunTrap;
@@ -588,7 +596,10 @@ public strictfp class RobotPlayer {
                         // suicide to respawn
                         role = RESPAWN;
                         rc.setIndicatorString("Respawning");
-                    } else if (bigCloseCrumb != null && turnCount > GameConstants.SETUP_ROUNDS - 10) {
+                    } else if (nearestDividerWithOpenNeighbor != null && turnCount > GameConstants.SETUP_ROUNDS - 40 && turnCount < GameConstants.SETUP_ROUNDS) {
+                        role = LINEUP;
+                        rc.setIndicatorString("LINEUP: " + nearestDividerWithOpenNeighbor.toString());
+                    } else if (bigCloseCrumb != null && turnCount > GameConstants.SETUP_ROUNDS - 40) {
                         role = CRUMBS;
                         rc.setIndicatorString("CRUMBS: " + bigCloseCrumb.toString());
                     } else if (enemies.length != 0 && turnCount > turnsTillAllowingCombat) {
@@ -693,52 +704,24 @@ public strictfp class RobotPlayer {
                                 tgtLocation = targetFlag;
                                 turnsNotReachedTgt = 0;
                             } else if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||
-                                        (rc.canSenseLocation(tgtLocation) && !rc.sensePassability(tgtLocation))
-                                        || turnsNotReachedTgt > 50 || lastTurnPursingCrumb) {
-                                    tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
-                                            3, rc.getMapHeight() - 3);
-                                    turnsNotReachedTgt = 0;
-                                    lastTurnPursingCrumb = false;
+                                    (rc.canSenseLocation(tgtLocation) && !rc.sensePassability(tgtLocation))
+                                    || turnsNotReachedTgt > 50 || lastTurnPursingCrumb) {
+                                tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
+                                        3, rc.getMapHeight() - 3);
+                                turnsNotReachedTgt = 0;
+                                lastTurnPursingCrumb = false;
                             }
                             optimalDir = Pathfinder.pathfind(rc.getLocation(), tgtLocation);
                             if (tgtLocation != null) {
                                 rc.setIndicatorString("Scouting: Tgt: " + tgtLocation.toString());
                             }
                         }
-                        MapLocation fillLoc = null;
-                        int mostSides = 1;
-                        MapInfo[] nearbyInteractSquares = rc.senseNearbyMapInfos(GameConstants.INTERACT_RADIUS_SQUARED);
-                        for (int i = nearbyInteractSquares.length-1; i>=0; i--) {
-                            MapLocation buildLoc = nearbyInteractSquares[i].getMapLocation();
-                            if (isInBounds(rc, buildLoc) && nearbyInteractSquares[i].isWater() &&
-                                    rc.canFill(buildLoc) && numSidesWithWater(rc, buildLoc) > mostSides) {
-                                fillLoc = buildLoc;
-                                mostSides = numSidesWithWater(rc, buildLoc);
-                            }
-                        }
-                        // Check before moving if you can clear nearest water in the direction of movement
-                        if (fillLoc != null && rc.canFill(fillLoc)) {
-                            rc.fill(fillLoc);
-                        }
 
+                        //dig any nearby water, healmove, then dig any nearby water
+                        // TODO: potentially should dig nearby water, then call pathfinding, then dig again to see if digging that space gives pathfinder an option to move
+                        clearTheWay(rc);
                         healMove(rc, optimalDir, lowestCurrFriendly, lowestCurrFriendlyHealth);
-
-                        // Check after moving if you can clear nearest water in the direction of movement
-                        fillLoc = null;
-                        mostSides = 1;
-                        nearbyInteractSquares = rc.senseNearbyMapInfos(GameConstants.INTERACT_RADIUS_SQUARED);
-                        for (int i = nearbyInteractSquares.length-1; i>=0; i--) {
-                            MapLocation buildLoc = nearbyInteractSquares[i].getMapLocation();
-                            if (isInBounds(rc, buildLoc) && nearbyInteractSquares[i].isWater() &&
-                                    rc.canFill(buildLoc) && numSidesWithWater(rc, buildLoc) > mostSides) {
-                                fillLoc = buildLoc;
-                                mostSides = numSidesWithWater(rc, buildLoc);
-                            }
-                        }
-                        // Check before moving if you can clear nearest water in the direction of movement
-                        if (fillLoc != null && rc.canFill(fillLoc)) {
-                            rc.fill(fillLoc);
-                        }
+                        clearTheWay(rc);
 
                     } else if (role == INCOMBAT) {
 
@@ -897,16 +880,26 @@ public strictfp class RobotPlayer {
                         Direction pathToCrumb = Pathfinder.pathfind(rc.getLocation(), bigCloseCrumb);
                         if (enemies.length != 0) {
                             attackMove(rc, pathToCrumb, lowestCurrHostile, lowestCurrHostileHealth);
-                        } else if (nearestWater != null){
-                            if (lowestDistToWater <= GameConstants.INTERACT_RADIUS_SQUARED
-                                    && rc.canFill(nearestWater)) {
-                                rc.fill(nearestWater);
+                        } else if (nearestWater != null) {
+                            if (lowestCurrFriendly != null) {
+                                healMove(rc, pathToCrumb, lowestCurrFriendly, lowestCurrFriendlyHealth);
+                                clearTheWay(rc);
+                            } else {
+                                clearTheWay(rc);
+                                healMove(rc, pathToCrumb, lowestCurrFriendly, lowestCurrFriendlyHealth);
+                                clearTheWay(rc);
                             }
-                            healMove(rc, pathToCrumb, lowestCurrFriendly, lowestCurrFriendlyHealth);
                         } else {
                             healMove(rc, pathToCrumb, lowestCurrFriendly, lowestCurrFriendlyHealth);
                         }
 
+                    } else if (role == LINEUP) {
+                        if (nearestDividerWithOpenNeighbor != null && rc.getLocation().distanceSquaredTo(nearestDividerWithOpenNeighbor) > 1) {
+                            Direction pathToDivider = Pathfinder.pathfind(rc.getLocation(), nearestDividerWithOpenNeighbor);
+                            clearTheWay(rc);
+                            healMove(rc, pathToDivider, lowestCurrFriendly, lowestCurrFriendlyHealth);
+                            clearTheWay(rc);
+                        }
                     } else if (role == WOUNDED) {
 
                         // enable units to go in any direction.
@@ -1112,7 +1105,7 @@ public strictfp class RobotPlayer {
      * @throws GameActionException
      */
     public static void layTrap(RobotController rc, MapLocation nearestExplosiveTrap, MapLocation nearestStunTrap,
-            int explosiveTrapPreferredDist, int stunTrapPreferredDist)
+                               int explosiveTrapPreferredDist, int stunTrapPreferredDist)
             throws GameActionException {
         // Iterate through all building directions, and go through the following logic:
         // 1 . If there are no nearby Explosive traps, build one,
@@ -1197,9 +1190,9 @@ public strictfp class RobotPlayer {
      * @throws GameActionException
      */
     public static void layTrapWithinRangeOfEnemy(RobotController rc, MapLocation nearestExplosiveTrap,
-            MapLocation nearestStunTrap, RobotInfo[] enemies, MapLocation closestEnemy, int explosiveTrapPreferredDist,
-            int stunTrapPreferredDist,
-            int buildThreshold) throws GameActionException {
+                                                 MapLocation nearestStunTrap, RobotInfo[] enemies, MapLocation closestEnemy, int explosiveTrapPreferredDist,
+                                                 int stunTrapPreferredDist,
+                                                 int buildThreshold) throws GameActionException {
         // Iterate through all building directions, and go through the following logic:
         // 1 . If there are no nearby Explosive traps, build one,
         // 2. Else if there are no nearby Stun Traps, build one.
@@ -1284,7 +1277,7 @@ public strictfp class RobotPlayer {
      * @throws GameActionException
      */
     public static void attackMove(RobotController rc, Direction optimalDir, MapLocation lowestCurrHostile,
-            int lowestCurrHostileHealth) throws GameActionException {
+                                  int lowestCurrHostileHealth) throws GameActionException {
         // Calculate what would be the lowest health of a hostile after a movement.
         MapLocation aflowestCurrHostile = null;
         int aflowestCurrHostileHealth = Integer.MAX_VALUE;
@@ -1354,7 +1347,7 @@ public strictfp class RobotPlayer {
     }
 
     public static void healMove(RobotController rc, Direction optimalDir, MapLocation lowestCurrFriend,
-            int lowestCurrFriendHealth) throws GameActionException {
+                                int lowestCurrFriendHealth) throws GameActionException {
         // Calculate what would be the lowest health of a friend after a movement.
         MapLocation aflowestCurrFriend = null;
         int aflowestCurrFriendHealth = Integer.MAX_VALUE;
@@ -1426,7 +1419,7 @@ public strictfp class RobotPlayer {
     /**
      * Builders can train to level 6 by digging, so this method does this by digging in a checkerboard pattern
      *
-     * @param rc                robotcontroller
+     * @param rc robotcontroller
      * @throws GameActionException
      */
     public static void trainToSixByDigging(RobotController rc)
@@ -1434,8 +1427,9 @@ public strictfp class RobotPlayer {
 
         MapInfo[] squaresWithinInteract = rc.senseNearbyMapInfos(GameConstants.INTERACT_RADIUS_SQUARED);
 
-        for (int i = squaresWithinInteract.length-1; i>=0; i--) {
-            if (rc.canDig(squaresWithinInteract[i].getMapLocation()) && !doSidesHaveWater(rc, squaresWithinInteract[i].getMapLocation())) {
+        for (int i = squaresWithinInteract.length - 1; i >= 0; i--) {
+            if (rc.canDig(squaresWithinInteract[i].getMapLocation()) && !doSidesHaveWater(rc, squaresWithinInteract[i].getMapLocation())
+                    && !aNeighborIsADam(rc, squaresWithinInteract[i].getMapLocation())) {
                 rc.dig(squaresWithinInteract[i].getMapLocation());
                 break;
             }
@@ -1443,8 +1437,8 @@ public strictfp class RobotPlayer {
     }
 
     public static Direction findOptimalCombatDir(RobotController rc, RobotInfo[] enemies,
-            float averageDistFromEnemies, double woundedRetreatThreshold,
-            int numHostiles, int numFriendlies) throws GameActionException {
+                                                 float averageDistFromEnemies, double woundedRetreatThreshold,
+                                                 int numHostiles, int numFriendlies) throws GameActionException {
         // Calculate the best retreating direction and best attackign direction
         // Simulate moving to any of the four cardinal directions. Calculate the average
         // distance from all enemies.
@@ -1489,7 +1483,7 @@ public strictfp class RobotPlayer {
                 : rc.getLocation().add(bestAttack);
         int dmg = 0;
         //
-        for (int i = enemies.length; --i >= 0;) {
+        for (int i = enemies.length; --i >= 0; ) {
             RobotInfo enemy = enemies[i];
             // 10 r^2 is max dist where enemy is 1 move from attack range
             if (enemy.getLocation().distanceSquaredTo(advanceLoc) <= 10) {
@@ -1513,7 +1507,7 @@ public strictfp class RobotPlayer {
     }
 
     public static double orthagonalDistanceOfP3RelativeToP2OnVectorP1P2(MapLocation P1, MapLocation P2,
-            MapLocation P3) {
+                                                                        MapLocation P3) {
         // Set P1 as origin:
         double x2 = P2.x - P1.x;
         double x3 = P3.x - P1.x;
@@ -1535,7 +1529,7 @@ public strictfp class RobotPlayer {
     }
 
     public static Direction findOptimalTrapKiteDir(RobotController rc, MapLocation closestEnemy, RobotInfo[] enemies,
-            MapLocation nearestTrap) {
+                                                   MapLocation nearestTrap) {
         Direction optimalDir = null;
         double optimalOrthoDist = Integer.MIN_VALUE;
 
@@ -1564,7 +1558,7 @@ public strictfp class RobotPlayer {
     }
 
     public static Direction findOptimalPursuingStunDir(RobotController rc, RobotInfo[] enemies,
-            float averageDistFromEnemies) throws GameActionException {
+                                                       float averageDistFromEnemies) throws GameActionException {
         Direction bestAttack = null;
         double bestAttackDist = averageDistFromEnemies;
 
@@ -1605,7 +1599,7 @@ public strictfp class RobotPlayer {
     }
 
     public static boolean isInBounds(RobotController rc, MapLocation x) {
-        if (x.x >= 0 && x.x < rc.getMapWidth() && x.y >=0 && x.y < rc.getMapHeight()) {
+        if (x.x >= 0 && x.x < rc.getMapWidth() && x.y >= 0 && x.y < rc.getMapHeight()) {
             return true;
         } else {
             return false;
@@ -1613,10 +1607,10 @@ public strictfp class RobotPlayer {
     }
 
     public static boolean doSidesHaveWater(RobotController rc, MapLocation x) throws GameActionException {
-        MapLocation sideOne = new MapLocation(x.x+1, x.y);
-        MapLocation sideTwo = new MapLocation(x.x-1, x.y);
-        MapLocation sideThree = new MapLocation(x.x, x.y-1);
-        MapLocation sideFour = new MapLocation(x.x, x.y+1);
+        MapLocation sideOne = new MapLocation(x.x + 1, x.y);
+        MapLocation sideTwo = new MapLocation(x.x - 1, x.y);
+        MapLocation sideThree = new MapLocation(x.x, x.y - 1);
+        MapLocation sideFour = new MapLocation(x.x, x.y + 1);
 
         if (isInBounds(rc, sideOne) && rc.senseMapInfo(sideOne).isWater()) {
             return true;
@@ -1632,10 +1626,10 @@ public strictfp class RobotPlayer {
     }
 
     public static int numSidesWithWater(RobotController rc, MapLocation x) throws GameActionException {
-        MapLocation sideOne = new MapLocation(x.x+1, x.y);
-        MapLocation sideTwo = new MapLocation(x.x-1, x.y);
-        MapLocation sideThree = new MapLocation(x.x, x.y-1);
-        MapLocation sideFour = new MapLocation(x.x, x.y+1);
+        MapLocation sideOne = new MapLocation(x.x + 1, x.y);
+        MapLocation sideTwo = new MapLocation(x.x - 1, x.y);
+        MapLocation sideThree = new MapLocation(x.x, x.y - 1);
+        MapLocation sideFour = new MapLocation(x.x, x.y + 1);
         int numSidesWithWater = 0;
 
         if (isInBounds(rc, sideOne) && rc.senseMapInfo(sideOne).isWater()) {
@@ -1652,4 +1646,50 @@ public strictfp class RobotPlayer {
         }
         return numSidesWithWater;
     }
+
+    public static void clearTheWay(RobotController rc) throws GameActionException {
+        // fill water with the most sides with water, but if you find a water with a neighboring dam, prioritize clearing that.
+        MapLocation fillLoc = null;
+        int mostSides = 1;
+        MapInfo[] nearbyInteractSquares = rc.senseNearbyMapInfos(GameConstants.INTERACT_RADIUS_SQUARED);
+        for (int i = nearbyInteractSquares.length - 1; i >= 0; i--) {
+            MapLocation buildLoc = nearbyInteractSquares[i].getMapLocation();
+            if (isInBounds(rc, buildLoc) && nearbyInteractSquares[i].isWater() &&
+                    rc.canFill(buildLoc)) {
+                if (aNeighborIsADam(rc, buildLoc)) {
+                    fillLoc = buildLoc;
+                    break;
+                } else if(numSidesWithWater(rc, buildLoc) > mostSides) {
+                    fillLoc = buildLoc;
+                    mostSides = numSidesWithWater(rc, buildLoc);
+                }
+            }
+        }
+
+        // Check before moving if you can clear nearest water in the direction of movement
+        if (fillLoc != null && rc.canFill(fillLoc)) {
+            rc.fill(fillLoc);
+        }
+    }
+
+    public static boolean areNeighborsOpen(RobotController rc, MapLocation x) throws GameActionException {
+        MapInfo[] locations = rc.senseNearbyMapInfos(x, 2);
+        for (int i = locations.length - 1; i >= 0; i--) {
+            if (!locations[i].getMapLocation().equals(x) && locations[i].isPassable() && !rc.isLocationOccupied(locations[i].getMapLocation())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static boolean aNeighborIsADam(RobotController rc, MapLocation x) throws GameActionException {
+        MapInfo[] locations = rc.senseNearbyMapInfos(x, 2);
+        for (int i = locations.length - 1; i >= 0; i--) {
+            if (locations[i].isDam()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 }
