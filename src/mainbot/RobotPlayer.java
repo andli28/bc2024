@@ -274,8 +274,18 @@ public strictfp class RobotPlayer {
                         } else {
 
                             MapLocation loc = spawnLocs[Comms.shortId % spawnLocs.length];
-                            if (rc.canSpawn(loc))
-                                rc.spawn(loc);
+                            int distToTarget = Integer.MAX_VALUE;
+                            MapLocation closestToTarget = null;
+                            for (int i = spawnLocs.length - 1; i >= 0; i--) {
+                                if (rc.canSpawn(spawnLocs[i])
+                                        && spawnLocs[i].distanceSquaredTo(loc) < distToTarget) {
+                                    distToTarget = spawnLocs[i].distanceSquaredTo(loc);
+                                    closestToTarget = spawnLocs[i];
+                                }
+                            }
+                            if (closestToTarget != null && rc.canSpawn(closestToTarget)) {
+                                rc.spawn(closestToTarget);
+                            }
                         }
                     }
                 }
