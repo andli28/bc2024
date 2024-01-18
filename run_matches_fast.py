@@ -125,7 +125,7 @@ if __name__ == "__main__":
         table = [[replaceWithDictionary(item, emojiMap) for item in row] for row in table]
 
     # Write to file
-    with open('matches-summary-parallel.txt', 'w') as f:
+    with open('matches-summary-fast.txt', 'w') as f:
         #Write the ratio of wins to total games, and win percentage
         f.write(match_statistics)
 
