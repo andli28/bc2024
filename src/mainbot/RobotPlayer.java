@@ -3,6 +3,7 @@ package mainbot;
 import battlecode.common.*;
 import battlecode.world.Flag;
 
+import java.awt.*;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -312,11 +313,11 @@ public strictfp class RobotPlayer {
                     }
 
                     // Attack -> Healing -> Capturing
-                    if (turnCount == GameConstants.GLOBAL_UPGRADE_ROUNDS && rc.canBuyGlobal(GlobalUpgrade.HEALING)) {
-                        rc.buyGlobal(GlobalUpgrade.HEALING);
-                    } else if (turnCount == 2 * GameConstants.GLOBAL_UPGRADE_ROUNDS
-                            && rc.canBuyGlobal(GlobalUpgrade.ATTACK)) {
+                    if (turnCount == GameConstants.GLOBAL_UPGRADE_ROUNDS && rc.canBuyGlobal(GlobalUpgrade.ATTACK)) {
                         rc.buyGlobal(GlobalUpgrade.ATTACK);
+                    } else if (turnCount == 2 * GameConstants.GLOBAL_UPGRADE_ROUNDS
+                            && rc.canBuyGlobal(GlobalUpgrade.HEALING)) {
+                        rc.buyGlobal(GlobalUpgrade.HEALING);
                     } else if (turnCount == 3 * GameConstants.GLOBAL_UPGRADE_ROUNDS
                             && rc.canBuyGlobal(GlobalUpgrade.CAPTURING)) {
                         rc.buyGlobal(GlobalUpgrade.CAPTURING);
@@ -371,7 +372,7 @@ public strictfp class RobotPlayer {
                     // , train by digging until you have 30 exp
 
                     if (BUILDERSPECIALIST && rc.getExperience(SkillType.BUILD) < 30 && turnCount > 25) {
-                        trainToSixByDigging(rc, nearestWater, lowestDistToWater);
+                        trainToSixByDigging(rc);
                     }
 
                     // Flag Counting, finding number of nearby flags not picked up
@@ -611,12 +612,6 @@ public strictfp class RobotPlayer {
                         // certain turn, go home to set a stun trap
                         // if you are near home, sense if you can set a stun trap
 
-                        // Otherwise, if optimalDir is null after these builder specific conditions,
-                        // pursue nearby crumbs
-                        // If there are no nearby crumbs, pursue nearby water
-                        // if there is no nearby water, go to either a random location, or if it is
-                        // beyond a certain turn, go to the targetFlag.
-
                         // builders visit home during setup before turn 150 to see if they can trap
                         // their homes
                         // if you have lvl 6 building, have over 100 crumbs, no enemies are around, and
@@ -674,68 +669,26 @@ public strictfp class RobotPlayer {
                                 }
                             }
                         }
-                        if (optimalDir == null) {
-                            if (nearbyCrumbs.length != 0) {
-                                for (int i = nearbyCrumbs.length - 1; i >= 0; i--) {
-                                    if (rc.sensePassability(nearbyCrumbs[i])) {
-                                        tgtLocation = nearbyCrumbs[i];
-                                        activelyPursuingCrumb = true;
-                                        lastTurnPursingCrumb = true;
-                                        lastTurnPursingWater = false;
-                                        turnsNotReachedTgt = 0;
-                                    }
-                                }
-                            }
 
-                            // If we are not actively pursuing a crumb, check if we can clear/pursue a
-                            // water tile, otherwise generate a random target.
-                            if (!activelyPursuingCrumb) {
-                                if (nearestWater != null) {
-                                    if (lowestDistToWater <= GameConstants.INTERACT_RADIUS_SQUARED
-                                            && rc.canFill(nearestWater)) {
-                                        rc.fill(nearestWater);
-                                        if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||
-                                                (rc.canSenseLocation(tgtLocation) && !rc.sensePassability(tgtLocation))
-                                                || turnsNotReachedTgt > 50 || lastTurnPursingCrumb || lastTurnPursingWater) {
-                                            if (turnCount > turnsTillAllowingCombat && targetFlag != null) {
-                                                tgtLocation = targetFlag;
-                                            } else {
-                                                tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
-                                                        3, rc.getMapHeight() - 3);
-                                            }
-                                            lastTurnPursingCrumb = false;
-                                            lastTurnPursingWater = false;
-                                            turnsNotReachedTgt = 0;
-                                        }
-                                    } else {
-                                        tgtLocation = nearestWater;
-                                        lastTurnPursingWater = true;
-                                        lastTurnPursingCrumb = false;
-                                        turnsNotReachedTgt = 0;
-                                    }
-                                }
-                                // Generating a random target:
-                                // if tgtLocation is null, the current location equals the target location,
-                                // or the target location can be sensed and is impassible, or turnsNotReachedTgt
-                                // > 50,
-                                // generate a new random target location.
-                                // Note: the bounds are 3 to the bounds-3 because the robots have a vision
-                                // radius of sqrt(20), so
-                                // they only need to get within 3 units of each edge to see the full edge of the
-                                // map, including the corners.
-                                else if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||
+                        // Otherwise, if optimalDir is null after these builder specific conditions,
+                        // pursue nearby crumbs
+                        // If there are no nearby crumbs, go to either a random location, or if it is
+                        // beyond a certain turn, go to the targetFlag.
+                        if (optimalDir == null) {
+                            if (bigCloseCrumb != null) {
+                                tgtLocation = bigCloseCrumb;
+                                turnsNotReachedTgt = 0;
+                                lastTurnPursingCrumb = true;
+                            } else if (turnCount > turnsTillAllowingCombat && targetFlag != null) {
+                                tgtLocation = targetFlag;
+                                turnsNotReachedTgt = 0;
+                            } else if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||
                                         (rc.canSenseLocation(tgtLocation) && !rc.sensePassability(tgtLocation))
-                                        || turnsNotReachedTgt > 50 || lastTurnPursingCrumb || lastTurnPursingWater) {
-                                    if (turnCount > turnsTillAllowingCombat && targetFlag != null) {
-                                        tgtLocation = targetFlag;
-                                    } else {
-                                        tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
-                                                3, rc.getMapHeight() - 3);
-                                    }
-                                    lastTurnPursingCrumb = false;
-                                    lastTurnPursingWater = false;
+                                        || turnsNotReachedTgt > 50 || lastTurnPursingCrumb) {
+                                    tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
+                                            3, rc.getMapHeight() - 3);
                                     turnsNotReachedTgt = 0;
-                                }
+                                    lastTurnPursingCrumb = false;
                             }
                             optimalDir = Pathfinder.pathfind(rc.getLocation(), tgtLocation);
                             if (tgtLocation != null) {
@@ -743,14 +696,35 @@ public strictfp class RobotPlayer {
                             }
                         }
 
-                        // If can move to dir, move.
-                        if (nearestWater != null){
-                            if (lowestDistToWater <= GameConstants.INTERACT_RADIUS_SQUARED
-                                    && rc.canFill(nearestWater)) {
-                                rc.fill(nearestWater);
-                            }
+                        MapLocation tileToMoveTo = rc.getLocation().add(optimalDir);
+                        MapLocation tileToLeftOfOptDir = rc.getLocation().add(optimalDir.rotateLeft());
+                        MapLocation tileToRightOfOptDir = rc.getLocation().add(optimalDir.rotateRight());
+                        // Check before moving if you can clear nearest water in the direction of movement
+                        if (isInBounds(rc, tileToMoveTo) && rc.senseMapInfo(tileToMoveTo).isWater() && rc.canFill(tileToMoveTo)) {
+                            rc.fill(tileToMoveTo);
+                        } else if (isInBounds(rc, tileToLeftOfOptDir) && rc.senseMapInfo(tileToLeftOfOptDir).isWater() && rc.canFill(tileToLeftOfOptDir)) {
+                            rc.fill(tileToLeftOfOptDir);
+                        } else if (isInBounds(rc, tileToRightOfOptDir) && rc.senseMapInfo(tileToRightOfOptDir).isWater() && rc.canFill(tileToRightOfOptDir)){
+                            rc.fill(tileToRightOfOptDir);
                         }
+
                         healMove(rc, optimalDir, lowestCurrFriendly, lowestCurrFriendlyHealth);
+
+                        // Check after moving if you can clear nearest water in the direction of movement
+                        tileToMoveTo = rc.getLocation().add(optimalDir);
+                        tileToLeftOfOptDir = rc.getLocation().add(optimalDir.rotateLeft());
+                        tileToRightOfOptDir = rc.getLocation().add(optimalDir.rotateRight());
+                        // Check before moving if you can clear nearest water in the direction of movement
+                        if (isInBounds(rc, tileToMoveTo) &&
+                                rc.senseMapInfo(tileToMoveTo).isWater() && rc.canFill(tileToMoveTo)) {
+                            rc.fill(tileToMoveTo);
+                        } else if (isInBounds(rc, tileToLeftOfOptDir) &&
+                                rc.senseMapInfo(tileToLeftOfOptDir).isWater() && rc.canFill(tileToLeftOfOptDir)) {
+                            rc.fill(tileToLeftOfOptDir);
+                        } else if (isInBounds(rc, tileToRightOfOptDir) &&
+                                rc.senseMapInfo(tileToRightOfOptDir).isWater() && rc.canFill(tileToRightOfOptDir)){
+                            rc.fill(tileToRightOfOptDir);
+                        }
 
                     } else if (role == INCOMBAT) {
 
@@ -975,7 +949,7 @@ public strictfp class RobotPlayer {
                     }
 
                     if (turnCount > 1900 && rc.getExperience(SkillType.BUILD) < 15) {
-                        trainToSixByDigging(rc, nearestWater, lowestDistToWater);
+                        trainToSixByDigging(rc);
                     }
 
                     // Sentry comm updates to information about home flags.
@@ -1436,28 +1410,20 @@ public strictfp class RobotPlayer {
     }
 
     /**
-     * Builders can train to level 6 by digging, so this method does this by filling
-     * nearby water and creating holes
+     * Builders can train to level 6 by digging, so this method does this by digging in a checkerboard pattern
      *
      * @param rc                robotcontroller
-     * @param nearestWater      nearestwater maplocation
-     * @param lowestDistToWater distance from nearest water
      * @throws GameActionException
      */
-    public static void trainToSixByDigging(RobotController rc, MapLocation nearestWater, int lowestDistToWater)
+    public static void trainToSixByDigging(RobotController rc)
             throws GameActionException {
 
-        if (nearestWater != null && lowestDistToWater <= GameConstants.INTERACT_RADIUS_SQUARED
-                && rc.canFill(nearestWater)) {
-            rc.fill(nearestWater);
+        MapInfo[] squaresWithinInteract = rc.senseNearbyMapInfos(GameConstants.INTERACT_RADIUS_SQUARED);
 
-        } else {
-            for (int i = directions.length - 1; i >= 0; i--) {
-                MapLocation addedLoc = rc.getLocation().add(directions[i]);
-                if (rc.canDig(addedLoc)) {
-                    rc.dig(addedLoc);
-                    break;
-                }
+        for (int i = squaresWithinInteract.length-1; i>=0; i--) {
+            if (rc.canDig(squaresWithinInteract[i].getMapLocation()) && !doSidesHaveWater(rc, squaresWithinInteract[i].getMapLocation())) {
+                rc.dig(squaresWithinInteract[i].getMapLocation());
+                break;
             }
         }
     }
@@ -1622,5 +1588,32 @@ public strictfp class RobotPlayer {
         }
         float averageDist = (float) sum / numInArray;
         return averageDist;
+    }
+
+    public static boolean isInBounds(RobotController rc, MapLocation x) {
+        if (x.x >= 0 && x.x < rc.getMapWidth() && x.y >=0 && x.y < rc.getMapHeight()) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    public static boolean doSidesHaveWater(RobotController rc, MapLocation x) throws GameActionException {
+        MapLocation sideOne = new MapLocation(x.x+1, x.y);
+        MapLocation sideTwo = new MapLocation(x.x-1, x.y);
+        MapLocation sideThree = new MapLocation(x.x, x.y-1);
+        MapLocation sideFour = new MapLocation(x.x, x.y+1);
+
+        if (isInBounds(rc, sideOne) && rc.senseMapInfo(sideOne).isWater()) {
+            return true;
+        } else if (isInBounds(rc, sideTwo) && rc.senseMapInfo(sideTwo).isWater()) {
+            return true;
+        } else if (isInBounds(rc, sideThree) && rc.senseMapInfo(sideThree).isWater()) {
+            return true;
+        } else if (isInBounds(rc, sideFour) && rc.senseMapInfo(sideFour).isWater()) {
+            return true;
+        } else {
+            return false;
+        }
     }
 }
