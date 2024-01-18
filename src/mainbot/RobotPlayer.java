@@ -301,7 +301,9 @@ public strictfp class RobotPlayer {
                 }
 
                 if (rc.isSpawned()) {
-
+//                    if (turnCount > 2 && Comms.shortId ==1) {
+//                        System.out.println(turnCount);
+//                    }
                     // Turns Alive
                     turnsAlive++;
 
@@ -1452,7 +1454,7 @@ public strictfp class RobotPlayer {
         for (int i = squaresWithinInteract.length - 1; i >= 0; i--) {
             if (rc.canDig(squaresWithinInteract[i].getMapLocation())
                     && !doSidesHaveWater(rc, squaresWithinInteract[i].getMapLocation())
-                    && !aNeighborIsADam(rc, squaresWithinInteract[i].getMapLocation())) {
+                    && !aNeighborIsADamOrWall(rc, squaresWithinInteract[i].getMapLocation())) {
                 rc.dig(squaresWithinInteract[i].getMapLocation());
                 break;
             }
@@ -1686,7 +1688,7 @@ public strictfp class RobotPlayer {
             MapLocation buildLoc = nearbyInteractSquares[i].getMapLocation();
             if (isInBounds(rc, buildLoc) && nearbyInteractSquares[i].isWater() &&
                     rc.canFill(buildLoc)) {
-                if (aNeighborIsADam(rc, buildLoc)) {
+                if (aNeighborIsADamOrWall(rc, buildLoc)) {
                     fillLoc = buildLoc;
                     break;
                 } else if (numSidesWithWater(rc, buildLoc) > mostSides) {
@@ -1714,10 +1716,10 @@ public strictfp class RobotPlayer {
         return false;
     }
 
-    public static boolean aNeighborIsADam(RobotController rc, MapLocation x) throws GameActionException {
+    public static boolean aNeighborIsADamOrWall(RobotController rc, MapLocation x) throws GameActionException {
         MapInfo[] locations = rc.senseNearbyMapInfos(x, 2);
         for (int i = locations.length - 1; i >= 0; i--) {
-            if (locations[i].isDam()) {
+            if (locations[i].isDam() || locations[i].isWall()) {
                 return true;
             }
         }
