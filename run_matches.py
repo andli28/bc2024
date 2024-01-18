@@ -14,15 +14,16 @@ emojiMap = {
 errors = []
 currentBot = 'mainbot'
 
-bots = ['v5']
+bots = ['sprint1']
 botsSet = set(bots)
 
 sprint1Maps = ['AceOfSpades', 'Alien', 'Ambush', 'Battlecode24', 'BigDucksBigPond', 'Canals', 'CH3353C4K3F4CT0RY',
     'Duck', 'Fountain', 'Hockey', 'MazeRunner', 'Rivers', 'Snake', 'Soccer', 'SteamboatMickey', 'Yinyang']
 initialMaps = ['DefaultHuge', 'DefaultLarge', 'DefaultMedium', 'DefaultSmall']
-customMaps = ['pathfinder', 'bridge_aquifer', 'buh', 'crashtest1', 'Maze', 'one_on_one', 'pathfinder2', 'two_moats']
+customMaps = ['pathfinder', 'bridge_aquifer', 'buh', 'crashtest1', 'Maze', 'one_on_one', 'pathfinder2', 'two_moats',
+              'kirby', 'diagonal_grid']
 
-maps = initialMaps + sprint1Maps # + customMaps
+maps = initialMaps #+ sprint1Maps # + customMaps
 mapsSet = set(maps)
 
 matches = set(product(bots, maps))
@@ -88,6 +89,7 @@ def run_match(bot, map, toAddWins):
 
 results = {}
 # Run matches
+print('Running {} maps'.format(len(matches)))
 for bot, map in matches:
     # Verify match is valid
     if not bot in botsSet or not map in mapsSet:
@@ -118,7 +120,7 @@ if emojiMode:
     table = [[replaceWithDictionary(item, emojiMap) for item in row] for row in table]
 
 # Write to file
-with open('matches-summary.txt', 'w') as f:
+with open('matches-summary-test2.txt', 'w') as f:
     #Write the ratio of wins to total games, and win percentage
     f.write(match_statistics)
 
