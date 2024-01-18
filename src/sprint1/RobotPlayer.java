@@ -1,4 +1,4 @@
-package mainbot;
+package sprint1;
 
 import battlecode.common.*;
 import battlecode.world.Flag;

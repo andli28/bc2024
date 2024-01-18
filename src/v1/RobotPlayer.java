@@ -139,8 +139,8 @@ public strictfp class RobotPlayer {
                 if (rc.isSpawned()) {
 
                     // 750 Turn upgrade + 1500 turn upgrade
-                    if (turnCount == 750 && rc.canBuyGlobal(GlobalUpgrade.ACTION)) {
-                        rc.buyGlobal(GlobalUpgrade.ACTION);
+                    if (turnCount == 750 && rc.canBuyGlobal(GlobalUpgrade.ATTACK)) {
+                        rc.buyGlobal(GlobalUpgrade.ATTACK);
                     } else if (turnCount == 1500 && rc.canBuyGlobal(GlobalUpgrade.HEALING)) {
                         rc.buyGlobal(GlobalUpgrade.HEALING);
                     }
