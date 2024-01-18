@@ -83,16 +83,16 @@ public class Comms {
     public static MapLocation prevEndTurnLoc = null;
 
     // comms indices you are in charge of refreshing
-    public static int[] refreshIdxs = new int[8];
-    public static int[] prevVals = new int[8];
+    public static int[] refreshIdxs = new int[16];
+    public static int[] prevVals = new int[16];
     public static int refreshPtr = -1;
 
     // stun trap tracking(only traps within vision end of last/start of this turn)
     // could technically improve to intersection of all vision last turn and this
     // turn but then movement needs to be integrated
-    public static LinkedList<Pair<MapLocation, Integer>> validStunTraps = new LinkedList<>();
+    public static LinkedList<Pair<MapLocation, Integer>> stunlockedEnemies = new LinkedList<>();
     public static HashSet<MapLocation> prevTurnTraps = new HashSet<>();
-    public static LinkedList<MapLocation> currTurnLocalActivations = new LinkedList<>();
+    public static LinkedList<MapLocation> currTurnEnemyStuns = new LinkedList<>();
 
     // removes first occurence of key O(n) yea yea
     public static <S, T> void removeFirst(LinkedList<Pair<S, T>> ll, S key) {
@@ -119,18 +119,18 @@ public class Comms {
             // update stun traps received from comms and locally
             // local can +5, comms +4 since could be 1 turn off
             // update list
-            Pair<MapLocation, Integer> head = validStunTraps.peek();
+            Pair<MapLocation, Integer> head = stunlockedEnemies.peek();
             while (head != null && head.second <= rc.getRoundNum()) {
-                validStunTraps.remove();
-                head = validStunTraps.peek();
+                stunlockedEnemies.remove();
+                head = stunlockedEnemies.peek();
             }
 
             // add the comms entry first to maintain non decreasing order
             for (int i = 4; --i >= 0;) {
                 MapLocation stunTrapLoc = decodeLoc(comms[i + 30]);
                 if (stunTrapLoc != null) {
-                    removeFirst(validStunTraps, stunTrapLoc);
-                    validStunTraps.add(new Pair<>(stunTrapLoc, rc.getRoundNum() + 4));
+                    removeFirst(stunlockedEnemies, stunTrapLoc);
+                    stunlockedEnemies.add(new Pair<>(stunTrapLoc, rc.getRoundNum() + 4));
                 }
             }
 
@@ -147,9 +147,14 @@ public class Comms {
             while (it.hasNext()) {
                 MapLocation loc = (MapLocation) it.next();
                 if (!currTraps.contains(loc)) {
-                    removeFirst(validStunTraps, loc);
-                    currTurnLocalActivations.add(loc);
-                    validStunTraps.add(new Pair<MapLocation, Integer>(loc, rc.getRoundNum() + 5));
+                    // scan in trap range around and add all stunned enemies
+                    RobotInfo[] stunnedEnemies = rc.senseNearbyRobots(loc, 13, rc.getTeam().opponent());
+                    for (int i = stunnedEnemies.length; --i >= 0;) {
+                        MapLocation stunloc = stunnedEnemies[i].getLocation();
+                        removeFirst(stunlockedEnemies, stunloc);
+                        currTurnEnemyStuns.add(stunloc);
+                        stunlockedEnemies.add(new Pair<MapLocation, Integer>(stunloc, rc.getRoundNum() + 5));
+                    }
                 }
             }
         }
@@ -241,7 +246,7 @@ public class Comms {
             updateFlagLocs();
             updateCurrFlags();
             updateClosestEnemyToAllyFlags();
-            updateStunTropLocs();
+            updateStunTrapLocs();
         }
         prevEndTurnLoc = rc.isSpawned() ? rc.getLocation() : null;
 
@@ -267,7 +272,7 @@ public class Comms {
         prevSpec = curSpec;
 
         // stun trap stuff
-        currTurnLocalActivations.clear();
+        currTurnEnemyStuns.clear();
         prevTurnTraps.clear();
         if (rc.isSpawned()) {
             MapInfo[] nearbyMapInfos = rc.senseNearbyMapInfos();
@@ -530,10 +535,10 @@ public class Comms {
         return closest;
     }
 
-    public static MapLocation[] getActivatedStunTrapLocs() throws GameActionException {
-        MapLocation[] locs = new MapLocation[validStunTraps.size()];
+    public static MapLocation[] getStunnedEnemies() throws GameActionException {
+        MapLocation[] locs = new MapLocation[stunlockedEnemies.size()];
         int idx = 0;
-        Iterator it = validStunTraps.iterator();
+        Iterator it = stunlockedEnemies.iterator();
         while (it.hasNext()) {
             Pair<MapLocation, Integer> entry = (Pair<MapLocation, Integer>) it.next();
             locs[idx] = entry.first;
@@ -542,8 +547,8 @@ public class Comms {
         return locs;
     }
 
-    public static MapLocation getClosestStunTrapLoc() throws GameActionException {
-        MapLocation[] traps = getActivatedStunTrapLocs();
+    public static MapLocation getClosestStunnedEnemy() throws GameActionException {
+        MapLocation[] traps = getStunnedEnemies();
         MapLocation closest = null;
         for (int i = traps.length; --i >= 0;) {
             MapLocation loc = traps[i];
@@ -669,8 +674,8 @@ public class Comms {
 
     // pushes the local stun trap activation realizes from start of turn to
     // comms(first 4), refresh on your next turn
-    public static void updateStunTropLocs() throws GameActionException {
-        Iterator it = currTurnLocalActivations.iterator();
+    public static void updateStunTrapLocs() throws GameActionException {
+        Iterator it = currTurnEnemyStuns.iterator();
         while (it.hasNext()) {
             MapLocation loc = (MapLocation) it.next();
             int idx = writeToFirstAvail(loc, STUN_TRAP_INDICES);
