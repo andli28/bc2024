@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.ArrayList;
 
 enum Spec {
     ATT,
@@ -157,6 +158,8 @@ public class Comms {
                     }
                 }
             }
+            // in case comms outdated
+            updateStunnedEnemies();
         }
     }
 
@@ -247,6 +250,8 @@ public class Comms {
             updateCurrFlags();
             updateClosestEnemyToAllyFlags();
             updateStunTrapLocs();
+            // idk if we need this a second time but we have 15k bytecode
+            updateStunnedEnemies();
         }
         prevEndTurnLoc = rc.isSpawned() ? rc.getLocation() : null;
 
@@ -683,6 +688,27 @@ public class Comms {
                 refreshIdxs[++refreshPtr] = idx;
                 prevVals[refreshPtr] = encodeLoc(loc);
             }
+        }
+    }
+
+    // at least locally clear your own stunned enemy cache if you see theres nothing
+    // there anymore(enemy is ded)
+    public static void updateStunnedEnemies() throws GameActionException {
+        // these data structure choices are quite questionable i must say
+        ArrayList<Integer> clearIndices = new ArrayList<>();
+        Iterator it = stunlockedEnemies.iterator();
+        int idx = 0;
+        while (it.hasNext()) {
+            MapLocation loc = ((Pair<MapLocation, Integer>) it.next()).first;
+            // if the enemy there doid we remove this node of arr list
+            if (rc.canSenseLocation(loc) && !rc.canSenseRobotAtLocation(loc)) {
+                clearIndices.add(idx);
+            }
+            idx++;
+        }
+        it = clearIndices.iterator();
+        while (it.hasNext()) {
+            stunlockedEnemies.remove((Integer) it.next());
         }
     }
 
