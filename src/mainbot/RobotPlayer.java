@@ -142,9 +142,9 @@ public strictfp class RobotPlayer {
             turnCount += 1; // We have now been alive for one more turn!
 
             // Resignation at 500 turns for testing purposes
-            // if (turnCount == 800) {
-            // rc.resign();
-            // }
+//             if (turnCount == 200) {
+//             rc.resign();
+//             }
 
             // Try/catch blocks stop unhandled exceptions, which cause your robot to
             // explode.
@@ -362,7 +362,8 @@ public strictfp class RobotPlayer {
                     int lowestDistToExplosiveTrap = Integer.MAX_VALUE;
                     int lowestDistToWaterTrap = Integer.MAX_VALUE;
                     int lowestDistToWater = Integer.MAX_VALUE;
-                    int lowestDIstToDividerWithOpenNeighbor = Integer.MAX_VALUE;
+                    int lowestDistToDividerWithOpenNeighbor = Integer.MAX_VALUE;
+                    int lowestDistToDam = Integer.MAX_VALUE;
 
                     MapInfo[] nearbyMap = rc.senseNearbyMapInfos();
 
@@ -385,9 +386,14 @@ public strictfp class RobotPlayer {
                             lowestDistToWaterTrap = distToSingleMap;
                             nearestWaterTrap = singleMap.getMapLocation();
                         }
-                        if (singleMap.isDam() && areNeighborsOpen(rc, singleMap.getMapLocation()) && distToSingleMap < lowestDIstToDividerWithOpenNeighbor) {
-                            lowestDIstToDividerWithOpenNeighbor = distToSingleMap;
-                            nearestDividerWithOpenNeighbor = singleMap.getMapLocation();
+                        if (singleMap.isDam()) {
+                            if (distToSingleMap < lowestDistToDam) {
+                                lowestDistToDam = distToSingleMap;
+                            }
+                            if (distToSingleMap < lowestDistToDividerWithOpenNeighbor && areNeighborsOpen(rc, singleMap.getMapLocation())) {
+                                lowestDistToDividerWithOpenNeighbor = distToSingleMap;
+                                nearestDividerWithOpenNeighbor = singleMap.getMapLocation();
+                            }
                         }
                     }
                     rememberThisTurnClosestStunTrap = nearestStunTrap;
@@ -603,13 +609,14 @@ public strictfp class RobotPlayer {
                         // suicide to respawn
                         role = RESPAWN;
                         rc.setIndicatorString("Respawning");
-                    } else if (nearestDividerWithOpenNeighbor != null && turnCount > GameConstants.SETUP_ROUNDS - 40 && turnCount < GameConstants.SETUP_ROUNDS) {
+                    } else if ((lowestDistToDam == 1 || nearestDividerWithOpenNeighbor != null)
+                            && turnCount > GameConstants.SETUP_ROUNDS - 40 && turnCount < GameConstants.SETUP_ROUNDS) {
                         role = LINEUP;
-                        rc.setIndicatorString("LINEUP: " + nearestDividerWithOpenNeighbor.toString());
+                        rc.setIndicatorString("LINEUP");
                     } else if (bigCloseCrumb != null && turnCount > GameConstants.SETUP_ROUNDS - 40) {
                         role = CRUMBS;
                         rc.setIndicatorString("CRUMBS: " + bigCloseCrumb.toString());
-                    } else if (enemies.length != 0 && turnCount > turnsTillAllowingCombat) {
+                    } else if (enemies.length != 0 && turnCount > GameConstants.SETUP_ROUNDS) {
                         role = INCOMBAT;
                         haveSeenCombat = true;
                         rc.setIndicatorString("In combat");
@@ -901,11 +908,14 @@ public strictfp class RobotPlayer {
                         }
 
                     } else if (role == LINEUP) {
-                        if (nearestDividerWithOpenNeighbor != null && rc.getLocation().distanceSquaredTo(nearestDividerWithOpenNeighbor) > 1) {
+                        if (nearestDividerWithOpenNeighbor != null && lowestDistToDam != 1) {
                             Direction pathToDivider = Pathfinder.pathfind(rc.getLocation(), nearestDividerWithOpenNeighbor);
                             clearTheWay(rc);
                             healMove(rc, pathToDivider, lowestCurrFriendly, lowestCurrFriendlyHealth);
                             clearTheWay(rc);
+                            rc.setIndicatorString("Lining up: " + nearestDividerWithOpenNeighbor.toString());
+                        } else {
+                            rc.setIndicatorString("Lined up!");
                         }
                     } else if (role == WOUNDED) {
 
@@ -1680,10 +1690,9 @@ public strictfp class RobotPlayer {
     }
 
     public static boolean areNeighborsOpen(RobotController rc, MapLocation x) throws GameActionException {
-        MapInfo[] locations = rc.senseNearbyMapInfos(x, 2);
+        MapInfo[] locations = rc.senseNearbyMapInfos(x, 1);
         for (int i = locations.length - 1; i >= 0; i--) {
-            if (!locations[i].getMapLocation().equals(x) && locations[i].isPassable()
-                    && !rc.isLocationOccupied(locations[i].getMapLocation()) && locations[i].getTeamTerritory().equals(rc.getTeam())) {
+            if (locations[i].isPassable() && !rc.isLocationOccupied(locations[i].getMapLocation()) && locations[i].getTeamTerritory().equals(rc.getTeam())) {
                 return true;
             }
         }
