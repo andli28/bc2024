@@ -274,8 +274,18 @@ public strictfp class RobotPlayer {
                         } else {
 
                             MapLocation loc = spawnLocs[Comms.shortId % spawnLocs.length];
-                            if (rc.canSpawn(loc))
-                                rc.spawn(loc);
+                            int distToTarget = Integer.MAX_VALUE;
+                            MapLocation closestToTarget = null;
+                            for (int i = spawnLocs.length - 1; i >= 0; i--) {
+                                if (rc.canSpawn(spawnLocs[i])
+                                        && spawnLocs[i].distanceSquaredTo(loc) < distToTarget) {
+                                    distToTarget = spawnLocs[i].distanceSquaredTo(loc);
+                                    closestToTarget = spawnLocs[i];
+                                }
+                            }
+                            if (closestToTarget != null && rc.canSpawn(closestToTarget)) {
+                                rc.spawn(closestToTarget);
+                            }
                         }
                     }
                 }
@@ -695,35 +705,39 @@ public strictfp class RobotPlayer {
                                 rc.setIndicatorString("Scouting: Tgt: " + tgtLocation.toString());
                             }
                         }
-
-                        MapLocation tileToMoveTo = rc.getLocation().add(optimalDir);
-                        MapLocation tileToLeftOfOptDir = rc.getLocation().add(optimalDir.rotateLeft());
-                        MapLocation tileToRightOfOptDir = rc.getLocation().add(optimalDir.rotateRight());
+                        MapLocation fillLoc = null;
+                        int mostSides = 1;
+                        MapInfo[] nearbyInteractSquares = rc.senseNearbyMapInfos(GameConstants.INTERACT_RADIUS_SQUARED);
+                        for (int i = nearbyInteractSquares.length-1; i>=0; i--) {
+                            MapLocation buildLoc = nearbyInteractSquares[i].getMapLocation();
+                            if (isInBounds(rc, buildLoc) && nearbyInteractSquares[i].isWater() &&
+                                    rc.canFill(buildLoc) && numSidesWithWater(rc, buildLoc) > mostSides) {
+                                fillLoc = buildLoc;
+                                mostSides = numSidesWithWater(rc, buildLoc);
+                            }
+                        }
                         // Check before moving if you can clear nearest water in the direction of movement
-                        if (isInBounds(rc, tileToMoveTo) && rc.senseMapInfo(tileToMoveTo).isWater() && rc.canFill(tileToMoveTo)) {
-                            rc.fill(tileToMoveTo);
-                        } else if (isInBounds(rc, tileToLeftOfOptDir) && rc.senseMapInfo(tileToLeftOfOptDir).isWater() && rc.canFill(tileToLeftOfOptDir)) {
-                            rc.fill(tileToLeftOfOptDir);
-                        } else if (isInBounds(rc, tileToRightOfOptDir) && rc.senseMapInfo(tileToRightOfOptDir).isWater() && rc.canFill(tileToRightOfOptDir)){
-                            rc.fill(tileToRightOfOptDir);
+                        if (fillLoc != null && rc.canFill(fillLoc)) {
+                            rc.fill(fillLoc);
                         }
 
                         healMove(rc, optimalDir, lowestCurrFriendly, lowestCurrFriendlyHealth);
 
                         // Check after moving if you can clear nearest water in the direction of movement
-                        tileToMoveTo = rc.getLocation().add(optimalDir);
-                        tileToLeftOfOptDir = rc.getLocation().add(optimalDir.rotateLeft());
-                        tileToRightOfOptDir = rc.getLocation().add(optimalDir.rotateRight());
+                        fillLoc = null;
+                        mostSides = 1;
+                        nearbyInteractSquares = rc.senseNearbyMapInfos(GameConstants.INTERACT_RADIUS_SQUARED);
+                        for (int i = nearbyInteractSquares.length-1; i>=0; i--) {
+                            MapLocation buildLoc = nearbyInteractSquares[i].getMapLocation();
+                            if (isInBounds(rc, buildLoc) && nearbyInteractSquares[i].isWater() &&
+                                    rc.canFill(buildLoc) && numSidesWithWater(rc, buildLoc) > mostSides) {
+                                fillLoc = buildLoc;
+                                mostSides = numSidesWithWater(rc, buildLoc);
+                            }
+                        }
                         // Check before moving if you can clear nearest water in the direction of movement
-                        if (isInBounds(rc, tileToMoveTo) &&
-                                rc.senseMapInfo(tileToMoveTo).isWater() && rc.canFill(tileToMoveTo)) {
-                            rc.fill(tileToMoveTo);
-                        } else if (isInBounds(rc, tileToLeftOfOptDir) &&
-                                rc.senseMapInfo(tileToLeftOfOptDir).isWater() && rc.canFill(tileToLeftOfOptDir)) {
-                            rc.fill(tileToLeftOfOptDir);
-                        } else if (isInBounds(rc, tileToRightOfOptDir) &&
-                                rc.senseMapInfo(tileToRightOfOptDir).isWater() && rc.canFill(tileToRightOfOptDir)){
-                            rc.fill(tileToRightOfOptDir);
+                        if (fillLoc != null && rc.canFill(fillLoc)) {
+                            rc.fill(fillLoc);
                         }
 
                     } else if (role == INCOMBAT) {
@@ -1615,5 +1629,27 @@ public strictfp class RobotPlayer {
         } else {
             return false;
         }
+    }
+
+    public static int numSidesWithWater(RobotController rc, MapLocation x) throws GameActionException {
+        MapLocation sideOne = new MapLocation(x.x+1, x.y);
+        MapLocation sideTwo = new MapLocation(x.x-1, x.y);
+        MapLocation sideThree = new MapLocation(x.x, x.y-1);
+        MapLocation sideFour = new MapLocation(x.x, x.y+1);
+        int numSidesWithWater = 0;
+
+        if (isInBounds(rc, sideOne) && rc.senseMapInfo(sideOne).isWater()) {
+            numSidesWithWater++;
+        }
+        if (isInBounds(rc, sideTwo) && rc.senseMapInfo(sideTwo).isWater()) {
+            numSidesWithWater++;
+        }
+        if (isInBounds(rc, sideThree) && rc.senseMapInfo(sideThree).isWater()) {
+            numSidesWithWater++;
+        }
+        if (isInBounds(rc, sideFour) && rc.senseMapInfo(sideFour).isWater()) {
+            numSidesWithWater++;
+        }
+        return numSidesWithWater;
     }
 }
