@@ -312,11 +312,11 @@ public strictfp class RobotPlayer {
                     }
 
                     // Attack -> Healing -> Capturing
-                    if (turnCount == GameConstants.GLOBAL_UPGRADE_ROUNDS && rc.canBuyGlobal(GlobalUpgrade.ATTACK)) {
-                        rc.buyGlobal(GlobalUpgrade.ATTACK);
-                    } else if (turnCount == 2 * GameConstants.GLOBAL_UPGRADE_ROUNDS
-                            && rc.canBuyGlobal(GlobalUpgrade.HEALING)) {
+                    if (turnCount == GameConstants.GLOBAL_UPGRADE_ROUNDS && rc.canBuyGlobal(GlobalUpgrade.HEALING)) {
                         rc.buyGlobal(GlobalUpgrade.HEALING);
+                    } else if (turnCount == 2 * GameConstants.GLOBAL_UPGRADE_ROUNDS
+                            && rc.canBuyGlobal(GlobalUpgrade.ATTACK)) {
+                        rc.buyGlobal(GlobalUpgrade.ATTACK);
                     } else if (turnCount == 3 * GameConstants.GLOBAL_UPGRADE_ROUNDS
                             && rc.canBuyGlobal(GlobalUpgrade.CAPTURING)) {
                         rc.buyGlobal(GlobalUpgrade.CAPTURING);
@@ -694,12 +694,24 @@ public strictfp class RobotPlayer {
                                     if (lowestDistToWater <= GameConstants.INTERACT_RADIUS_SQUARED
                                             && rc.canFill(nearestWater)) {
                                         rc.fill(nearestWater);
+                                        if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||
+                                                (rc.canSenseLocation(tgtLocation) && !rc.sensePassability(tgtLocation))
+                                                || turnsNotReachedTgt > 50 || lastTurnPursingCrumb || lastTurnPursingWater) {
+                                            if (turnCount > turnsTillAllowingCombat && targetFlag != null) {
+                                                tgtLocation = targetFlag;
+                                            } else {
+                                                tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
+                                                        3, rc.getMapHeight() - 3);
+                                            }
+                                            lastTurnPursingCrumb = false;
+                                            lastTurnPursingWater = false;
+                                            turnsNotReachedTgt = 0;
+                                        }
                                     } else {
                                         tgtLocation = nearestWater;
                                         lastTurnPursingWater = true;
                                         lastTurnPursingCrumb = false;
                                         turnsNotReachedTgt = 0;
-
                                     }
                                 }
                                 // Generating a random target:

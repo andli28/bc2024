@@ -694,6 +694,19 @@ public strictfp class RobotPlayer {
                                     if (lowestDistToWater <= GameConstants.INTERACT_RADIUS_SQUARED
                                             && rc.canFill(nearestWater)) {
                                         rc.fill(nearestWater);
+                                        if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||
+                                                (rc.canSenseLocation(tgtLocation) && !rc.sensePassability(tgtLocation))
+                                                || turnsNotReachedTgt > 50 || lastTurnPursingCrumb || lastTurnPursingWater) {
+                                            if (turnCount > turnsTillAllowingCombat && targetFlag != null) {
+                                                tgtLocation = targetFlag;
+                                            } else {
+                                                tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
+                                                        3, rc.getMapHeight() - 3);
+                                            }
+                                            lastTurnPursingCrumb = false;
+                                            lastTurnPursingWater = false;
+                                            turnsNotReachedTgt = 0;
+                                        }
                                     } else {
                                         tgtLocation = nearestWater;
                                         lastTurnPursingWater = true;
