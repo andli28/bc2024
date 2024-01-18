@@ -185,6 +185,8 @@ public strictfp class RobotPlayer {
                         attackSquadThree = (Comms.shortId >= 32);
                     }
 
+                    //Builder's initial spawn should be their home so that they have real estate to train
+                    MapLocation initialBuilderSpawn = null;
                     // ensure sentries and builderspecialsits spawn at their appropriate spawns
                     if (turnCount == 2) {
                         MapLocation[] homeFlags = Comms.getDefaultAllyFlagLocations();
@@ -194,6 +196,9 @@ public strictfp class RobotPlayer {
                             homeFlag = homeFlags[1];
                         } else if (Comms.shortId == 48 || Comms.shortId == 49 || Comms.shortId == 47) {
                             homeFlag = homeFlags[2];
+                        }
+                        if (BUILDERSPECIALIST) {
+                            initialBuilderSpawn = homeFlag;
                         }
                     }
 
@@ -247,7 +252,9 @@ public strictfp class RobotPlayer {
 
                     // Spwwn at the closest location to a given MapLocation:
                     MapLocation targetSpawnClosestTo = null;
-                    if (sentrySpawn != null) {
+                    if (initialBuilderSpawn != null) {
+                        targetSpawnClosestTo = initialBuilderSpawn;
+                    } else if (sentrySpawn != null) {
                         targetSpawnClosestTo = sentrySpawn;
                     } else if (displacedFlag != null) {
                         targetSpawnClosestTo = displacedFlag;
@@ -1675,7 +1682,8 @@ public strictfp class RobotPlayer {
     public static boolean areNeighborsOpen(RobotController rc, MapLocation x) throws GameActionException {
         MapInfo[] locations = rc.senseNearbyMapInfos(x, 2);
         for (int i = locations.length - 1; i >= 0; i--) {
-            if (!locations[i].getMapLocation().equals(x) && locations[i].isPassable() && !rc.isLocationOccupied(locations[i].getMapLocation())) {
+            if (!locations[i].getMapLocation().equals(x) && locations[i].isPassable()
+                    && !rc.isLocationOccupied(locations[i].getMapLocation()) && locations[i].getTeamTerritory().equals(rc.getTeam())) {
                 return true;
             }
         }
