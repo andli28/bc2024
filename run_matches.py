@@ -91,6 +91,7 @@ results = {}
 # Run matches
 print('Running {} maps'.format(len(matches)))
 for bot, map in matches:
+    print('Running number {} of {}'.format(len(results) + 1, len(matches)))
     # Verify match is valid
     if not bot in botsSet or not map in mapsSet:
         errors.append('Unable to parse bot={}, map={}'.format(bot, map))
