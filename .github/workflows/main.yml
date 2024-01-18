@@ -29,8 +29,8 @@ jobs:
         with:
           python-version: '3.x'
           architecture: 'x64'
-      - name: Download JDK 8 from file.io
-        run: curl -L -o 'jdk-8u391-linux-x64.tar.gz' 'https://file.io/dVruLWUZvvie'
+      - name: Download JDK 8 from udrop
+        run: curl -L -o 'jdk-8u391-linux-x64.tar.gz' 'https://www.udrop.com/file/Lq4s/jdk-8u391-linux-x64.tar.gz'
       - name: Set up JDK 8
         uses: actions/setup-java@v3
         with:
