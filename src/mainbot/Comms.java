@@ -5,6 +5,8 @@ import battlecode.common.*;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.HashSet;
+import java.util.Iterator;
 
 enum Spec {
     ATT,
@@ -16,11 +18,12 @@ enum Spec {
 // from
 // https://www.geeksforgeeks.org/creating-a-user-defined-printable-pair-class-in-java/
 // since im lazy
-class Pair {
-    int first, second;
+class Pair<S, T> {
+    S first;
+    T second;
 
     // constructor for assigning values
-    Pair(int first, int second) {
+    Pair(S first, T second) {
         this.first = first;
         this.second = second;
     }
@@ -28,7 +31,7 @@ class Pair {
     // printing the pair class
     @Override
     public String toString() {
-        return first + "," + second;
+        return first.toString() + "," + second.toString();
     }
 }
 
@@ -56,10 +59,15 @@ public class Comms {
     // comms[27:29][15][11:6][5:0] closest enemy loc to each ally flag(current if
     // exist, otherwise default)
 
+    // comms[30:33] 4 random set off stun trap locations(assumed valid for 4 turns)
+    // these traps were set off between your last turn and your current turn, and so
+    // could either be valid for 4 or 5 turns but for simplicity we assume 4
+
     public static final int[] ALLY_DEFAULT_FLAG_INDICES = { 0, 1, 2 };
     public static final int[] ALLY_CURRENT_FLAG_INDICES = { 3, 4, 5 };
     public static final int[] ENEMY_DEFAULT_FLAG_INDICES = { 6, 7, 8 };
     public static final int[] ENEMY_CURRENT_FLAG_INDICES = { 9, 10, 11 };
+    public static final int[] STUN_TRAP_INDICES = { 30, 31, 32, 33 };
 
     public static RobotController rc;
     public static int[] comms = new int[64];
@@ -71,7 +79,7 @@ public class Comms {
     public static Spec prevSpec = Spec.NONE;
     // killed enemy unit respawn tracking
     public static int turnKillCount = 0;
-    public static LinkedList<Pair> respawnTimer = new LinkedList<>();
+    public static LinkedList<Pair<Integer, Integer>> respawnTimer = new LinkedList<>();
     public static MapLocation prevEndTurnLoc = null;
 
     // comms indices you are in charge of refreshing
@@ -79,10 +87,71 @@ public class Comms {
     public static int[] prevVals = new int[8];
     public static int refreshPtr = -1;
 
+    // stun trap tracking(only traps within vision end of last/start of this turn)
+    // could technically improve to intersection of all vision last turn and this
+    // turn but then movement needs to be integrated
+    public static LinkedList<Pair<MapLocation, Integer>> validStunTraps = new LinkedList<>();
+    public static HashSet<MapLocation> prevTurnTraps = new HashSet<>();
+    public static LinkedList<MapLocation> currTurnLocalActivations = new LinkedList<>();
+
+    // removes first occurence of key O(n) yea yea
+    public static <S, T> void removeFirst(LinkedList<Pair<S, T>> ll, S key) {
+        Iterator it = ll.iterator();
+        int index = 0;
+        while (it.hasNext()) {
+            Pair<S, T> entry = (Pair<S, T>) it.next();
+            if (entry.first.equals(key)) {
+                ll.remove(index);
+                return;
+            }
+            index++;
+        }
+    }
+
     public static void receive() throws GameActionException {
         // yea yea unroll this later
         for (int i = 64; --i >= 0;) {
             comms[i] = rc.readSharedArray(i);
+        }
+
+        // if alive
+        if (rc.isSpawned()) {
+            // update stun traps received from comms and locally
+            // local can +5, comms +4 since could be 1 turn off
+            // update list
+            Pair<MapLocation, Integer> head = validStunTraps.peek();
+            while (head != null && head.second <= rc.getRoundNum()) {
+                validStunTraps.remove();
+                head = validStunTraps.peek();
+            }
+
+            // add the comms entry first to maintain non decreasing order
+            for (int i = 4; --i >= 0;) {
+                MapLocation stunTrapLoc = decodeLoc(comms[i + 30]);
+                if (stunTrapLoc != null) {
+                    removeFirst(validStunTraps, stunTrapLoc);
+                    validStunTraps.add(new Pair<>(stunTrapLoc, rc.getRoundNum() + 4));
+                }
+            }
+
+            // add any local entries
+            MapInfo[] nearbyMapInfos = rc.senseNearbyMapInfos();
+            HashSet<MapLocation> currTraps = new HashSet<>();
+            for (int i = nearbyMapInfos.length; --i >= 0;) {
+                MapInfo curr = nearbyMapInfos[i];
+                if (curr.getTrapType() == TrapType.STUN) {
+                    currTraps.add(curr.getMapLocation());
+                }
+            }
+            Iterator it = prevTurnTraps.iterator();
+            while (it.hasNext()) {
+                MapLocation loc = (MapLocation) it.next();
+                if (!currTraps.contains(loc)) {
+                    removeFirst(validStunTraps, loc);
+                    currTurnLocalActivations.add(loc);
+                    validStunTraps.add(new Pair<MapLocation, Integer>(loc, rc.getRoundNum() + 5));
+                }
+            }
         }
     }
 
@@ -172,6 +241,7 @@ public class Comms {
             updateFlagLocs();
             updateCurrFlags();
             updateClosestEnemyToAllyFlags();
+            updateStunTropLocs();
         }
         prevEndTurnLoc = rc.isSpawned() ? rc.getLocation() : null;
 
@@ -184,7 +254,7 @@ public class Comms {
         // go through respawn q, for prev killed units that could have respawned add
         // them back to global q
         while (respawnTimer.size() > 0) {
-            Pair nextRespawn = respawnTimer.peek();
+            Pair<Integer, Integer> nextRespawn = respawnTimer.peek();
             if (nextRespawn.first <= rc.getRoundNum()) {
                 respawnTimer.remove();
                 delta += nextRespawn.second;
@@ -195,6 +265,19 @@ public class Comms {
         write(20, comms[20] + delta);
         turnKillCount = 0;
         prevSpec = curSpec;
+
+        // stun trap stuff
+        currTurnLocalActivations.clear();
+        prevTurnTraps.clear();
+        if (rc.isSpawned()) {
+            MapInfo[] nearbyMapInfos = rc.senseNearbyMapInfos();
+            for (int i = nearbyMapInfos.length; --i >= 0;) {
+                MapInfo mi = nearbyMapInfos[i];
+                if (mi.getTrapType() == TrapType.STUN) {
+                    prevTurnTraps.add(mi.getMapLocation());
+                }
+            }
+        }
 
         // clear comms if last unit for next turn
         if (shortId == 49) {
@@ -244,7 +327,7 @@ public class Comms {
 
     // helper that writes a loc to the first available index in indices if not there
     // already
-    static int writeFlagLoc(MapLocation loc, int[] indices) throws GameActionException {
+    static int writeToFirstAvail(MapLocation loc, int[] indices) throws GameActionException {
         int firstAvail = -1;
         for (int i = indices.length; --i >= 0;) {
             int idx = indices[i];
@@ -291,7 +374,7 @@ public class Comms {
                     // default flag loc, record into comms if not there already and assoc id slot
                     int idx = getFlagIndexFromID(fi.getID());
                     if (idx == -1) {
-                        int firstFree = writeFlagLoc(fi.getLocation(), ALLY_DEFAULT_FLAG_INDICES);
+                        int firstFree = writeToFirstAvail(fi.getLocation(), ALLY_DEFAULT_FLAG_INDICES);
                         write(21 + firstFree, fi.getID());
                     }
                 } else if (rc.getRoundNum() > 200) {
@@ -310,7 +393,7 @@ public class Comms {
                     int idx = getFlagIndexFromID(fi.getID());
                     if (idx == -1) {
                         // new default enemy flag found! naisu!
-                        int firstFree = writeFlagLoc(fi.getLocation(), ENEMY_DEFAULT_FLAG_INDICES);
+                        int firstFree = writeToFirstAvail(fi.getLocation(), ENEMY_DEFAULT_FLAG_INDICES);
                         idx = firstFree - 6;
                         write(24 + idx, fi.getID());
                     }
@@ -447,6 +530,31 @@ public class Comms {
         return closest;
     }
 
+    public static MapLocation[] getActivatedStunTrapLocs() throws GameActionException {
+        MapLocation[] locs = new MapLocation[validStunTraps.size()];
+        int idx = 0;
+        Iterator it = validStunTraps.iterator();
+        while (it.hasNext()) {
+            Pair<MapLocation, Integer> entry = (Pair<MapLocation, Integer>) it.next();
+            locs[idx] = entry.first;
+            idx++;
+        }
+        return locs;
+    }
+
+    public static MapLocation getClosestStunTrapLoc() throws GameActionException {
+        MapLocation[] traps = getActivatedStunTrapLocs();
+        MapLocation closest = null;
+        for (int i = traps.length; --i >= 0;) {
+            MapLocation loc = traps[i];
+            if (closest == null || Pathfinder.travelDistance(loc, rc.getLocation()) < Pathfinder.travelDistance(closest,
+                    rc.getLocation())) {
+                closest = loc;
+            }
+        }
+        return closest;
+    }
+
     public static void clearRandomEnemies() throws GameActionException {
         write(15, 0);
         write(16, 0);
@@ -555,6 +663,20 @@ public class Comms {
                 write(27 + i, toWrite);
                 refreshIdxs[++refreshPtr] = 27 + i;
                 prevVals[refreshPtr] = toWrite;
+            }
+        }
+    }
+
+    // pushes the local stun trap activation realizes from start of turn to
+    // comms(first 4), refresh on your next turn
+    public static void updateStunTropLocs() throws GameActionException {
+        Iterator it = currTurnLocalActivations.iterator();
+        while (it.hasNext()) {
+            MapLocation loc = (MapLocation) it.next();
+            int idx = writeToFirstAvail(loc, STUN_TRAP_INDICES);
+            if (idx != -1) {
+                refreshIdxs[++refreshPtr] = idx;
+                prevVals[refreshPtr] = encodeLoc(loc);
             }
         }
     }
