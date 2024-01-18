@@ -712,6 +712,16 @@ public class Comms {
         }
     }
 
+    public static boolean stunnedEnemiesContains(MapLocation enemy) throws GameActionException {
+        Iterator it = stunlockedEnemies.iterator();
+        while (it.hasNext()) {
+            MapLocation loc = ((Pair<MapLocation, Integer>) it.next()).first;
+            if (loc.equals(enemy))
+                return true;
+        }
+        return false;
+    }
+
     static int encodeLoc(MapLocation loc) {
         // as x and y coords <= 63 and non neg they fit in 6 bits
         return (1 << 15) + (loc.x << 6) + (loc.y);
