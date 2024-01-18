@@ -311,12 +311,15 @@ public strictfp class RobotPlayer {
                         shouldRespawn = true;
                     }
 
-                    // 750 Turn upgrade + 1500 turn upgrade
+                    // Attack -> Healing -> Capturing
                     if (turnCount == GameConstants.GLOBAL_UPGRADE_ROUNDS && rc.canBuyGlobal(GlobalUpgrade.ATTACK)) {
                         rc.buyGlobal(GlobalUpgrade.ATTACK);
                     } else if (turnCount == 2 * GameConstants.GLOBAL_UPGRADE_ROUNDS
                             && rc.canBuyGlobal(GlobalUpgrade.HEALING)) {
                         rc.buyGlobal(GlobalUpgrade.HEALING);
+                    } else if (turnCount == 3 * GameConstants.GLOBAL_UPGRADE_ROUNDS
+                            && rc.canBuyGlobal(GlobalUpgrade.CAPTURING)) {
+                        rc.buyGlobal(GlobalUpgrade.CAPTURING);
                     }
 
                     // Information about the closest displaced flag + distance to that MapLocation
