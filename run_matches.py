@@ -14,7 +14,7 @@ emojiMap = {
 errors = []
 currentBot = 'mainbot'
 
-bots = ['sprint1']
+bots = ['v6']
 botsSet = set(bots)
 
 sprint1Maps = ['AceOfSpades', 'Alien', 'Ambush', 'Battlecode24', 'BigDucksBigPond', 'Canals', 'CH3353C4K3F4CT0RY',

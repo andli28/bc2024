@@ -16,7 +16,7 @@ emojiMap = {
 errors = []
 currentBot = 'mainbot'
 
-bots = ['sprint1']
+bots = ['v6']
 botsSet = set(bots)
 
 sprint1Maps = ['AceOfSpades', 'Alien', 'Ambush', 'Battlecode24', 'BigDucksBigPond', 'Canals', 'CH3353C4K3F4CT0RY',
@@ -51,7 +51,7 @@ def run_subprocess(teamA, teamB, map):
     if platform.system() == 'Windows':
         output = str(subprocess.check_output(['gradlew', 'run', '-PteamA=' + teamA, '-PteamB=' + teamB, '-Pmaps=' + map], shell=True, stderr=subprocess.DEVNULL))
     elif platform.system() == 'Linux':
-        output = str(subprocess.check_output(['./gradlew', 'run', '-PteamA=' + teamA, '-PteamB=' + teamB, '-Pmaps=' + map]))
+        output = str(subprocess.check_output(['./gradlew', 'run', '-PteamA=' + teamA, '-PteamB=' + teamB, '-Pmaps=' + map], stderr=subprocess.DEVNULL))
     else:
         print('You are running on an unsupported platform')
     return output
