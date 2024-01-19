@@ -3,6 +3,7 @@ import subprocess
 
 import platform
 import concurrent.futures
+import os
 
 emojiMode = True
 emojiMap = {
@@ -90,8 +91,8 @@ def run_match(bot, map):
 
 if __name__ == "__main__":
     results = {}
-    # Run matches
-    print('Running {} maps'.format(len(matches)))
+    # Show how many matches to play, along with how many cpus we have
+    print('Running {} matches on {} cpus'.format(len(matches), os.cpu_count()))
     
     with concurrent.futures.ProcessPoolExecutor() as executor:
         future_to_game = {executor.submit(run_match, bot, map): (bot, map) for bot, map in matches}
