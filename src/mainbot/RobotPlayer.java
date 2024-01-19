@@ -301,9 +301,9 @@ public strictfp class RobotPlayer {
                 }
 
                 if (rc.isSpawned()) {
-//                    if (turnCount > 2 && Comms.shortId ==1) {
-//                        System.out.println(turnCount);
-//                    }
+                    // if (turnCount > 2 && Comms.shortId ==1) {
+                    // System.out.println(turnCount);
+                    // }
                     // Turns Alive
                     turnsAlive++;
 
@@ -1512,17 +1512,17 @@ public strictfp class RobotPlayer {
             RobotInfo enemy = enemies[i];
             // 10 r^2 is max dist where enemy is 1 move from attack range
             // if enemy is not in stunned cache(mega inefficient O(n) search)
-            if (!Comms.stunnedEnemiesContains(enemy.getLocation())) {
-                if (enemy.getLocation().distanceSquaredTo(advanceLoc) <= 10) {
-                    dmg += SkillType.ATTACK.skillEffect
-                            + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
-                }
-            } else {
-                stunnedHostilesInVision++;
+            // if (!Comms.stunnedEnemiesContains(enemy.getLocation())) {
+            if (enemy.getLocation().distanceSquaredTo(advanceLoc) <= 10) {
+                dmg += SkillType.ATTACK.skillEffect
+                        + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
             }
+            // } else {
+            // stunnedHostilesInVision++;
+            // }
         }
 
-        if (rc.getHealth() <= dmg || numHostiles - 2 - stunnedHostilesInVision >= numFriendlies
+        if (rc.getHealth() <= dmg || numHostiles - 2 /*- stunnedHostilesInVision*/ >= numFriendlies
                 || !rc.isActionReady()) {
             optimalDir = bestRetreat;
             if (optimalDir != null) {
