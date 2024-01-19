@@ -579,6 +579,10 @@ public strictfp class RobotPlayer {
                     // condition is if you're an attack specialist, the number of friendlies - number of hostiles has to be more than 5.
                     boolean attackerCanHeal = (!ATTACKSPECIALIST || (ATTACKSPECIALIST && numFriendlies > 9 && numHostiles < 3));
 
+                    //boolean to declare if builder should stop training if you're a builder and your experience is >= 30 or its about time to fight (setup rounds-10)
+                    boolean shouldNotTrain = (!BUILDERSPECIALIST ||
+                            (BUILDERSPECIALIST && (rc.getExperience(SkillType.BUILD) >= 30 || turnCount > GameConstants.SETUP_ROUNDS - 10)));
+
                     // when building explosive or stun traps, this is the preferred distance when
                     // building them away from one another
                     int explosiveTrapPreferredDist = 0;
@@ -622,20 +626,20 @@ public strictfp class RobotPlayer {
                         // suicide to respawn
                         role = RESPAWN;
                         rc.setIndicatorString("Respawning");
-                    } else if ((lowestDistToDam == 1 || nearestDividerWithOpenNeighbor != null)
+                    } else if (shouldNotTrain && (lowestDistToDam == 1 || nearestDividerWithOpenNeighbor != null)
                             && turnCount > GameConstants.SETUP_ROUNDS - 40 && turnCount < GameConstants.SETUP_ROUNDS) {
                         role = LINEUP;
                         rc.setIndicatorString("LINEUP");
-                    } else if (bigCloseCrumb != null && turnCount > GameConstants.SETUP_ROUNDS - 40) {
+                    } else if (shouldNotTrain && (bigCloseCrumb != null && turnCount > GameConstants.SETUP_ROUNDS - 40)) {
                         role = CRUMBS;
                         rc.setIndicatorString("CRUMBS: " + bigCloseCrumb.toString());
-                    } else if (enemies.length != 0 && turnCount > GameConstants.SETUP_ROUNDS) {
+                    } else if (shouldNotTrain && numFlagsNearbyNotPickedUp != 0) {
+                        role = CAPTURING;
+                        rc.setIndicatorString("Capturing");
+                    } else if (shouldNotTrain && (enemies.length != 0 && turnCount > GameConstants.SETUP_ROUNDS)) {
                         role = INCOMBAT;
                         haveSeenCombat = true;
                         rc.setIndicatorString("In combat");
-                    } else if (numFlagsNearbyNotPickedUp != 0) {
-                        role = CAPTURING;
-                        rc.setIndicatorString("Capturing");
                     } else if (closestDisplacedFlag != null &&
                             rc.senseMapInfo(rc.getLocation()).getTeamTerritory().equals(rc.getTeam())
                             && rc.getLocation().distanceSquaredTo(closestDisplacedFlag) < distanceForDefense) {
@@ -1459,13 +1463,26 @@ public strictfp class RobotPlayer {
             throws GameActionException {
 
         MapInfo[] squaresWithinInteract = rc.senseNearbyMapInfos(GameConstants.INTERACT_RADIUS_SQUARED);
+        MapLocation fillableWater = null;
+        boolean dug = false;
 
         for (int i = squaresWithinInteract.length - 1; i >= 0; i--) {
+            if (squaresWithinInteract[i].isWater()) {
+                fillableWater = squaresWithinInteract[i].getMapLocation();
+            }
             if (rc.canDig(squaresWithinInteract[i].getMapLocation())
                     && !doSidesHaveWater(rc, squaresWithinInteract[i].getMapLocation())
                     && !aNeighborIsADamOrWall(rc, squaresWithinInteract[i].getMapLocation())) {
                 rc.dig(squaresWithinInteract[i].getMapLocation());
+                dug = true;
                 break;
+            }
+        }
+        // if you can't find anywhere to dig, fill up a nearby water to dig on a future turn (check if can do it this turn too)
+        if (!dug && fillableWater != null && rc.canFill(fillableWater)) {
+            rc.fill(fillableWater);
+            if (rc.canDig(fillableWater)) {
+                rc.dig(fillableWater);
             }
         }
     }
