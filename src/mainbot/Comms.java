@@ -217,6 +217,8 @@ public class Comms {
                 case HEAL:
                     write(14, comms[14] - 1);
                     break;
+                case NONE:
+                    break;
             }
             switch (curSpec) {
                 case ATT:
@@ -227,6 +229,8 @@ public class Comms {
                     break;
                 case HEAL:
                     write(14, comms[14] + 1);
+                    break;
+                case NONE:
                     break;
             }
         }
@@ -247,7 +251,7 @@ public class Comms {
 
         // kill count
         if (turnKillCount > 0) {
-            respawnTimer.add(new Pair(rc.getRoundNum() + GameConstants.JAILED_ROUNDS, turnKillCount));
+            respawnTimer.add(new Pair<>(rc.getRoundNum() + GameConstants.JAILED_ROUNDS, turnKillCount));
         }
         // update global enemy estimate
         int delta = -turnKillCount;
@@ -389,8 +393,6 @@ public class Comms {
             } else {
                 // default/current enemy flag loc
                 if (!fi.isPickedUp()) {
-                    // use id to see if new flag or not, assoc id if new
-                    MapLocation fl = fi.getLocation();
                     int idx = getFlagIndexFromID(fi.getID());
                     if (idx == -1) {
                         // new default enemy flag found! naisu!
