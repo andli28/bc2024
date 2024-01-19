@@ -99,6 +99,8 @@ public strictfp class RobotPlayer {
 
     // set specializations
     static boolean BUILDERSPECIALIST = false;
+    static boolean HEALINGSPECIALIST = false;
+    static boolean ATTACKSPECIALIST = false;
     static boolean SENTRY = false;
     static boolean sentryShiftOne = false;
     static boolean sentryShiftTwo = false;
@@ -183,6 +185,9 @@ public strictfp class RobotPlayer {
                         attackSquadOne = (Comms.shortId < 16);
                         attackSquadTwo = (Comms.shortId >= 16 && Comms.shortId < 32);
                         attackSquadThree = (Comms.shortId >= 32);
+                        //4 attack specialists per squad
+                        ATTACKSPECIALIST = ((Comms.shortId > 1 && Comms.shortId < 6)
+                                || (Comms.shortId > 15 && Comms.shortId < 20) || (Comms.shortId > 31 && Comms.shortId < 36));
                     }
 
                     // Builder's initial spawn should be their home so that they have real estate to
@@ -301,7 +306,9 @@ public strictfp class RobotPlayer {
                 }
 
                 if (rc.isSpawned()) {
-
+                    // if (turnCount > 2 && Comms.shortId ==1) {
+                    // System.out.println(turnCount);
+                    // }
                     // Turns Alive
                     turnsAlive++;
 
@@ -568,6 +575,10 @@ public strictfp class RobotPlayer {
                         woundedRetreatThreshold = .9;
                     }
 
+                    // condition for when attackers can actually heal
+                    // condition is if you're an attack specialist, the number of friendlies - number of hostiles has to be more than 5.
+                    boolean attackerCanHeal = (!ATTACKSPECIALIST || (ATTACKSPECIALIST && numFriendlies > 9 && numHostiles < 3));
+
                     // when building explosive or stun traps, this is the preferred distance when
                     // building them away from one another
                     int explosiveTrapPreferredDist = 0;
@@ -737,7 +748,7 @@ public strictfp class RobotPlayer {
                         // TODO: potentially should dig nearby water, then call pathfinding, then dig
                         // again to see if digging that space gives pathfinder an option to move
                         clearTheWay(rc);
-                        healMove(rc, optimalDir, lowestCurrFriendly, lowestCurrFriendlyHealth);
+                        healMove(rc, optimalDir, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
                         clearTheWay(rc);
 
                     } else if (role == INCOMBAT) {
@@ -835,7 +846,7 @@ public strictfp class RobotPlayer {
                             dir = Pathfinder.pathfind(rc.getLocation(), closestFlag);
                         }
 
-                        healMove(rc, dir, lowestCurrFriendly, lowestCurrFriendlyHealth);
+                        healMove(rc, dir, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
 
                     } else if (role == RETURNING) {
                         // If we are holding an enemy flag, singularly focus on moving towards
@@ -850,7 +861,7 @@ public strictfp class RobotPlayer {
                     } else if (role == DEFENDING) {
 
                         Direction dir = Pathfinder.pathfind(rc.getLocation(), closestDisplacedFlag);
-                        healMove(rc, dir, lowestCurrFriendly, lowestCurrFriendlyHealth);
+                        healMove(rc, dir, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
 
                         rc.setIndicatorString("Defending" + closestDisplacedFlag.toString());
                     } else if (role == HEALING) {
@@ -860,7 +871,7 @@ public strictfp class RobotPlayer {
                         Direction dir = Pathfinder.pathfind(rc.getLocation(), lowestCurrFriendlySeen);
                         if (!SENTRY || (SENTRY
                                 && rc.getLocation().add(dir).distanceSquaredTo(homeFlag) < sentryWanderingLimit)) {
-                            healMove(rc, dir, lowestCurrFriendly, lowestCurrFriendlyHealth);
+                            healMove(rc, dir, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
                         }
 
                     } else if (role == SENTRYING) {
@@ -880,7 +891,7 @@ public strictfp class RobotPlayer {
                             if (enemies.length != 0) {
                                 attackMove(rc, dir, lowestCurrHostile, lowestCurrHostileHealth);
                             } else {
-                                healMove(rc, dir, lowestCurrFriendly, lowestCurrFriendlyHealth);
+                                healMove(rc, dir, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
                             }
                             rc.setIndicatorString("Respawning target: Hostile " + closestHostile.toString());
                         } else if (targetFlag != null) {
@@ -888,7 +899,7 @@ public strictfp class RobotPlayer {
                             if (enemies.length != 0) {
                                 attackMove(rc, dir, lowestCurrHostile, lowestCurrHostileHealth);
                             } else {
-                                healMove(rc, dir, lowestCurrFriendly, lowestCurrFriendlyHealth);
+                                healMove(rc, dir, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
                             }
                             rc.setIndicatorString("Respawning target: Broadcast " + targetFlag.toString());
                         }
@@ -899,15 +910,15 @@ public strictfp class RobotPlayer {
                             attackMove(rc, pathToCrumb, lowestCurrHostile, lowestCurrHostileHealth);
                         } else if (nearestWater != null) {
                             if (lowestCurrFriendly != null) {
-                                healMove(rc, pathToCrumb, lowestCurrFriendly, lowestCurrFriendlyHealth);
+                                healMove(rc, pathToCrumb, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
                                 clearTheWay(rc);
                             } else {
                                 clearTheWay(rc);
-                                healMove(rc, pathToCrumb, lowestCurrFriendly, lowestCurrFriendlyHealth);
+                                healMove(rc, pathToCrumb, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
                                 clearTheWay(rc);
                             }
                         } else {
-                            healMove(rc, pathToCrumb, lowestCurrFriendly, lowestCurrFriendlyHealth);
+                            healMove(rc, pathToCrumb, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
                         }
 
                     } else if (role == LINEUP) {
@@ -915,7 +926,7 @@ public strictfp class RobotPlayer {
                             Direction pathToDivider = Pathfinder.pathfind(rc.getLocation(),
                                     nearestDividerWithOpenNeighbor);
                             clearTheWay(rc);
-                            healMove(rc, pathToDivider, lowestCurrFriendly, lowestCurrFriendlyHealth);
+                            healMove(rc, pathToDivider, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
                             clearTheWay(rc);
                             rc.setIndicatorString("Lining up: " + nearestDividerWithOpenNeighbor.toString());
                         } else {
@@ -972,7 +983,7 @@ public strictfp class RobotPlayer {
                         }
                     }
 
-                    while (lowestCurrFriendly != null && rc.canHeal(lowestCurrFriendly)) {
+                    while (lowestCurrFriendly != null && rc.canHeal(lowestCurrFriendly) && attackerCanHeal) {
                         rc.heal(lowestCurrFriendly);
                     }
 
@@ -1368,7 +1379,7 @@ public strictfp class RobotPlayer {
     }
 
     public static void healMove(RobotController rc, Direction optimalDir, MapLocation lowestCurrFriend,
-            int lowestCurrFriendHealth) throws GameActionException {
+            int lowestCurrFriendHealth, boolean attackerCanHeal) throws GameActionException {
         // Calculate what would be the lowest health of a friend after a movement.
         MapLocation aflowestCurrFriend = null;
         int aflowestCurrFriendHealth = Integer.MAX_VALUE;
@@ -1395,7 +1406,7 @@ public strictfp class RobotPlayer {
         // yield heal to the lowest health friend.
         // 4. else if they both don't exist, move in optimal dir
         if (aflowestCurrFriend == null && lowestCurrFriend != null) {
-            while (rc.canHeal(lowestCurrFriend)) {
+            while (rc.canHeal(lowestCurrFriend) && attackerCanHeal) {
                 rc.heal(lowestCurrFriend);
             }
             if (optimalDir != null) {
@@ -1407,7 +1418,7 @@ public strictfp class RobotPlayer {
             if (rc.canMove(optimalDir)) {
                 rc.move(optimalDir);
             }
-            while (rc.canHeal(aflowestCurrFriend)) {
+            while (rc.canHeal(aflowestCurrFriend) && attackerCanHeal) {
                 rc.heal(aflowestCurrFriend);
             }
         } else if (aflowestCurrFriend != null && lowestCurrFriend != null) {
@@ -1415,11 +1426,11 @@ public strictfp class RobotPlayer {
                 if (rc.canMove(optimalDir)) {
                     rc.move(optimalDir);
                 }
-                while (rc.canHeal(aflowestCurrFriend)) {
+                while (rc.canHeal(aflowestCurrFriend) && attackerCanHeal) {
                     rc.heal(aflowestCurrFriend);
                 }
             } else {
-                while (lowestCurrFriend != null && rc.canHeal(lowestCurrFriend)) {
+                while (lowestCurrFriend != null && rc.canHeal(lowestCurrFriend) && attackerCanHeal) {
                     rc.heal(lowestCurrFriend);
                 }
                 if (optimalDir != null) {
@@ -1452,7 +1463,7 @@ public strictfp class RobotPlayer {
         for (int i = squaresWithinInteract.length - 1; i >= 0; i--) {
             if (rc.canDig(squaresWithinInteract[i].getMapLocation())
                     && !doSidesHaveWater(rc, squaresWithinInteract[i].getMapLocation())
-                    && !aNeighborIsADam(rc, squaresWithinInteract[i].getMapLocation())) {
+                    && !aNeighborIsADamOrWall(rc, squaresWithinInteract[i].getMapLocation())) {
                 rc.dig(squaresWithinInteract[i].getMapLocation());
                 break;
             }
@@ -1510,17 +1521,17 @@ public strictfp class RobotPlayer {
             RobotInfo enemy = enemies[i];
             // 10 r^2 is max dist where enemy is 1 move from attack range
             // if enemy is not in stunned cache(mega inefficient O(n) search)
-            if (!Comms.stunnedEnemiesContains(enemy.getLocation())) {
-                if (enemy.getLocation().distanceSquaredTo(advanceLoc) <= 10) {
-                    dmg += SkillType.ATTACK.skillEffect
-                            + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
-                }
-            } else {
-                stunnedHostilesInVision++;
+            // if (!Comms.stunnedEnemiesContains(enemy.getLocation())) {
+            if (enemy.getLocation().distanceSquaredTo(advanceLoc) <= 10) {
+                dmg += SkillType.ATTACK.skillEffect
+                        + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
             }
+            // } else {
+            // stunnedHostilesInVision++;
+            // }
         }
 
-        if (rc.getHealth() <= dmg || numHostiles - 2 - stunnedHostilesInVision >= numFriendlies
+        if (rc.getHealth() <= dmg || numHostiles - 2 /*- stunnedHostilesInVision*/ >= numFriendlies
                 || !rc.isActionReady()) {
             optimalDir = bestRetreat;
             if (optimalDir != null) {
@@ -1686,7 +1697,7 @@ public strictfp class RobotPlayer {
             MapLocation buildLoc = nearbyInteractSquares[i].getMapLocation();
             if (isInBounds(rc, buildLoc) && nearbyInteractSquares[i].isWater() &&
                     rc.canFill(buildLoc)) {
-                if (aNeighborIsADam(rc, buildLoc)) {
+                if (aNeighborIsADamOrWall(rc, buildLoc)) {
                     fillLoc = buildLoc;
                     break;
                 } else if (numSidesWithWater(rc, buildLoc) > mostSides) {
@@ -1714,10 +1725,10 @@ public strictfp class RobotPlayer {
         return false;
     }
 
-    public static boolean aNeighborIsADam(RobotController rc, MapLocation x) throws GameActionException {
+    public static boolean aNeighborIsADamOrWall(RobotController rc, MapLocation x) throws GameActionException {
         MapInfo[] locations = rc.senseNearbyMapInfos(x, 2);
         for (int i = locations.length - 1; i >= 0; i--) {
-            if (locations[i].isDam()) {
+            if (locations[i].isDam() || locations[i].isWall()) {
                 return true;
             }
         }
