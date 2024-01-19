@@ -1542,22 +1542,22 @@ public strictfp class RobotPlayer {
         MapLocation advanceLoc = bestAttack == null ? rc.getLocation()
                 : rc.getLocation().add(bestAttack);
         int dmg = 0;
-        int stunnedHostilesInVision = 0;
+        // int stunnedHostilesInVision = 0;
         for (int i = enemies.length; --i >= 0;) {
             RobotInfo enemy = enemies[i];
             // 10 r^2 is max dist where enemy is 1 move from attack range
             // if enemy is not in stunned cache
-            if (!Comms.stunnedEnemiesContains(enemy.getLocation())) {
-                if (enemy.getLocation().distanceSquaredTo(advanceLoc) <= 10) {
-                    dmg += SkillType.ATTACK.skillEffect
-                            + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
-                }
-            } else {
-                stunnedHostilesInVision++;
+            // if (!Comms.stunnedEnemiesContains(enemy.getLocation())) {
+            if (enemy.getLocation().distanceSquaredTo(advanceLoc) <= 10) {
+                dmg += SkillType.ATTACK.skillEffect
+                        + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
             }
+            // } else {
+            // stunnedHostilesInVision++;
+            // }
         }
 
-        if (rc.getHealth() <= dmg || numHostiles - 2 - stunnedHostilesInVision >= numFriendlies
+        if (rc.getHealth() <= dmg || numHostiles - 2 /*- stunnedHostilesInVision*/ >= numFriendlies
                 || !rc.isActionReady()) {
             optimalDir = bestRetreat;
             if (optimalDir != null) {
