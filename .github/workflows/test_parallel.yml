@@ -51,7 +51,7 @@ jobs:
       - name: List Tasks
         run: ./gradlew tasks
       - name: Run Match
-        run: python run_matches.py
+        run: python run_matches_fast.py
       # upload match files as artifact
       # - name: Archive Match Files
       #   uses: actions/upload-artifact@v3
@@ -69,7 +69,7 @@ jobs:
       - name: Generate Comment
         id: get-comment-body
         run: |
-          body="$(cat matches-summary.txt)"
+          body="$(cat matches-summary-fast.txt)"
           body="${body//'%'/'%25'}"
           body="${body//$'\n'/'%0A'}"
           body="${body//$'\r'/'%0D'}" 
