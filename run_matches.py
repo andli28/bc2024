@@ -17,6 +17,8 @@ currentBot = 'mainbot'
 bots = ['v6']
 botsSet = set(bots)
 
+# See https://github.com/battlecode/battlecode24/blob/master/client/src/constants.ts
+
 sprint1Maps = ['AceOfSpades', 'Alien', 'Ambush', 'Battlecode24', 'BigDucksBigPond', 'Canals', 'CH3353C4K3F4CT0RY',
     'Duck', 'Fountain', 'Hockey', 'MazeRunner', 'Rivers', 'Snake', 'Soccer', 'SteamboatMickey', 'Yinyang']
 initialMaps = ['DefaultHuge', 'DefaultLarge', 'DefaultMedium', 'DefaultSmall']
