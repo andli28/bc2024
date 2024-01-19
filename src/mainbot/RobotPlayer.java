@@ -185,9 +185,10 @@ public strictfp class RobotPlayer {
                         attackSquadOne = (Comms.shortId < 16);
                         attackSquadTwo = (Comms.shortId >= 16 && Comms.shortId < 32);
                         attackSquadThree = (Comms.shortId >= 32);
-                        //4 attack specialists per squad
+                        // 4 attack specialists per squad
                         ATTACKSPECIALIST = ((Comms.shortId > 1 && Comms.shortId < 6)
-                                || (Comms.shortId > 15 && Comms.shortId < 20) || (Comms.shortId > 31 && Comms.shortId < 36));
+                                || (Comms.shortId > 15 && Comms.shortId < 20)
+                                || (Comms.shortId > 31 && Comms.shortId < 36));
                     }
 
                     // Builder's initial spawn should be their home so that they have real estate to
@@ -576,12 +577,16 @@ public strictfp class RobotPlayer {
                     }
 
                     // condition for when attackers can actually heal
-                    // condition is if you're an attack specialist, the number of friendlies - number of hostiles has to be more than 5.
-                    boolean attackerCanHeal = (!ATTACKSPECIALIST || (ATTACKSPECIALIST && numFriendlies > 9 && numHostiles < 3));
+                    // condition is if you're an attack specialist, the number of friendlies -
+                    // number of hostiles has to be more than 5.
+                    boolean attackerCanHeal = (!ATTACKSPECIALIST
+                            || (ATTACKSPECIALIST && numFriendlies > 9 && numHostiles < 3));
 
-                    //boolean to declare if builder should stop training if you're a builder and your experience is >= 30 or its about time to fight (setup rounds-10)
+                    // boolean to declare if builder should stop training if you're a builder and
+                    // your experience is >= 30 or its about time to fight (setup rounds-10)
                     boolean shouldNotTrain = (!BUILDERSPECIALIST ||
-                            (BUILDERSPECIALIST && (rc.getExperience(SkillType.BUILD) >= 30 || turnCount > GameConstants.SETUP_ROUNDS - 10)));
+                            (BUILDERSPECIALIST && (rc.getExperience(SkillType.BUILD) >= 30
+                                    || turnCount > GameConstants.SETUP_ROUNDS - 10)));
 
                     // when building explosive or stun traps, this is the preferred distance when
                     // building them away from one another
@@ -630,7 +635,8 @@ public strictfp class RobotPlayer {
                             && turnCount > GameConstants.SETUP_ROUNDS - 40 && turnCount < GameConstants.SETUP_ROUNDS) {
                         role = LINEUP;
                         rc.setIndicatorString("LINEUP");
-                    } else if (shouldNotTrain && (bigCloseCrumb != null && turnCount > GameConstants.SETUP_ROUNDS - 40)) {
+                    } else if (shouldNotTrain
+                            && (bigCloseCrumb != null && turnCount > GameConstants.SETUP_ROUNDS - 40)) {
                         role = CRUMBS;
                         rc.setIndicatorString("CRUMBS: " + bigCloseCrumb.toString());
                     } else if (shouldNotTrain && numFlagsNearbyNotPickedUp != 0) {
@@ -914,11 +920,13 @@ public strictfp class RobotPlayer {
                             attackMove(rc, pathToCrumb, lowestCurrHostile, lowestCurrHostileHealth);
                         } else if (nearestWater != null) {
                             if (lowestCurrFriendly != null) {
-                                healMove(rc, pathToCrumb, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
+                                healMove(rc, pathToCrumb, lowestCurrFriendly, lowestCurrFriendlyHealth,
+                                        attackerCanHeal);
                                 clearTheWay(rc);
                             } else {
                                 clearTheWay(rc);
-                                healMove(rc, pathToCrumb, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
+                                healMove(rc, pathToCrumb, lowestCurrFriendly, lowestCurrFriendlyHealth,
+                                        attackerCanHeal);
                                 clearTheWay(rc);
                             }
                         } else {
@@ -1478,7 +1486,8 @@ public strictfp class RobotPlayer {
                 break;
             }
         }
-        // if you can't find anywhere to dig, fill up a nearby water to dig on a future turn (check if can do it this turn too)
+        // if you can't find anywhere to dig, fill up a nearby water to dig on a future
+        // turn (check if can do it this turn too)
         if (!dug && fillableWater != null && rc.canFill(fillableWater)) {
             rc.fill(fillableWater);
             if (rc.canDig(fillableWater)) {
@@ -1537,18 +1546,18 @@ public strictfp class RobotPlayer {
         for (int i = enemies.length; --i >= 0;) {
             RobotInfo enemy = enemies[i];
             // 10 r^2 is max dist where enemy is 1 move from attack range
-            // if enemy is not in stunned cache(mega inefficient O(n) search)
-            // if (!Comms.stunnedEnemiesContains(enemy.getLocation())) {
-            if (enemy.getLocation().distanceSquaredTo(advanceLoc) <= 10) {
-                dmg += SkillType.ATTACK.skillEffect
-                        + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
+            // if enemy is not in stunned cache
+            if (!Comms.stunnedEnemiesContains(enemy.getLocation())) {
+                if (enemy.getLocation().distanceSquaredTo(advanceLoc) <= 10) {
+                    dmg += SkillType.ATTACK.skillEffect
+                            + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
+                }
+            } else {
+                stunnedHostilesInVision++;
             }
-            // } else {
-            // stunnedHostilesInVision++;
-            // }
         }
 
-        if (rc.getHealth() <= dmg || numHostiles - 2 /*- stunnedHostilesInVision*/ >= numFriendlies
+        if (rc.getHealth() <= dmg || numHostiles - 2 - stunnedHostilesInVision >= numFriendlies
                 || !rc.isActionReady()) {
             optimalDir = bestRetreat;
             if (optimalDir != null) {

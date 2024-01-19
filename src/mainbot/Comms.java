@@ -91,23 +91,12 @@ public class Comms {
     // stun trap tracking(only traps within vision end of last/start of this turn)
     // could technically improve to intersection of all vision last turn and this
     // turn but then movement needs to be integrated
-    public static LinkedList<Pair<MapLocation, Integer>> stunlockedEnemies = new LinkedList<>();
-    public static HashSet<MapLocation> prevTurnTraps = new HashSet<>();
-    public static LinkedList<MapLocation> currTurnEnemyStuns = new LinkedList<>();
-
-    // removes first occurence of key O(n) yea yea
-    public static <S, T> void removeFirst(LinkedList<Pair<S, T>> ll, S key) {
-        Iterator it = ll.iterator();
-        int index = 0;
-        while (it.hasNext()) {
-            Pair<S, T> entry = (Pair<S, T>) it.next();
-            if (entry.first.equals(key)) {
-                ll.remove(index);
-                return;
-            }
-            index++;
-        }
-    }
+    // public static LinkedList<Pair<MapLocation, Integer>> stunlockedEnemies = new
+    // LinkedList<>();
+    // public static HashSet<MapLocation> stunlockEnemySet = new HashSet<>();
+    // public static HashSet<MapLocation> prevTurnTraps = new HashSet<>();
+    // public static LinkedList<MapLocation> currTurnEnemyStuns = new
+    // LinkedList<>();
 
     public static void receive() throws GameActionException {
         // yea yea unroll this later
@@ -123,6 +112,7 @@ public class Comms {
         // Pair<MapLocation, Integer> head = stunlockedEnemies.peek();
         // while (head != null && head.second <= rc.getRoundNum()) {
         // stunlockedEnemies.remove();
+        // stunlockEnemySet.remove(head.first);
         // head = stunlockedEnemies.peek();
         // }
 
@@ -130,8 +120,8 @@ public class Comms {
         // for (int i = 4; --i >= 0;) {
         // MapLocation stunTrapLoc = decodeLoc(comms[i + 30]);
         // if (stunTrapLoc != null) {
-        // // removeFirst(stunlockedEnemies, stunTrapLoc);
         // stunlockedEnemies.add(new Pair<>(stunTrapLoc, rc.getRoundNum() + 4));
+        // stunlockEnemySet.add(stunTrapLoc);
         // }
         // }
 
@@ -153,10 +143,10 @@ public class Comms {
         // rc.getTeam().opponent());
         // for (int i = stunnedEnemies.length; --i >= 0;) {
         // MapLocation stunloc = stunnedEnemies[i].getLocation();
-        // // removeFirst(stunlockedEnemies, stunloc);
         // currTurnEnemyStuns.add(stunloc);
         // stunlockedEnemies.add(new Pair<MapLocation, Integer>(stunloc,
         // rc.getRoundNum() + 5));
+        // stunlockEnemySet.add(stunloc);
         // }
         // }
         // }
@@ -252,8 +242,6 @@ public class Comms {
             updateCurrFlags();
             updateClosestEnemyToAllyFlags();
             // updateStunTrapLocs();
-            // idk if we need this a second time but we have 15k bytecode
-            // updateStunnedEnemies();
         }
         prevEndTurnLoc = rc.isSpawned() ? rc.getLocation() : null;
 
@@ -309,6 +297,7 @@ public class Comms {
             // decodeLoc(comms[10])
             // + "\nefc3: " + decodeLoc(comms[11]));
         }
+
     }
 
     public static int getAllyAttackSpecs() {
@@ -542,30 +531,31 @@ public class Comms {
         return closest;
     }
 
-    public static MapLocation[] getStunnedEnemies() throws GameActionException {
-        MapLocation[] locs = new MapLocation[stunlockedEnemies.size()];
-        int idx = 0;
-        Iterator it = stunlockedEnemies.iterator();
-        while (it.hasNext()) {
-            Pair<MapLocation, Integer> entry = (Pair<MapLocation, Integer>) it.next();
-            locs[idx] = entry.first;
-            idx++;
-        }
-        return locs;
-    }
+    // public static MapLocation[] getStunnedEnemies() throws GameActionException {
+    // MapLocation[] locs = new MapLocation[stunlockedEnemies.size()];
+    // int idx = 0;
+    // Iterator it = stunlockEnemySet.iterator();
+    // while (it.hasNext()) {
+    // locs[idx] = (MapLocation) it.next();
+    // idx++;
+    // }
+    // return locs;
+    // }
 
-    public static MapLocation getClosestStunnedEnemy() throws GameActionException {
-        MapLocation[] traps = getStunnedEnemies();
-        MapLocation closest = null;
-        for (int i = traps.length; --i >= 0;) {
-            MapLocation loc = traps[i];
-            if (closest == null || Pathfinder.travelDistance(loc, rc.getLocation()) < Pathfinder.travelDistance(closest,
-                    rc.getLocation())) {
-                closest = loc;
-            }
-        }
-        return closest;
-    }
+    // public static MapLocation getClosestStunnedEnemy() throws GameActionException
+    // {
+    // MapLocation[] traps = getStunnedEnemies();
+    // MapLocation closest = null;
+    // for (int i = traps.length; --i >= 0;) {
+    // MapLocation loc = traps[i];
+    // if (closest == null || Pathfinder.travelDistance(loc, rc.getLocation()) <
+    // Pathfinder.travelDistance(closest,
+    // rc.getLocation())) {
+    // closest = loc;
+    // }
+    // }
+    // return closest;
+    // }
 
     public static void clearRandomEnemies() throws GameActionException {
         write(15, 0);
@@ -681,48 +671,36 @@ public class Comms {
 
     // pushes the local stun trap activation realizes from start of turn to
     // comms(first 4), refresh on your next turn
-    public static void updateStunTrapLocs() throws GameActionException {
-        Iterator it = currTurnEnemyStuns.iterator();
-        while (it.hasNext()) {
-            MapLocation loc = (MapLocation) it.next();
-            int idx = writeToFirstAvail(loc, STUN_TRAP_INDICES);
-            if (idx != -1) {
-                refreshIdxs[++refreshPtr] = idx;
-                prevVals[refreshPtr] = encodeLoc(loc);
-            }
-        }
-    }
+    // public static void updateStunTrapLocs() throws GameActionException {
+    // Iterator it = currTurnEnemyStuns.iterator();
+    // while (it.hasNext()) {
+    // MapLocation loc = (MapLocation) it.next();
+    // int idx = writeToFirstAvail(loc, STUN_TRAP_INDICES);
+    // if (idx != -1) {
+    // refreshIdxs[++refreshPtr] = idx;
+    // prevVals[refreshPtr] = encodeLoc(loc);
+    // }
+    // }
+    // }
 
     // at least locally clear your own stunned enemy cache if you see theres nothing
     // there anymore(enemy is ded)
-    public static void updateStunnedEnemies() throws GameActionException {
-        // these data structure choices are quite questionable i must say
-        ArrayList<Integer> clearIndices = new ArrayList<>();
-        Iterator it = stunlockedEnemies.iterator();
-        int idx = 0;
-        while (it.hasNext()) {
-            MapLocation loc = ((Pair<MapLocation, Integer>) it.next()).first;
-            // if the enemy there doid we remove this node of arr list
-            if (rc.canSenseLocation(loc) && !rc.canSenseRobotAtLocation(loc)) {
-                clearIndices.add(idx);
-            }
-            idx++;
-        }
-        it = clearIndices.iterator();
-        while (it.hasNext()) {
-            stunlockedEnemies.remove((Integer) it.next());
-        }
-    }
+    // public static void updateStunnedEnemies() throws GameActionException {
+    // // these data structure choices are quite questionable i must say
+    // Iterator it = stunlockEnemySet.iterator();
+    // while (it.hasNext()) {
+    // MapLocation loc = ((Pair<MapLocation, Integer>) it.next()).first;
+    // // if the enemy there doid we remove this node of arr list
+    // if (rc.canSenseLocation(loc) && !rc.canSenseRobotAtLocation(loc)) {
+    // stunlockEnemySet.remove(loc);
+    // }
+    // }
+    // }
 
-    public static boolean stunnedEnemiesContains(MapLocation enemy) throws GameActionException {
-        Iterator it = stunlockedEnemies.iterator();
-        while (it.hasNext()) {
-            MapLocation loc = ((Pair<MapLocation, Integer>) it.next()).first;
-            if (loc.equals(enemy))
-                return true;
-        }
-        return false;
-    }
+    // public static boolean stunnedEnemiesContains(MapLocation enemy) throws
+    // GameActionException {
+    // return stunlockEnemySet.contains(enemy);
+    // }
 
     static int encodeLoc(MapLocation loc) {
         // as x and y coords <= 63 and non neg they fit in 6 bits
