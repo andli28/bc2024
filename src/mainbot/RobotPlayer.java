@@ -186,9 +186,9 @@ public strictfp class RobotPlayer {
                         attackSquadTwo = (Comms.shortId >= 16 && Comms.shortId < 32);
                         attackSquadThree = (Comms.shortId >= 32);
                         // 4 attack specialists per squad
-                        ATTACKSPECIALIST = ((Comms.shortId > 1 && Comms.shortId < 9)
-                                || (Comms.shortId > 15 && Comms.shortId < 23)
-                                || (Comms.shortId > 31 && Comms.shortId < 39));
+                        ATTACKSPECIALIST = ((Comms.shortId > 1 && Comms.shortId < 6)
+                                || (Comms.shortId > 15 && Comms.shortId < 20)
+                                || (Comms.shortId > 31 && Comms.shortId < 36));
                     }
 
                     // Builder's initial spawn should be their home so that they have real estate to
@@ -599,8 +599,8 @@ public strictfp class RobotPlayer {
 
                     // when building explosive or stun traps, this is the preferred distance when
                     // building them away from one another
-                    int explosiveTrapPreferredDist = 1;
-                    int stunTrapPreferredDist = 2;
+                    int explosiveTrapPreferredDist = 0;
+                    int stunTrapPreferredDist = 16;
                     // when building traps near enemies, this is how close the given trap should be
                     // relative to the enemy.
                     int buildThreshold = 12;
@@ -1561,6 +1561,10 @@ public strictfp class RobotPlayer {
             }
         }
 
+        int standardMaintainDistance = 16;
+        if (ATTACKSPECIALIST || BUILDERSPECIALIST) {
+            standardMaintainDistance = 10;
+        }
         // Step 2 is evaluating which of the directions would each of the distances fall under
         Direction[] validCombatDirs = directions;
         for (int i = validCombatDirs.length - 1; i >= 0; i--) {
@@ -1570,14 +1574,14 @@ public strictfp class RobotPlayer {
             if (rc.canSenseLocation(tempLoc) && rc.sensePassability(tempLoc)
                     && !rc.canSenseRobotAtLocation(tempLoc)) {
                 errorDistMaintain += Math.abs(closestHostile.distanceSquaredTo(tempLoc)-GameConstants.ATTACK_RADIUS_SQUARED);
-                errorDistCooldown += Math.abs(closestHostile.distanceSquaredTo(tempLoc)-10);
+                errorDistCooldown += Math.abs(closestHostile.distanceSquaredTo(tempLoc)-standardMaintainDistance);
                 for (int j = enemies.length; --j >= 0;) {
                     RobotInfo enemy = enemies[j];
                     if (enemy.getLocation().distanceSquaredTo(tempLoc) < GameConstants.ATTACK_RADIUS_SQUARED) {
                         errorDistMaintain += Math.abs(enemy.getLocation().distanceSquaredTo(tempLoc) - GameConstants.ATTACK_RADIUS_SQUARED);
                     }
-                    if (enemy.getLocation().distanceSquaredTo(tempLoc) < 10) {
-                        errorDistCooldown += Math.abs(enemy.getLocation().distanceSquaredTo(tempLoc) - 10);
+                    if (enemy.getLocation().distanceSquaredTo(tempLoc) < standardMaintainDistance) {
+                        errorDistCooldown += Math.abs(enemy.getLocation().distanceSquaredTo(tempLoc) - standardMaintainDistance);
                     }
                 }
                 float averageDist = (float) averageDistanceSquaredFrom(enemies, tempLoc);
@@ -1623,16 +1627,16 @@ public strictfp class RobotPlayer {
             // 10 r^2 is max dist where enemy is 1 move from attack range
             // if enemy is not in stunned cache
             // if (!Comms.stunnedEnemiesContains(enemy.getLocation())) {
-            if (enemy.getLocation().distanceSquaredTo(advanceLoc) <= GameConstants.ATTACK_RADIUS_SQUARED) {
+            if (enemy.getLocation().distanceSquaredTo(advanceLoc) <= 10) {
                 dmgIfPush += SkillType.ATTACK.skillEffect
                         + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
             }
-            if (enemy.getLocation().distanceSquaredTo(rc.getLocation()) <= GameConstants.ATTACK_RADIUS_SQUARED) {
+            if (enemy.getLocation().distanceSquaredTo(rc.getLocation()) <= 10) {
                 dmgIfChill += SkillType.ATTACK.skillEffect
                         + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
             }
             if (maintainDistance != null &&
-                    enemy.getLocation().distanceSquaredTo(rc.getLocation().add(maintainDistance)) <= GameConstants.ATTACK_RADIUS_SQUARED) {
+                    enemy.getLocation().distanceSquaredTo(rc.getLocation().add(maintainDistance)) <= 10) {
                 dmgIfMaintain += SkillType.ATTACK.skillEffect
                         + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
             }
@@ -1650,16 +1654,23 @@ public strictfp class RobotPlayer {
         }
 
 
-        // If you're going to die by standing there, retreat
-        if (rc.getHealth() <= dmgIfChill || (!ATTACKSPECIALIST && rc.getHealth() < 750) || rc.getHealth() < 500) {
+//        // If you're going to die by standing there, retreat
+//        if (rc.getHealth() <= dmgIfChill || (!ATTACKSPECIALIST && rc.getHealth() < 500) || rc.getHealth() < 300) {
+//            optimalDir = bestRetreat;
+//            if (optimalDir != null) {
+//                rc.setIndicatorString("In combat bestRetreat: " + bestRetreat.toString() + " Expected dmg: " + dmgIfChill + ATTACKSPECIALIST);
+//            }
+//        } else if (friendlyHealth > enemyHealth * 2) {
+//            optimalDir = bestAttack;
+//            if (optimalDir != null) {
+//                rc.setIndicatorString("In combat bestAttack: " + bestAttack.toString() + ATTACKSPECIALIST);
+//            }
+//        }
+
+        if (rc.getHealth() <= dmgIfChill || rc.getHealth() < 750) {
             optimalDir = bestRetreat;
             if (optimalDir != null) {
                 rc.setIndicatorString("In combat bestRetreat: " + bestRetreat.toString() + " Expected dmg: " + dmgIfChill + ATTACKSPECIALIST);
-            }
-        } else if (friendlyHealth > enemyHealth * 2) {
-            optimalDir = bestAttack;
-            if (optimalDir != null) {
-                rc.setIndicatorString("In combat bestAttack: " + bestAttack.toString() + ATTACKSPECIALIST);
             }
         }
         else if (!rc.isActionReady()){
@@ -1668,10 +1679,10 @@ public strictfp class RobotPlayer {
                 rc.setIndicatorString("In combat cooldownDistance: " + cooldownDistance.toString() + ATTACKSPECIALIST);
             }
         }
-        else {
+        else if (dmgIfMaintain < rc.getHealth()) {
             optimalDir = maintainDistance;
             if (optimalDir != null) {
-                rc.setIndicatorString("In combat maintainDistance: " + maintainDistance.toString() + ATTACKSPECIALIST);
+                rc.setIndicatorString("In combat maintainDistance: " + maintainDistance.toString() + " Expected dmg: " + dmgIfMaintain + ATTACKSPECIALIST);
             }
         }
 
