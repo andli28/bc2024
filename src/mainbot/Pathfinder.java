@@ -50,8 +50,8 @@ public class Pathfinder {
         // if direct is blocked
         boolean directPassable = rc.senseMapInfo(src.add(dirTo)).isPassable();
 
-        // direct greedily(8 dir) if can until impassible 1 tile no los, then buhg
-        if (directPassable && buhgDir == Rot.NONE) {
+        // direct greedily(8 dir) if can until we cant get closer, then buhg
+        if (buhgDir == Rot.NONE) {
             Direction bestDir = Direction.CENTER;
             int minDist = 9999;
             for (Direction d : Direction.allDirections()) {
@@ -64,10 +64,13 @@ public class Pathfinder {
                     bestDir = d;
                 }
             }
-            return bestDir;
+            if (minDist < travelDistance(src, tgt)) {
+                return bestDir;
+            }
         }
 
-        if(rc.getID() == 11291) System.out.println("buhgdir1: " + buhgDir.toString());
+        // if (rc.getID() == 11291)
+        // System.out.println("buhgdir1: " + buhgDir.toString());
 
         // tldr a better first buhg dir guess system
         if (buhgDir == Rot.NONE) {
@@ -111,8 +114,10 @@ public class Pathfinder {
         }
         turnsBuhgging++;
 
-        if(rc.getID() == 11291) System.out.println("buhgdir2: " + buhgDir.toString());
-        if(rc.getID() == 11291) System.out.println("lastBuhgDir: " + lastBuhgDir.toString());
+        if (rc.getID() == 11291)
+            System.out.println("buhgdir2: " + buhgDir.toString());
+        if (rc.getID() == 11291)
+            System.out.println("lastBuhgDir: " + lastBuhgDir.toString());
 
         // flag for if we end up buhgging around a robot
         // in this case do not update lastbuhgdir, as it may result in us circling
@@ -189,12 +194,13 @@ public class Pathfinder {
     }
 
     public static int bfsDist(MapLocation src, MapLocation tgt) throws GameActionException {
-        //TODO: implement bfs to find the travel distance between src and tgt
-        //returns -1 if we can't reach tgt based on our sensing radius
+        // TODO: implement bfs to find the travel distance between src and tgt
+        // returns -1 if we can't reach tgt based on our sensing radius
         return -1;
     }
 
-    // Gives the travelDistance between 2 points on the map. Not accurate, but useful for ranking
+    // Gives the travelDistance between 2 points on the map. Not accurate, but
+    // useful for ranking
     public static int travelDistance(MapLocation src, MapLocation tgt) throws GameActionException {
         // distance between src and tgt is max(dx, dy)
         int dx = Math.abs(src.x - tgt.x);
@@ -216,13 +222,14 @@ public class Pathfinder {
 
         return travelDist;
     }
-    
-    public static int trueTravelDistance(Direction dir, MapLocation tgt) throws GameActionException{
+
+    public static int trueTravelDistance(Direction dir, MapLocation tgt) throws GameActionException {
         return trueTravelDistance(rc.getLocation().add(dir), tgt);
     }
 
     /**
-     * passableDirectionTowards returns the direction that is passable towards the target, 
+     * passableDirectionTowards returns the direction that is passable towards the
+     * target,
      * prefering the given direction, then left, then right.
      * returns Direction.CENTER if no passable direction exists
      *
@@ -242,6 +249,5 @@ public class Pathfinder {
             return right;
         return Direction.CENTER;
     }
-    
 
 }
