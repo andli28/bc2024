@@ -93,6 +93,7 @@ public class Comms {
 
     // absolute turn order robotIDs
     public static int[] turnOrder = new int[50];
+    public static HashMap<Integer, Integer> idToShortId = new HashMap<>();
 
     public static void receive() throws GameActionException {
         // yea yea unroll this later
@@ -142,6 +143,10 @@ public class Comms {
             for (int i = 0; i < 50; i++) {
                 write(i + 13, 0);
             }
+        }
+        // populate id to short id mapping
+        for (int i = 50; --i >= 0;) {
+            idToShortId.put(turnOrder[i], i);
         }
     }
 
@@ -592,12 +597,13 @@ public class Comms {
     // cd is rounded down to nearest 10
     // returns [action, move] cds of ally
     public static int[] getAllyCDs(int tgtID) {
+        int allyShortId = idToShortId.get(tgtID);
         int[] cds = new int[2];
-        int comm_idx = 29 + tgtID / 4;
+        int comm_idx = 29 + allyShortId / 4;
         // offset from right, this is basically big endian
-        int comm_offset = 4 * (3 - (tgtID % 4));
+        int comm_offset = 4 * (3 - (allyShortId % 4));
         int cd_bits = comms[comm_idx] >> comm_offset;
-        cds[0] = 10 * (cd_bits >> 2) & 0x3;
+        cds[0] = 10 * ((cd_bits >> 2) & 0x3);
         cds[1] = 10 * (cd_bits & 0x3);
         return cds;
     }

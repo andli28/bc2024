@@ -155,7 +155,7 @@ public strictfp class RobotPlayer {
             try {
                 Comms.receive();
 
-                if (rc.getRoundNum() == 1) {                    
+                if (rc.getRoundNum() == 1) {
                     Info.initialize(rc);
                     Comms.initialize();
                 } else if (rc.getRoundNum() == 2) {
@@ -310,7 +310,7 @@ public strictfp class RobotPlayer {
                     }
                 }
 
-                if (rc.isSpawned()) {                                        
+                if (rc.isSpawned()) {
                     Info.update();
                     // if (turnCount > 2 && Comms.shortId ==1) {
                     // System.out.println(turnCount);
@@ -834,7 +834,7 @@ public strictfp class RobotPlayer {
                             dir = Pathfinder.pathfindHome();
                         } else {
                             dir = Pathfinder.pathfind(rc.getLocation(), Info.closestFlag);
-                            if(rc.canPickupFlag(Info.closestFlag)) {
+                            if (rc.canPickupFlag(Info.closestFlag)) {
                                 rc.pickupFlag(Info.closestFlag);
                             }
                         }
@@ -846,14 +846,16 @@ public strictfp class RobotPlayer {
                         // an ally spawn zone to capture it! We use the check roundNum >= SETUP_ROUNDS
                         // to make sure setup phase has ended.
                         if (rc.hasFlag() && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS) {
-                            // if there is a friendly with 
-                            // this.travelDistanceHome - friendly.travelDistanceHome == 1-2 in direction of home
+                            // if there is a friendly with
+                            // this.travelDistanceHome - friendly.travelDistanceHome == 1-2 in direction of
+                            // home
                             // drop flag in their direction
-                            
+
                             MapLocation relay = findFlagRelay();
-                            if(!relay.equals(new MapLocation(-1, -1))) {
-                                Direction dir = Pathfinder.passableDirectionTowards(rc.getLocation().directionTo(relay));
-                                if(dir != Direction.CENTER && rc.canDropFlag(rc.adjacentLocation(dir))){
+                            if (!relay.equals(new MapLocation(-1, -1))) {
+                                Direction dir = Pathfinder
+                                        .passableDirectionTowards(rc.getLocation().directionTo(relay));
+                                if (dir != Direction.CENTER && rc.canDropFlag(rc.adjacentLocation(dir))) {
                                     rc.dropFlag(rc.adjacentLocation(dir));
                                 }
                             }
@@ -861,7 +863,7 @@ public strictfp class RobotPlayer {
                             Direction dir = Pathfinder.pathfindHome();
                             if (rc.canMove(dir)) {
                                 rc.move(dir);
-                            }                            
+                            }
                         }
                     } else if (role == DEFENDING) {
 
@@ -1756,7 +1758,8 @@ public strictfp class RobotPlayer {
         return false;
     }
 
-    // return the location of a friendly robot that has travel distance 1 or 2 closer to your closest spawn than you
+    // return the location of a friendly robot that has travel distance 1 or 2
+    // closer to your closest spawn than you
     // returns your own location if no such robot exists
     public static MapLocation findFlagRelay() throws GameActionException {
         MapLocation cacheDist1 = new MapLocation(-1, -1);
@@ -1767,15 +1770,16 @@ public strictfp class RobotPlayer {
             int fTravelDistHome = Pathfinder.trueTravelDistance(relay, Info.closestSpawn);
             int fTravelDistMe = Pathfinder.trueTravelDistance(relay, rc.getLocation());
 
-            // System.out.println(Comms.getAllyCDs(ri.getID()));
+            // int[] allyCD = Comms.getAllyCDs(ri.getID());
+            // System.out.println(allyCD[0] + ", " + allyCD[1]);
 
             if (fTravelDistMe == 2 && fTravelDistHome < myTravelDistHome &&
-            Pathfinder.trueTravelDistance(Pathfinder.passableDirectionTowards(rc.getLocation().directionTo(relay)), relay) < 2) {
-                
-                //TODO: replace with BFSdist and take into account cooldowns and turn order
+                    Pathfinder.trueTravelDistance(
+                            Pathfinder.passableDirectionTowards(rc.getLocation().directionTo(relay)), relay) < 2) {
+
+                // TODO: replace with BFSdist and take into account cooldowns and turn order
                 return relay;
-            }
-            else if (fTravelDistMe == 1 && fTravelDistHome < myTravelDistHome) {
+            } else if (fTravelDistMe == 1 && fTravelDistHome < myTravelDistHome) {
                 cacheDist1 = relay;
             }
         }
