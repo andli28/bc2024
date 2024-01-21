@@ -67,6 +67,8 @@ public class Pathfinder {
             return bestDir;
         }
 
+        if(rc.getID() == 11291) System.out.println("buhgdir1: " + buhgDir.toString());
+
         // tldr a better first buhg dir guess system
         if (buhgDir == Rot.NONE) {
             // if blocked and no prev buhg choose a buhg dir depending on some ob bounds
@@ -108,6 +110,9 @@ public class Pathfinder {
             initBlockDist = travelDistance(src, tgt);
         }
         turnsBuhgging++;
+
+        if(rc.getID() == 11291) System.out.println("buhgdir2: " + buhgDir.toString());
+        if(rc.getID() == 11291) System.out.println("lastBuhgDir: " + lastBuhgDir.toString());
 
         // flag for if we end up buhgging around a robot
         // in this case do not update lastbuhgdir, as it may result in us circling
@@ -179,24 +184,17 @@ public class Pathfinder {
     }
 
     public static Direction pathfindHome() throws GameActionException {
-        MapLocation[] spawnLocs = rc.getAllySpawnLocations();
-        // find closest spawnLoc:
-        MapLocation closestSpawn = null;
-        int closestSpawnDist = Integer.MAX_VALUE;
-        for (int i = spawnLocs.length - 1; i >= 0; i--) {
-            int distSqToSpawn = travelDistance(rc.getLocation(), spawnLocs[i]);
-            if (distSqToSpawn < closestSpawnDist) {
-                closestSpawnDist = distSqToSpawn;
-                closestSpawn = spawnLocs[i];
-            }
-        }
-        rc.setIndicatorString("returning: " + closestSpawn.toString());
-        return Pathfinder.pathfind(rc.getLocation(), closestSpawn);
-
+        rc.setIndicatorString("returning: " + Info.closestSpawn.toString());
+        return Pathfinder.pathfind(rc.getLocation(), Info.closestSpawn);
     }
 
-    // Gives the travelDistance between 2 points on the map. Not accurate, but
-    // useful for ranking
+    public static int bfsDist(MapLocation src, MapLocation tgt) throws GameActionException {
+        //TODO: implement bfs to find the travel distance between src and tgt
+        //returns -1 if we can't reach tgt based on our sensing radius
+        return -1;
+    }
+
+    // Gives the travelDistance between 2 points on the map. Not accurate, but useful for ranking
     public static int travelDistance(MapLocation src, MapLocation tgt) throws GameActionException {
         // distance between src and tgt is max(dx, dy)
         int dx = Math.abs(src.x - tgt.x);
@@ -208,4 +206,42 @@ public class Pathfinder {
 
         return travelDist + taxicabDistance;
     }
+
+    // Heuristic for travel distance
+    public static int trueTravelDistance(MapLocation src, MapLocation tgt) throws GameActionException {
+        // distance between src and tgt is max(dx, dy)
+        int dx = Math.abs(src.x - tgt.x);
+        int dy = Math.abs(src.y - tgt.y);
+        int travelDist = Math.max(dx, dy);
+
+        return travelDist;
+    }
+    
+    public static int trueTravelDistance(Direction dir, MapLocation tgt) throws GameActionException{
+        return trueTravelDistance(rc.getLocation().add(dir), tgt);
+    }
+
+    /**
+     * passableDirectionTowards returns the direction that is passable towards the target, 
+     * prefering the given direction, then left, then right.
+     * returns Direction.CENTER if no passable direction exists
+     *
+     * @param dir the direction to prefer
+     * @return the direction that is passable towards the target
+     */
+    public static Direction passableDirectionTowards(Direction dir) throws GameActionException {
+        // return dir if its passable
+        if (rc.senseMapInfo(rc.getLocation().add(dir)).isPassable())
+            return dir;
+        // else return left or right if possible
+        Direction left = dir.rotateLeft();
+        Direction right = dir.rotateRight();
+        if (rc.senseMapInfo(rc.getLocation().add(left)).isPassable())
+            return left;
+        if (rc.senseMapInfo(rc.getLocation().add(right)).isPassable())
+            return right;
+        return Direction.CENTER;
+    }
+    
+
 }

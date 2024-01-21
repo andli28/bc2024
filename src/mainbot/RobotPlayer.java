@@ -19,6 +19,7 @@ import java.util.Set;
  * is created!
  */
 public strictfp class RobotPlayer {
+    public static RobotController rc;
 
     /**
      * We will use this variable to count the number of turns this robot has been
@@ -132,6 +133,7 @@ public strictfp class RobotPlayer {
 
         Pathfinder.rc = rc;
         Comms.rc = rc;
+        RobotPlayer.rc = rc;
 
         while (true) {
             // This code runs during the entire lifespan of the robot, which is why it is in
@@ -153,7 +155,8 @@ public strictfp class RobotPlayer {
             try {
                 Comms.receive();
 
-                if (rc.getRoundNum() == 1) {
+                if (rc.getRoundNum() == 1) {                    
+                    Info.initialize(rc);
                     Comms.initialize();
                 } else if (rc.getRoundNum() == 2) {
                     Comms.init2();
@@ -192,7 +195,6 @@ public strictfp class RobotPlayer {
                                 || (Comms.shortId > 15 && Comms.shortId < 20)
                                 || (Comms.shortId > 31 && Comms.shortId < 36));
                     }
-
                     // Builder's initial spawn should be their home so that they have real estate to
                     // train
                     MapLocation initialBuilderSpawn = null;
@@ -308,7 +310,8 @@ public strictfp class RobotPlayer {
                     }
                 }
 
-                if (rc.isSpawned()) {
+                if (rc.isSpawned()) {                                        
+                    Info.update();
                     // if (turnCount > 2 && Comms.shortId ==1) {
                     // System.out.println(turnCount);
                     // }
@@ -416,18 +419,6 @@ public strictfp class RobotPlayer {
 
                     if (BUILDERSPECIALIST && rc.getExperience(SkillType.BUILD) < 30 && turnCount > 25) {
                         trainToSixByDigging(rc);
-                    }
-
-                    // Flag Counting, finding number of nearby flags not picked up
-                    FlagInfo[] nearbyFlags = rc.senseNearbyFlags(GameConstants.VISION_RADIUS_SQUARED,
-                            rc.getTeam().opponent());
-                    int numFlagsNearbyNotPickedUp = 0;
-                    if (nearbyFlags.length != 0) {
-                        for (int i = nearbyFlags.length - 1; i >= 0; i--) {
-                            if (!nearbyFlags[i].isPickedUp()) {
-                                numFlagsNearbyNotPickedUp++;
-                            }
-                        }
                     }
 
                     // Splitting units into groups that equally attack all flags. If it exists in
@@ -641,7 +632,7 @@ public strictfp class RobotPlayer {
                             && (bigCloseCrumb != null && turnCount > GameConstants.SETUP_ROUNDS - 40)) {
                         role = CRUMBS;
                         rc.setIndicatorString("CRUMBS: " + bigCloseCrumb.toString());
-                    } else if (shouldNotTrain && numFlagsNearbyNotPickedUp != 0) {
+                    } else if (shouldNotTrain && Info.numFlagsNearbyNotPickedUp != 0) {
                         role = CAPTURING;
                         rc.setIndicatorString("Capturing");
                     } else if (shouldNotTrain && (enemies.length != 0 && turnCount > GameConstants.SETUP_ROUNDS)) {
@@ -837,25 +828,15 @@ public strictfp class RobotPlayer {
                         // If you can pick up the flag, pick it up, otherwise calculate the nearest
                         // enemy flag, and go to it
 
-                        // find closest flagLoc:
-                        MapLocation closestFlag = null;
-                        int closestFlagDist = Integer.MAX_VALUE;
-                        for (int i = nearbyFlags.length - 1; i >= 0; i--) {
-                            if (!nearbyFlags[i].isPickedUp()) {
-                                int distSqToSpawn = rc.getLocation()
-                                        .distanceSquaredTo(nearbyFlags[i].getLocation());
-                                if (distSqToSpawn < closestFlagDist) {
-                                    closestFlagDist = distSqToSpawn;
-                                    closestFlag = nearbyFlags[i].getLocation();
-                                }
-                            }
-                        }
                         Direction dir;
-                        if (rc.canPickupFlag(closestFlag)) {
-                            rc.pickupFlag(closestFlag);
+                        if (rc.canPickupFlag(Info.closestFlag)) {
+                            rc.pickupFlag(Info.closestFlag);
                             dir = Pathfinder.pathfindHome();
                         } else {
-                            dir = Pathfinder.pathfind(rc.getLocation(), closestFlag);
+                            dir = Pathfinder.pathfind(rc.getLocation(), Info.closestFlag);
+                            if(rc.canPickupFlag(Info.closestFlag)) {
+                                rc.pickupFlag(Info.closestFlag);
+                            }
                         }
 
                         healMove(rc, dir, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
@@ -865,10 +846,22 @@ public strictfp class RobotPlayer {
                         // an ally spawn zone to capture it! We use the check roundNum >= SETUP_ROUNDS
                         // to make sure setup phase has ended.
                         if (rc.hasFlag() && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS) {
+                            // if there is a friendly with 
+                            // this.travelDistanceHome - friendly.travelDistanceHome == 1-2 in direction of home
+                            // drop flag in their direction
+                            
+                            MapLocation relay = findFlagRelay();
+                            if(!relay.equals(new MapLocation(-1, -1))) {
+                                Direction dir = Pathfinder.passableDirectionTowards(rc.getLocation().directionTo(relay));
+                                if(dir != Direction.CENTER && rc.canDropFlag(rc.adjacentLocation(dir))){
+                                    rc.dropFlag(rc.adjacentLocation(dir));
+                                }
+                            }
+                            // If you dropped the flag you wouldn't be able to move anyways
                             Direction dir = Pathfinder.pathfindHome();
                             if (rc.canMove(dir)) {
                                 rc.move(dir);
-                            }
+                            }                            
                         }
                     } else if (role == DEFENDING) {
 
@@ -1763,4 +1756,30 @@ public strictfp class RobotPlayer {
         return false;
     }
 
+    // return the location of a friendly robot that has travel distance 1 or 2 closer to your closest spawn than you
+    // returns your own location if no such robot exists
+    public static MapLocation findFlagRelay() throws GameActionException {
+        MapLocation cacheDist1 = new MapLocation(-1, -1);
+        int myTravelDistHome = Pathfinder.trueTravelDistance(rc.getLocation(), Info.closestSpawn);
+        for (int i = Info.friendly_robots.length; --i >= 0;) {
+            RobotInfo ri = Info.friendly_robots[i];
+            MapLocation relay = ri.getLocation();
+            int fTravelDistHome = Pathfinder.trueTravelDistance(relay, Info.closestSpawn);
+            int fTravelDistMe = Pathfinder.trueTravelDistance(relay, rc.getLocation());
+
+            // System.out.println(Comms.getAllyCDs(ri.getID()));
+
+            if (fTravelDistMe == 2 && fTravelDistHome < myTravelDistHome &&
+            Pathfinder.trueTravelDistance(Pathfinder.passableDirectionTowards(rc.getLocation().directionTo(relay)), relay) < 2) {
+                
+                //TODO: replace with BFSdist and take into account cooldowns and turn order
+                return relay;
+            }
+            else if (fTravelDistMe == 1 && fTravelDistHome < myTravelDistHome) {
+                cacheDist1 = relay;
+            }
+        }
+        return cacheDist1;
+
+    }
 }
