@@ -632,7 +632,7 @@ public strictfp class RobotPlayer {
                     // when building explosive or stun traps, this is the preferred distance when
                     // building them away from one another
                     int explosiveTrapPreferredDist = 16;
-                    int stunTrapPreferredDist = 2;
+                    int stunTrapPreferredDist = 1;
                     // when building traps near enemies, this is how close the given trap should be
                     // relative to the enemy.
                     int buildThreshold = 12;
