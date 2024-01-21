@@ -1759,19 +1759,28 @@ public strictfp class RobotPlayer {
     }
 
     // return the location of a friendly robot that has travel distance 1 or 2
-    // closer to your closest spawn than you
-    // returns your own location if no such robot exists
+    // closer to your closest spawn than you. also must have the action cooldown to pick up the flag
+    // returns MapLocation(-1, -1) if no such robot exists
     public static MapLocation findFlagRelay() throws GameActionException {
         MapLocation cacheDist1 = new MapLocation(-1, -1);
         int myTravelDistHome = Pathfinder.trueTravelDistance(rc.getLocation(), Info.closestSpawn);
         for (int i = Info.friendly_robots.length; --i >= 0;) {
             RobotInfo ri = Info.friendly_robots[i];
+            
+            int[] allyCD = Comms.getAllyCDs(ri.getID());
+            System.out.println(allyCD[0] + ", " + allyCD[1]);
+            // if this ally action cooldown >= 10 and goes after me
+            // or action cooldown >= 20 and goes before me, they won't be able to pick up the flag.
+            if (allyCD[0] >= 10 && !Comms.turnOrderBefore(rc.getID(), ri.getID()) || 
+                allyCD[0] >= 20 && Comms.turnOrderBefore(rc.getID(), ri.getID())){
+                continue;
+            }
+
+
             MapLocation relay = ri.getLocation();
             int fTravelDistHome = Pathfinder.trueTravelDistance(relay, Info.closestSpawn);
             int fTravelDistMe = Pathfinder.trueTravelDistance(relay, rc.getLocation());
 
-            // int[] allyCD = Comms.getAllyCDs(ri.getID());
-            // System.out.println(allyCD[0] + ", " + allyCD[1]);
 
             if (fTravelDistMe == 2 && fTravelDistHome < myTravelDistHome &&
                     Pathfinder.trueTravelDistance(

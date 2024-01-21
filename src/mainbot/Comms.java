@@ -633,4 +633,10 @@ public class Comms {
             return null;
         }
     }
+
+    // Parameters: 2 robot IDs
+    // Returns: true if the first robot goes before the second robot in the turn
+    static boolean turnOrderBefore(int id1, int id2) {
+        return idToShortId.get(id1) < idToShortId.get(id2);
+    }
 }
