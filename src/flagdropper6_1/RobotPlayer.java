@@ -1768,7 +1768,7 @@ public strictfp class RobotPlayer {
             RobotInfo ri = Info.friendly_robots[i];
             
             int[] allyCD = Comms.getAllyCDs(ri.getID());
-            System.out.println(allyCD[0] + ", " + allyCD[1]);
+            //System.out.println(allyCD[0] + ", " + allyCD[1]);
             // if this ally action cooldown >= 10 and goes after me
             // or action cooldown >= 20 and goes before me, they won't be able to pick up the flag.
             if (allyCD[0] >= 10 && !Comms.turnOrderBefore(rc.getID(), ri.getID()) || 
