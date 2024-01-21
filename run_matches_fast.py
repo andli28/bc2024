@@ -94,9 +94,10 @@ def run_match(bot, map):
 if __name__ == "__main__":
     results = {}
     # Show how many matches to play, along with how many cpus we have
-    print('Running {} matches on {} cpus'.format(len(matches), os.cpu_count()))
+    print('We have a maximum of {} cpus'.format(os.cpu_count()))
     
-    with concurrent.futures.ProcessPoolExecutor() as executor:
+    with concurrent.futures.ProcessPoolExecutor(max_workers=(min(5, os.cpu_count()))) as executor:
+        print('Running {} matches on {} workers'.format(len(matches), executor._max_workers))
         future_to_game = {executor.submit(run_match, bot, map): (bot, map) for bot, map in matches}
         for future in concurrent.futures.as_completed(future_to_game):
             print('Finished number {} of {}'.format(len(results) + 1, len(matches)))
@@ -118,6 +119,7 @@ if __name__ == "__main__":
         WinRatio = 100 * Wins / (Wins + Losses)
     # Create string with Wins, Losses, and WinRatio
     match_statistics = 'Win ratio: {}/{} ({:.2f}%)'.format(Wins, Wins + Losses, WinRatio) + '\n'
+    print('\n' + match_statistics)
 
     def replaceWithDictionary(s, mapping):
         for a, b in mapping.items():
