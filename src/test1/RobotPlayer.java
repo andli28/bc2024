@@ -79,8 +79,8 @@ public strictfp class RobotPlayer {
                 // set indicator to your move cooldown and your action cooldown
                 rc.setIndicatorString("Move cooldown: " + rc.getMovementCooldownTurns() + ", Action cooldown: " + rc.getActionCooldownTurns());
 
-                // If you can build on (15, 15), build a stun trap there.
-                MapLocation goal = new MapLocation(15, 15);
+                // If you can build on (14, 4), build a trap there.
+                MapLocation goal = new MapLocation(14, 4);
                 if (rc.canBuild(TrapType.EXPLOSIVE, goal)){
                     rc.build(TrapType.EXPLOSIVE, goal);
                     built = true;
@@ -93,15 +93,24 @@ public strictfp class RobotPlayer {
                 if (!built){                    
                     // Try to move towards (15, 15)
                     MapLocation myLocation = rc.getLocation();
-                    MapLocation tgoal = new MapLocation(15, 15);
+                    MapLocation tgoal = new MapLocation(14, 3);
                     Direction toGoal = myLocation.directionTo(tgoal);
                     if (rc.canMove(toGoal)) rc.move(toGoal);
                 }
 
+                // if the turn is 250, build TrapType None while you can
+                if (turnCount == 250){
+                    while(rc.canBuild(TrapType.NONE, new MapLocation(13, 3))){
+                        rc.build(TrapType.NONE, new MapLocation(13, 3));
+                    }
+                    
+                }
+                
+
             }
 
             // if turn count is 500, resign
-            if (turnCount == 230){
+            if (turnCount == 260){
                 rc.resign();
             }
 

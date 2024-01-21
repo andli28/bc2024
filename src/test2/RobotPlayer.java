@@ -80,7 +80,7 @@ public strictfp class RobotPlayer {
                 rc.setIndicatorString("Move cooldown: " + rc.getMovementCooldownTurns() + ", Action cooldown: " + rc.getActionCooldownTurns());
                 
                 // If you can build on (15, 15), build a stun trap there.
-                MapLocation goal = new MapLocation(15, 15);
+                MapLocation goal = new MapLocation(14, 4);
                 if (rc.canBuild(TrapType.STUN, goal)){
                     rc.build(TrapType.STUN, goal);
                     built = true;
@@ -91,9 +91,12 @@ public strictfp class RobotPlayer {
                 if (!built){                    
                     // Try to move towards (15, 15)
                     MapLocation myLocation = rc.getLocation();
-                    MapLocation tgoal = new MapLocation(16, 14);
+                    MapLocation tgoal = new MapLocation(16, 4);
                     Direction toGoal = myLocation.directionTo(tgoal);
                     if (rc.canMove(toGoal)) rc.move(toGoal);
+
+                    MapLocation oppTrapLoc = rc.getLocation().add(Direction.WEST).add(Direction.WEST);
+                    System.out.println(rc.senseMapInfo(oppTrapLoc) + " " + oppTrapLoc);
                 }
 
             }
