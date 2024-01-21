@@ -1,4 +1,4 @@
-package flagdropper7;
+package flagdropper6_1;
 
 import battlecode.common.*;
 
