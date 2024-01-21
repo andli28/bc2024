@@ -1767,7 +1767,38 @@ public strictfp class RobotPlayer {
 //                }
 //            }
 //        }
-
+//        Direction slideDir = null;
+//        if (lowestCurrHostile != null && rc.getLocation().distanceSquaredTo(lowestCurrHostile) == 4) {
+//            Direction toEnemy = rc.getLocation().directionTo(lowestCurrHostile);
+//            Direction leftRotate = toEnemy.rotateLeft().rotateLeft();
+//            Direction rightRotate = toEnemy.rotateRight().rotateRight();
+//            MapLocation leftPos = rc.getLocation().add(leftRotate);
+//            MapLocation rightPos = rc.getLocation().add(rightRotate);
+//            int dmgLeft = 0;
+//            int dmgRight = 0;
+//            for (int i = enemies.length-1; i>=0 ;i--) {
+//                RobotInfo enemy = enemies[i];
+//                if (rc.canSenseLocation(leftPos) && rc.sensePassability(leftPos)
+//                        && !rc.canSenseRobotAtLocation(leftPos)) {
+//                    if (enemy.getLocation().distanceSquaredTo(leftPos) < 10) {
+//                        dmgLeft += SkillType.ATTACK.skillEffect
+//                                + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
+//                    }
+//                }
+//                if (rc.canSenseLocation(rightPos) && rc.sensePassability(rightPos)
+//                        && !rc.canSenseRobotAtLocation(rightPos)) {
+//                    if (enemy.getLocation().distanceSquaredTo(rightPos) < 10) {
+//                        dmgRight += SkillType.ATTACK.skillEffect
+//                                + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
+//                    }
+//                }
+//            }
+//            if (dmgLeft < dmgRight && dmgLeft < rc.getHealth()) {
+//                slideDir = leftRotate;
+//            } else if (dmgRight < rc.getHealth()) {
+//                slideDir = rightRotate;
+//            }
+//        }
         // Now: Two options: Go in or get out
         // if going in gets you killed, go out. If there are more enemies than friends, go out. If you have no cooldown, go out.
         // Otherwise, go in.
@@ -1985,7 +2016,7 @@ public strictfp class RobotPlayer {
             RobotInfo ri = Info.friendly_robots[i];
             
             int[] allyCD = Comms.getAllyCDs(ri.getID());
-            System.out.println(allyCD[0] + ", " + allyCD[1]);
+            // System.out.println(allyCD[0] + ", " + allyCD[1]);
             // if this ally action cooldown >= 10 and goes after me
             // or action cooldown >= 20 and goes before me, they won't be able to pick up the flag.
             if (allyCD[0] >= 10 && !Comms.turnOrderBefore(rc.getID(), ri.getID()) || 

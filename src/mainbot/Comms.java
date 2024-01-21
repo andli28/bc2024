@@ -53,15 +53,15 @@ public class Comms {
     // comms[19] ally build spec ducks
     // comms[20] ally heal spec ducks
     // comms[21:24][15], [11:6], [5:0] exists, x, y of 4 randomly sampled enemies
-    // comms[25] enemy alive count(overestimate)
 
-    // comms[26:28][15][11:6][5:0] closest enemy loc to each ally flag(current if
+    // comms[25:27][15][11:6][5:0] closest enemy loc to each ally flag(current if
     // exist, otherwise default)
 
-    // comms[29:41] ally cd tracking, 2 bit action cd 2 bit move cd for 50 units
+    // comms[28:40] ally cd tracking, 2 bit action cd 2 bit move cd for 50 units
     // in order of shortID
     // 00 - nothing, 01 - 10, 10 - 20, 11 - 20+
 
+    // comms[62] enemy alive count(overestimate)
     // comms[63] unit count for random sampling and id sequencing
     // these traps were set off between your last turn and your current turn, and so
     // could either be valid for 4 or 5 turns but for simplicity we assume 4
@@ -71,6 +71,7 @@ public class Comms {
     public static final int[] ENEMY_DEFAULT_FLAG_INDICES = { 9, 10, 11 };
     public static final int[] ENEMY_CURRENT_FLAG_INDICES = { 12, 13, 14 };
     public static final int[] STUN_TRAP_INDICES = { 30, 31, 32, 33 };
+    public static final int ENEMY_COUNT_INDEX = 62;
     public static final int SEQUENCE_INDEX = 63;
 
     public static RobotController rc;
@@ -119,29 +120,29 @@ public class Comms {
     public static void initialize() throws GameActionException {
         // this should be called round 1 before update and so first unit sees 0(before
         // sequence)
-        if (comms[SEQUENCE_INDEX] == 0) {
-            write(25, 50);
-        }
         sequence();
+        if (shortId == 0) {
+            write(ENEMY_COUNT_INDEX, 50);
+        }
         // absolute turn order noting
-        // uses comm indices 13 through 62 minus 63(sequence slot)
+        // uses comm indices 12 through 61
         for (int i = 0; i < shortId; i++) {
-            turnOrder[i] = comms[i + 13];
+            turnOrder[i] = comms[i + 12];
         }
         // write own id
         turnOrder[shortId] = rc.getID();
-        write(shortId + 13, rc.getID());
+        write(shortId + 12, rc.getID());
     }
 
     // finish getting turn order next turn
     public static void init2() throws GameActionException {
         for (int i = shortId + 1; i < 50; i++) {
-            turnOrder[i] = comms[i + 13];
+            turnOrder[i] = comms[i + 12];
         }
         // clear all these indices if you are last unit
         if (shortId == 49) {
             for (int i = 0; i < 50; i++) {
-                write(i + 13, 0);
+                write(i + 12, 0);
             }
         }
         // populate id to short id mapping
@@ -240,7 +241,7 @@ public class Comms {
                 break;
             }
         }
-        write(25, comms[25] + delta);
+        write(ENEMY_COUNT_INDEX, comms[ENEMY_COUNT_INDEX] + delta);
         turnKillCount = 0;
         prevSpec = curSpec;
 
@@ -265,7 +266,7 @@ public class Comms {
     }
 
     public static int getEnemyCount() throws GameActionException {
-        return comms[25];
+        return comms[ENEMY_COUNT_INDEX];
     }
 
     // removes all occurences of a value from indices if exists
@@ -522,7 +523,7 @@ public class Comms {
             MapLocation enemy = sampledEnemies[i];
             if (closestSampleEnemyLoc == null
                     || (Pathfinder.travelDistance(closestSampleEnemyLoc, rc.getLocation()) > Pathfinder
-                            .travelDistance(enemy, rc.getLocation()))) {
+                    .travelDistance(enemy, rc.getLocation()))) {
                 closestSampleEnemyLoc = enemy;
             }
         }
@@ -532,7 +533,7 @@ public class Comms {
     // returns arr of size 3 containing enemy locations closest to each ally
     // flag(current if exists, otherwise default), can have null entries
     public static MapLocation[] getClosestEnemyToAllyFlags() throws GameActionException {
-        return new MapLocation[] { decodeLoc(comms[26]), decodeLoc(comms[27]), decodeLoc(comms[28]) };
+        return new MapLocation[] { decodeLoc(comms[25]), decodeLoc(comms[26]), decodeLoc(comms[27]) };
     }
 
     // absurdlyLongCamelCaseFunctionNameShowcaseNumberOne.png
@@ -578,7 +579,7 @@ public class Comms {
         }
         // write these to comms if closer than whats in comms
         for (int i = 3; --i >= 0;) {
-            MapLocation commClosestEnemy = decodeLoc(comms[26 + i]);
+            MapLocation commClosestEnemy = decodeLoc(comms[25 + i]);
             MapLocation localClosestEnemy = closestEnemiesToFlags[i];
             if (localClosestEnemy == null)
                 continue;
@@ -586,8 +587,8 @@ public class Comms {
             if (commClosestEnemy == null || Pathfinder.travelDistance(allyFlagLoc, commClosestEnemy) > Pathfinder
                     .travelDistance(allyFlagLoc, localClosestEnemy)) {
                 int toWrite = encodeLoc(localClosestEnemy);
-                write(26 + i, toWrite);
-                refreshIdxs[++refreshPtr] = 26 + i;
+                write(25 + i, toWrite);
+                refreshIdxs[++refreshPtr] = 25 + i;
                 prevVals[refreshPtr] = toWrite;
             }
         }
@@ -599,7 +600,7 @@ public class Comms {
     public static int[] getAllyCDs(int tgtID) {
         int allyShortId = idToShortId.get(tgtID);
         int[] cds = new int[2];
-        int comm_idx = 29 + allyShortId / 4;
+        int comm_idx = 28 + allyShortId / 4;
         // offset from right, this is basically big endian
         int comm_offset = 4 * (3 - (allyShortId % 4));
         int cd_bits = comms[comm_idx] >> comm_offset;
@@ -609,7 +610,7 @@ public class Comms {
     }
 
     public static void writeSelfCDs() throws GameActionException {
-        int comm_idx = 29 + shortId / 4;
+        int comm_idx = 28 + shortId / 4;
         // offset from right, this is basically big endian
         int comm_offset = 4 * (3 - (shortId % 4));
         // 4 cd bits
