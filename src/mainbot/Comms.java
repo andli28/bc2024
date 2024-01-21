@@ -41,34 +41,37 @@ public class Comms {
     // comms[0:2][11:6], [5:0] x, y coords of default ally flag locs
     // comms[3:5][15] ally flag exists
     // comms[3:5][11:6], [5:0] x, y coords of current ally flag locs
-    // comms[6:8][15] enemy flag exists
-    // comms[6:8][11:6], [5:0] x, y coords of default enemy flag locs
+    // comms[6:8] flag ids of ally flags, all ally flag info follows this order
+    // ex: comms[0] will always be same flag as comms[3] and comms[6]
+
     // comms[9:11][15] enemy flag exists
-    // comms[9:11][11:6], [5:0] x, y coords of current enemy flag locs
-    // comms[12] ally attack spec ducks
-    // comms[13] ally build spec ducks
-    // comms[14] ally heal spec ducks
-    // comms[15:18][15], [11:6], [5:0] exists, x, y of 4 randomly sampled enemies
-    // comms[19] unit count for random sampling and id sequencing
-    // comms[20] enemy alive count(overestimate)
+    // comms[9:11][11:6], [5:0] x, y coords of default enemy flag locs
+    // comms[12:14][15] enemy flag exists
+    // comms[12:14][11:6], [5:0] x, y coords of current enemy flag locs
+    // comms[15:17] flag ids of enemy flags, all enemy flag info follows this order
+    // comms[18] ally attack spec ducks
+    // comms[19] ally build spec ducks
+    // comms[20] ally heal spec ducks
+    // comms[21:24][15], [11:6], [5:0] exists, x, y of 4 randomly sampled enemies
+    // comms[25] enemy alive count(overestimate)
 
-    // this ordered wack since flag ids only added later
-    // comms[21:23] flag ids of ally flags, all ally flag info follows this order
-    // ex: comms[0] will always be same flag as comms[3] and comms[21]
-    // comms[24:26] flag ids of enemy flags, all enemy flag info follows this order
-
-    // comms[27:29][15][11:6][5:0] closest enemy loc to each ally flag(current if
+    // comms[26:28][15][11:6][5:0] closest enemy loc to each ally flag(current if
     // exist, otherwise default)
 
-    // comms[30:33] 4 random set off stun trap locations(assumed valid for 4 turns)
+    // comms[29:41] ally cd tracking, 2 bit action cd 2 bit move cd for 50 units
+    // in order of shortID
+    // 00 - nothing, 01 - 10, 10 - 20, 11 - 20+
+
+    // comms[63] unit count for random sampling and id sequencing
     // these traps were set off between your last turn and your current turn, and so
     // could either be valid for 4 or 5 turns but for simplicity we assume 4
 
     public static final int[] ALLY_DEFAULT_FLAG_INDICES = { 0, 1, 2 };
     public static final int[] ALLY_CURRENT_FLAG_INDICES = { 3, 4, 5 };
-    public static final int[] ENEMY_DEFAULT_FLAG_INDICES = { 6, 7, 8 };
-    public static final int[] ENEMY_CURRENT_FLAG_INDICES = { 9, 10, 11 };
+    public static final int[] ENEMY_DEFAULT_FLAG_INDICES = { 9, 10, 11 };
+    public static final int[] ENEMY_CURRENT_FLAG_INDICES = { 12, 13, 14 };
     public static final int[] STUN_TRAP_INDICES = { 30, 31, 32, 33 };
+    public static final int SEQUENCE_INDEX = 63;
 
     public static RobotController rc;
     public static int[] comms = new int[64];
@@ -88,71 +91,14 @@ public class Comms {
     public static int[] prevVals = new int[16];
     public static int refreshPtr = -1;
 
-    // stun trap tracking(only traps within vision end of last/start of this turn)
-    // could technically improve to intersection of all vision last turn and this
-    // turn but then movement needs to be integrated
-    // public static LinkedList<Pair<MapLocation, Integer>> stunlockedEnemies = new
-    // LinkedList<>();
-    // public static HashSet<MapLocation> stunlockEnemySet = new HashSet<>();
-    // public static HashSet<MapLocation> prevTurnTraps = new HashSet<>();
-    // public static LinkedList<MapLocation> currTurnEnemyStuns = new
-    // LinkedList<>();
+    // absolute turn order robotIDs
+    public static int[] turnOrder = new int[50];
 
     public static void receive() throws GameActionException {
         // yea yea unroll this later
         for (int i = 64; --i >= 0;) {
             comms[i] = rc.readSharedArray(i);
         }
-
-        // if alive
-        // if (rc.isSpawned()) {
-        // // update stun traps received from comms and locally
-        // // local can +5, comms +4 since could be 1 turn off
-        // // update list
-        // Pair<MapLocation, Integer> head = stunlockedEnemies.peek();
-        // while (head != null && head.second <= rc.getRoundNum()) {
-        // stunlockedEnemies.remove();
-        // stunlockEnemySet.remove(head.first);
-        // head = stunlockedEnemies.peek();
-        // }
-
-        // // add the comms entry first to maintain non decreasing order
-        // for (int i = 4; --i >= 0;) {
-        // MapLocation stunTrapLoc = decodeLoc(comms[i + 30]);
-        // if (stunTrapLoc != null) {
-        // stunlockedEnemies.add(new Pair<>(stunTrapLoc, rc.getRoundNum() + 4));
-        // stunlockEnemySet.add(stunTrapLoc);
-        // }
-        // }
-
-        // // add any local entries
-        // MapInfo[] nearbyMapInfos = rc.senseNearbyMapInfos();
-        // HashSet<MapLocation> currTraps = new HashSet<>();
-        // for (int i = nearbyMapInfos.length; --i >= 0;) {
-        // MapInfo curr = nearbyMapInfos[i];
-        // if (curr.getTrapType() == TrapType.STUN) {
-        // currTraps.add(curr.getMapLocation());
-        // }
-        // }
-        // Iterator it = prevTurnTraps.iterator();
-        // while (it.hasNext()) {
-        // MapLocation loc = (MapLocation) it.next();
-        // if (!currTraps.contains(loc)) {
-        // // scan in trap range around and add all stunned enemies
-        // RobotInfo[] stunnedEnemies = rc.senseNearbyRobots(loc, 13,
-        // rc.getTeam().opponent());
-        // for (int i = stunnedEnemies.length; --i >= 0;) {
-        // MapLocation stunloc = stunnedEnemies[i].getLocation();
-        // currTurnEnemyStuns.add(stunloc);
-        // stunlockedEnemies.add(new Pair<MapLocation, Integer>(stunloc,
-        // rc.getRoundNum() + 5));
-        // stunlockEnemySet.add(stunloc);
-        // }
-        // }
-        // }
-        // // in case comms outdated
-        // updateStunnedEnemies();
-        // }
     }
 
     public static void write(int index, int val) throws GameActionException {
@@ -164,18 +110,39 @@ public class Comms {
 
     // sequence unit ids(0-49) assumes starts at 0
     public static void sequence() throws GameActionException {
-        shortId = comms[19];
-        write(19, shortId + 1);
+        shortId = comms[SEQUENCE_INDEX];
+        write(SEQUENCE_INDEX, shortId + 1);
     }
 
     // init comm values updated by first unit
     public static void initialize() throws GameActionException {
         // this should be called round 1 before update and so first unit sees 0(before
         // sequence)
-        if (comms[19] == 0) {
-            write(20, 50);
+        if (comms[SEQUENCE_INDEX] == 0) {
+            write(25, 50);
         }
         sequence();
+        // absolute turn order noting
+        // uses comm indices 13 through 62 minus 63(sequence slot)
+        for (int i = 0; i < shortId; i++) {
+            turnOrder[i] = comms[i + 13];
+        }
+        // write own id
+        turnOrder[shortId] = rc.getID();
+        write(shortId + 13, rc.getID());
+    }
+
+    // finish getting turn order next turn
+    public static void init2() throws GameActionException {
+        for (int i = shortId + 1; i < 50; i++) {
+            turnOrder[i] = comms[i + 13];
+        }
+        // clear all these indices if you are last unit
+        if (shortId == 49) {
+            for (int i = 0; i < 50; i++) {
+                write(i + 13, 0);
+            }
+        }
     }
 
     public static void update() throws GameActionException {
@@ -209,26 +176,26 @@ public class Comms {
         if (curSpec != prevSpec) {
             switch (prevSpec) {
                 case ATT:
-                    write(12, comms[12] - 1);
+                    write(18, comms[18] - 1);
                     break;
                 case BUILD:
-                    write(13, comms[13] - 1);
+                    write(19, comms[19] - 1);
                     break;
                 case HEAL:
-                    write(14, comms[14] - 1);
+                    write(20, comms[20] - 1);
                     break;
                 case NONE:
                     break;
             }
             switch (curSpec) {
                 case ATT:
-                    write(12, comms[12] + 1);
+                    write(18, comms[18] + 1);
                     break;
                 case BUILD:
-                    write(13, comms[13] + 1);
+                    write(19, comms[19] + 1);
                     break;
                 case HEAL:
-                    write(14, comms[14] + 1);
+                    write(20, comms[20] + 1);
                     break;
                 case NONE:
                     break;
@@ -239,13 +206,15 @@ public class Comms {
         if (rc.isSpawned()) {
             // reformat to extract this
             // optimally 1 call pre and post move
-            nearbyEnemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
-            sampleRandomEnemies();
             nearbyFlags = rc.senseNearbyFlags(-1);
             updateFlagLocs();
-            updateCurrFlags();
-            updateClosestEnemyToAllyFlags();
-            // updateStunTrapLocs();
+            if (rc.getRoundNum() > 2) {
+                nearbyEnemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
+                sampleRandomEnemies();
+                updateCurrFlags();
+                updateClosestEnemyToAllyFlags();
+                writeSelfCDs();
+            }
         }
         prevEndTurnLoc = rc.isSpawned() ? rc.getLocation() : null;
 
@@ -266,58 +235,32 @@ public class Comms {
                 break;
             }
         }
-        write(20, comms[20] + delta);
+        write(25, comms[25] + delta);
         turnKillCount = 0;
         prevSpec = curSpec;
-
-        // stun trap stuff
-        // currTurnEnemyStuns.clear();
-        // prevTurnTraps.clear();
-        // if (rc.isSpawned()) {
-        // MapInfo[] nearbyMapInfos = rc.senseNearbyMapInfos();
-        // for (int i = nearbyMapInfos.length; --i >= 0;) {
-        // MapInfo mi = nearbyMapInfos[i];
-        // if (mi.getTrapType() == TrapType.STUN) {
-        // prevTurnTraps.add(mi.getMapLocation());
-        // }
-        // }
-        // }
 
         // clear comms if last unit for next turn
         if (shortId == 49) {
             // clear unit spec, sequence
-            write(19, 0);
-            // debug flag locations
-            // System.out.println("aid1: " + comms[21] + "\naid2: " + comms[22] + "\naid3: "
-            // + comms[23] + "\nafd1: "
-            // + decodeLoc(comms[0]) + "\nafd2: " + decodeLoc(comms[1]) + "\nafd3: "
-            // + decodeLoc(comms[2]) + "\nafc1: " + decodeLoc(comms[3]) + "\nafc2: " +
-            // decodeLoc(comms[4])
-            // + "\nafc3: " + decodeLoc(comms[5]));
-            // System.out.println("eid1: " + comms[24] + "\neid2: " + comms[25] + "\neid3: "
-            // + comms[26] + "\nefd1: "
-            // + decodeLoc(comms[6]) + "\nefd2: " + decodeLoc(comms[7]) + "\nefd3: "
-            // + decodeLoc(comms[8]) + "\nefc1: " + decodeLoc(comms[9]) + "\nefc2: " +
-            // decodeLoc(comms[10])
-            // + "\nefc3: " + decodeLoc(comms[11]));
+            write(SEQUENCE_INDEX, 0);
         }
 
     }
 
     public static int getAllyAttackSpecs() {
-        return comms[12];
+        return comms[18];
     }
 
     public static int getAllyBuildSpecs() {
-        return comms[13];
+        return comms[19];
     }
 
     public static int getAllyHealSpecs() {
-        return comms[14];
+        return comms[20];
     }
 
     public static int getEnemyCount() throws GameActionException {
-        return comms[20];
+        return comms[25];
     }
 
     // removes all occurences of a value from indices if exists
@@ -352,7 +295,7 @@ public class Comms {
     // matches read id to recorded flag id index(both enemy and ally)
     static int getFlagIndexFromID(int flagID) {
         for (int i = 3; --i >= 0;) {
-            if (comms[i + 21] == flagID || comms[i + 24] == flagID)
+            if (comms[i + 6] == flagID || comms[i + 15] == flagID)
                 return i;
         }
         return -1;
@@ -380,7 +323,7 @@ public class Comms {
                     int idx = getFlagIndexFromID(fi.getID());
                     if (idx == -1) {
                         int firstFree = writeToFirstAvail(fi.getLocation(), ALLY_DEFAULT_FLAG_INDICES);
-                        write(21 + firstFree, fi.getID());
+                        write(6 + firstFree, fi.getID());
                     }
                 } else if (rc.getRoundNum() > 200) {
                     // use id to put in correct slot
@@ -392,15 +335,15 @@ public class Comms {
                 }
             } else {
                 // default/current enemy flag loc
-                if (!fi.isPickedUp()) {
+                if (!fi.isPickedUp() && rc.getRoundNum() > 2) {
                     int idx = getFlagIndexFromID(fi.getID());
                     if (idx == -1) {
                         // new default enemy flag found! naisu!
                         int firstFree = writeToFirstAvail(fi.getLocation(), ENEMY_DEFAULT_FLAG_INDICES);
-                        idx = firstFree - 6;
-                        write(24 + idx, fi.getID());
+                        idx = firstFree - 9;
+                        write(15 + idx, fi.getID());
                     }
-                    write(9 + idx, encodeLoc(fi.getLocation()));
+                    write(12 + idx, encodeLoc(fi.getLocation()));
                 }
             }
 
@@ -411,7 +354,7 @@ public class Comms {
                     // currents)
                     int idx = getFlagIndexFromID(fi.getID());
                     if (idx != -1) {
-                        write(9 + idx, encodeLoc(fi.getLocation()));
+                        write(12 + idx, encodeLoc(fi.getLocation()));
                     }
                 }
             }
@@ -422,7 +365,7 @@ public class Comms {
     public static void updateCurrFlags() throws GameActionException {
         for (int i = 3; --i >= 0;) {
             // enemy flags
-            MapLocation loc = decodeLoc(comms[9 + i]);
+            MapLocation loc = decodeLoc(comms[12 + i]);
             // can only invalidate comm if you can see the loc
             if (loc == null || loc.distanceSquaredTo(rc.getLocation()) > GameConstants.VISION_RADIUS_SQUARED)
                 continue;
@@ -433,7 +376,7 @@ public class Comms {
                 }
             }
             if (!validComm)
-                write(9 + i, 0);
+                write(12 + i, 0);
         }
 
         for (int i = 3; --i >= 0;) {
@@ -463,12 +406,12 @@ public class Comms {
 
     // can have null entries if we have not seen em
     public static MapLocation[] getDefaultEnemyFlagLocations() {
-        return new MapLocation[] { decodeLoc(comms[6]), decodeLoc(comms[7]), decodeLoc(comms[8]) };
+        return new MapLocation[] { decodeLoc(comms[9]), decodeLoc(comms[10]), decodeLoc(comms[11]) };
     }
 
     // can have null entries
     public static MapLocation[] getCurrentEnemyFlagLocations() {
-        return new MapLocation[] { decodeLoc(comms[9]), decodeLoc(comms[10]), decodeLoc(comms[11]) };
+        return new MapLocation[] { decodeLoc(comms[12]), decodeLoc(comms[13]), decodeLoc(comms[14]) };
     }
 
     // returns arr of size 3 containing displaced enemy flag current locs, can
@@ -533,32 +476,6 @@ public class Comms {
         return closest;
     }
 
-    // public static MapLocation[] getStunnedEnemies() throws GameActionException {
-    // MapLocation[] locs = new MapLocation[stunlockedEnemies.size()];
-    // int idx = 0;
-    // Iterator it = stunlockEnemySet.iterator();
-    // while (it.hasNext()) {
-    // locs[idx] = (MapLocation) it.next();
-    // idx++;
-    // }
-    // return locs;
-    // }
-
-    // public static MapLocation getClosestStunnedEnemy() throws GameActionException
-    // {
-    // MapLocation[] traps = getStunnedEnemies();
-    // MapLocation closest = null;
-    // for (int i = traps.length; --i >= 0;) {
-    // MapLocation loc = traps[i];
-    // if (closest == null || Pathfinder.travelDistance(loc, rc.getLocation()) <
-    // Pathfinder.travelDistance(closest,
-    // rc.getLocation())) {
-    // closest = loc;
-    // }
-    // }
-    // return closest;
-    // }
-
     public static void clearRandomEnemies() throws GameActionException {
         write(15, 0);
         write(16, 0);
@@ -570,13 +487,13 @@ public class Comms {
         if (nearbyEnemies.length > 0 && rc.canWriteSharedArray(63, 0)) {
             for (int i = 4; --i >= 0;) {
                 RobotInfo r = nearbyEnemies[RobotPlayer.rng.nextInt(nearbyEnemies.length)];
-                MapLocation currSight = decodeLoc(comms[15 + i]);
+                MapLocation currSight = decodeLoc(comms[21 + i]);
                 // TODO now that enemy sighting clear is controlled by writer idt this pr calc
                 // is correct
                 if (currSight == null || (RobotPlayer.rng.nextDouble() < 1.f / 50)) {
                     int toWrite = encodeLoc(r.getLocation());
-                    write(15 + i, toWrite);
-                    refreshIdxs[++refreshPtr] = 15 + i;
+                    write(21 + i, toWrite);
+                    refreshIdxs[++refreshPtr] = 21 + i;
                     prevVals[refreshPtr] = toWrite;
                     break;
                 }
@@ -588,7 +505,7 @@ public class Comms {
     public static MapLocation[] getSampledEnemies() throws GameActionException {
         MapLocation[] enemies = new MapLocation[4];
         for (int i = 4; --i >= 0;) {
-            enemies[i] = decodeLoc(comms[15 + i]);
+            enemies[i] = decodeLoc(comms[21 + i]);
         }
         return enemies;
     }
@@ -610,7 +527,7 @@ public class Comms {
     // returns arr of size 3 containing enemy locations closest to each ally
     // flag(current if exists, otherwise default), can have null entries
     public static MapLocation[] getClosestEnemyToAllyFlags() throws GameActionException {
-        return new MapLocation[] { decodeLoc(comms[27]), decodeLoc(comms[28]), decodeLoc(comms[29]) };
+        return new MapLocation[] { decodeLoc(comms[26]), decodeLoc(comms[27]), decodeLoc(comms[28]) };
     }
 
     // absurdlyLongCamelCaseFunctionNameShowcaseNumberOne.png
@@ -656,7 +573,7 @@ public class Comms {
         }
         // write these to comms if closer than whats in comms
         for (int i = 3; --i >= 0;) {
-            MapLocation commClosestEnemy = decodeLoc(comms[27 + i]);
+            MapLocation commClosestEnemy = decodeLoc(comms[26 + i]);
             MapLocation localClosestEnemy = closestEnemiesToFlags[i];
             if (localClosestEnemy == null)
                 continue;
@@ -664,45 +581,39 @@ public class Comms {
             if (commClosestEnemy == null || Pathfinder.travelDistance(allyFlagLoc, commClosestEnemy) > Pathfinder
                     .travelDistance(allyFlagLoc, localClosestEnemy)) {
                 int toWrite = encodeLoc(localClosestEnemy);
-                write(27 + i, toWrite);
-                refreshIdxs[++refreshPtr] = 27 + i;
+                write(26 + i, toWrite);
+                refreshIdxs[++refreshPtr] = 26 + i;
                 prevVals[refreshPtr] = toWrite;
             }
         }
     }
 
-    // pushes the local stun trap activation realizes from start of turn to
-    // comms(first 4), refresh on your next turn
-    // public static void updateStunTrapLocs() throws GameActionException {
-    // Iterator it = currTurnEnemyStuns.iterator();
-    // while (it.hasNext()) {
-    // MapLocation loc = (MapLocation) it.next();
-    // int idx = writeToFirstAvail(loc, STUN_TRAP_INDICES);
-    // if (idx != -1) {
-    // refreshIdxs[++refreshPtr] = idx;
-    // prevVals[refreshPtr] = encodeLoc(loc);
-    // }
-    // }
-    // }
+    // cd returned is either 0, 10, 20, or 30(anything over 20)
+    // cd is rounded down to nearest 10
+    // returns [action, move] cds of ally
+    public static int[] getAllyCDs(int tgtID) {
+        int[] cds = new int[2];
+        int comm_idx = 29 + tgtID / 4;
+        // offset from right, this is basically big endian
+        int comm_offset = 4 * (3 - (tgtID % 4));
+        int cd_bits = comms[comm_idx] >> comm_offset;
+        cds[0] = 10 * (cd_bits >> 2) & 0x3;
+        cds[1] = 10 * (cd_bits & 0x3);
+        return cds;
+    }
 
-    // at least locally clear your own stunned enemy cache if you see theres nothing
-    // there anymore(enemy is ded)
-    // public static void updateStunnedEnemies() throws GameActionException {
-    // // these data structure choices are quite questionable i must say
-    // Iterator it = stunlockEnemySet.iterator();
-    // while (it.hasNext()) {
-    // MapLocation loc = ((Pair<MapLocation, Integer>) it.next()).first;
-    // // if the enemy there doid we remove this node of arr list
-    // if (rc.canSenseLocation(loc) && !rc.canSenseRobotAtLocation(loc)) {
-    // stunlockEnemySet.remove(loc);
-    // }
-    // }
-    // }
-
-    // public static boolean stunnedEnemiesContains(MapLocation enemy) throws
-    // GameActionException {
-    // return stunlockEnemySet.contains(enemy);
-    // }
+    public static void writeSelfCDs() throws GameActionException {
+        int comm_idx = 29 + shortId / 4;
+        // offset from right, this is basically big endian
+        int comm_offset = 4 * (3 - (shortId % 4));
+        // 4 cd bits
+        int action_cd = Math.min(rc.getActionCooldownTurns(), 30) / 10;
+        int move_cd = Math.min(rc.getMovementCooldownTurns(), 30) / 10;
+        // bmask to mask out old self cd vals, bit manip
+        int bmask = ~(0xf << comm_offset);
+        int fcomm_val = (bmask & comms[comm_idx]) | ((action_cd << 2 | move_cd) << comm_offset);
+        write(comm_idx, fcomm_val);
+    }
 
     static int encodeLoc(MapLocation loc) {
         // as x and y coords <= 63 and non neg they fit in 6 bits

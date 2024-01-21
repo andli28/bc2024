@@ -155,6 +155,8 @@ public strictfp class RobotPlayer {
 
                 if (rc.getRoundNum() == 1) {
                     Comms.initialize();
+                } else if (rc.getRoundNum() == 2) {
+                    Comms.init2();
                 }
                 // Default battlecode code for spawning:
                 // Make sure you spawn your robot in before you attempt to take any actions!
