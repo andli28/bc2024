@@ -50,8 +50,8 @@ public class Pathfinder {
         // if direct is blocked
         boolean directPassable = rc.senseMapInfo(src.add(dirTo)).isPassable();
 
-        // direct greedily(8 dir) if can until we cant get closer, then buhg
-        if (buhgDir == Rot.NONE) {
+        // direct greedily(8 dir) if can until impassible 1 tile no los, then buhg
+        if (directPassable && buhgDir == Rot.NONE) {
             Direction bestDir = Direction.CENTER;
             int minDist = 9999;
             for (Direction d : Direction.allDirections()) {
@@ -64,9 +64,7 @@ public class Pathfinder {
                     bestDir = d;
                 }
             }
-            if (minDist < travelDistance(src, tgt)) {
-                return bestDir;
-            }
+            return bestDir;
         }
 
         // if (rc.getID() == 11291)
