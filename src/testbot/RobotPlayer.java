@@ -146,9 +146,9 @@ public strictfp class RobotPlayer {
             turnCount += 1; // We have now been alive for one more turn!
 
             // Resignation at 500 turns for testing purposes
-             if (turnCount == 700) {
-             rc.resign();
-             }
+//             if (turnCount == 700) {
+//             rc.resign();
+//             }
 
             // Try/catch blocks stop unhandled exceptions, which cause your robot to
             // explode.
@@ -1044,7 +1044,8 @@ public strictfp class RobotPlayer {
                         }
                     }
 
-                    while (lowestCurrFriendly != null && rc.canHeal(lowestCurrFriendly) && attackerCanHeal) {
+                    while (lowestCurrFriendly != null && rc.canHeal(lowestCurrFriendly) &&
+                            (closestHostile == null || rc.getLocation().distanceSquaredTo(closestHostile) > 10)) {
                         rc.heal(lowestCurrFriendly);
                     }
 
@@ -1997,7 +1998,7 @@ public strictfp class RobotPlayer {
     }
 
     public static boolean aNeighborIsADamOrWall(RobotController rc, MapLocation x) throws GameActionException {
-        MapInfo[] locations = rc.senseNearbyMapInfos(x, 2);
+        MapInfo[] locations = rc.senseNearbyMapInfos(x, 4);
         for (int i = locations.length - 1; i >= 0; i--) {
             if (locations[i].isDam() || locations[i].isWall()) {
                 return true;

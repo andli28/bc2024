@@ -146,9 +146,9 @@ public strictfp class RobotPlayer {
             turnCount += 1; // We have now been alive for one more turn!
 
             // Resignation at 500 turns for testing purposes
-            // if (turnCount == 200) {
-            // rc.resign();
-            // }
+//             if (turnCount == 700) {
+//             rc.resign();
+//             }
 
             // Try/catch blocks stop unhandled exceptions, which cause your robot to
             // explode.
@@ -1044,7 +1044,8 @@ public strictfp class RobotPlayer {
                         }
                     }
 
-                    while (lowestCurrFriendly != null && rc.canHeal(lowestCurrFriendly) && attackerCanHeal) {
+                    while (lowestCurrFriendly != null && rc.canHeal(lowestCurrFriendly) &&
+                            (closestHostile == null || rc.getLocation().distanceSquaredTo(closestHostile) > 10)) {
                         rc.heal(lowestCurrFriendly);
                     }
 
@@ -1198,7 +1199,7 @@ public strictfp class RobotPlayer {
      * @throws GameActionException
      */
     public static void layTrap(RobotController rc, MapLocation nearestExplosiveTrap, MapLocation nearestStunTrap,
-            int explosiveTrapPreferredDist, int stunTrapPreferredDist)
+                               int explosiveTrapPreferredDist, int stunTrapPreferredDist)
             throws GameActionException {
         // Iterate through all building directions, and go through the following logic:
         // 1 . If there are no nearby Explosive traps, build one,
@@ -1283,9 +1284,9 @@ public strictfp class RobotPlayer {
      * @throws GameActionException
      */
     public static void layTrapWithinRangeOfEnemy(RobotController rc, MapLocation nearestExplosiveTrap,
-            MapLocation nearestStunTrap, RobotInfo[] enemies, MapLocation closestEnemy, int explosiveTrapPreferredDist,
-            int stunTrapPreferredDist,
-            int buildThreshold) throws GameActionException {
+                                                 MapLocation nearestStunTrap, RobotInfo[] enemies, MapLocation closestEnemy, int explosiveTrapPreferredDist,
+                                                 int stunTrapPreferredDist,
+                                                 int buildThreshold) throws GameActionException {
         // Iterate through all building directions, and go through the following logic:
         // 1 . If there are no nearby Explosive traps, build one,
         // 2. Else if there are no nearby Stun Traps, build one.
@@ -1370,7 +1371,7 @@ public strictfp class RobotPlayer {
      * @throws GameActionException
      */
     public static void attackMove(RobotController rc, Direction optimalDir, MapLocation lowestCurrHostile,
-            int lowestCurrHostileHealth) throws GameActionException {
+                                  int lowestCurrHostileHealth) throws GameActionException {
         // Calculate what would be the lowest health of a hostile after a movement.
         MapLocation aflowestCurrHostile = null;
         int aflowestCurrHostileHealth = Integer.MAX_VALUE;
@@ -1440,7 +1441,7 @@ public strictfp class RobotPlayer {
     }
 
     public static void healMove(RobotController rc, Direction optimalDir, MapLocation lowestCurrFriend,
-            int lowestCurrFriendHealth, boolean attackerCanHeal) throws GameActionException {
+                                int lowestCurrFriendHealth, boolean attackerCanHeal) throws GameActionException {
         // Calculate what would be the lowest health of a friend after a movement.
         MapLocation aflowestCurrFriend = null;
         int aflowestCurrFriendHealth = Integer.MAX_VALUE;
@@ -1547,8 +1548,8 @@ public strictfp class RobotPlayer {
 
     public static Direction findOptimalCombatDir(RobotController rc, RobotInfo[] enemies, MapLocation lowestCurrHostile, MapLocation closestHostile,
                                                  MapLocation hideBehindFriend, MapLocation protectFriend,
-            float averageDistFromEnemies, double woundedRetreatThreshold,
-            int numHostiles, int numFriendlies) throws GameActionException {
+                                                 float averageDistFromEnemies, double woundedRetreatThreshold,
+                                                 int numHostiles, int numFriendlies) throws GameActionException {
         // Calculate the best retreating direction and best attackign direction
         // Simulate moving to any of the four cardinal directions. Calculate the average
         // distance from all enemies.
@@ -1818,7 +1819,7 @@ public strictfp class RobotPlayer {
     }
 
     public static double orthagonalDistanceOfP3RelativeToP2OnVectorP1P2(MapLocation P1, MapLocation P2,
-            MapLocation P3) {
+                                                                        MapLocation P3) {
         // Set P1 as origin:
         double x2 = P2.x - P1.x;
         double x3 = P3.x - P1.x;
@@ -1840,7 +1841,7 @@ public strictfp class RobotPlayer {
     }
 
     public static Direction findOptimalTrapKiteDir(RobotController rc, MapLocation closestEnemy, RobotInfo[] enemies,
-            MapLocation nearestTrap) {
+                                                   MapLocation nearestTrap) {
         Direction optimalDir = null;
         double optimalOrthoDist = Integer.MIN_VALUE;
 
@@ -1869,7 +1870,7 @@ public strictfp class RobotPlayer {
     }
 
     public static Direction findOptimalPursuingStunDir(RobotController rc, RobotInfo[] enemies,
-            float averageDistFromEnemies) throws GameActionException {
+                                                       float averageDistFromEnemies) throws GameActionException {
         Direction bestAttack = null;
         double bestAttackDist = averageDistFromEnemies;
 
@@ -1997,7 +1998,7 @@ public strictfp class RobotPlayer {
     }
 
     public static boolean aNeighborIsADamOrWall(RobotController rc, MapLocation x) throws GameActionException {
-        MapInfo[] locations = rc.senseNearbyMapInfos(x, 2);
+        MapInfo[] locations = rc.senseNearbyMapInfos(x, 4);
         for (int i = locations.length - 1; i >= 0; i--) {
             if (locations[i].isDam() || locations[i].isWall()) {
                 return true;
@@ -2014,13 +2015,13 @@ public strictfp class RobotPlayer {
         int myTravelDistHome = Pathfinder.trueTravelDistance(rc.getLocation(), Info.closestSpawn);
         for (int i = Info.friendly_robots.length; --i >= 0;) {
             RobotInfo ri = Info.friendly_robots[i];
-            
+
             int[] allyCD = Comms.getAllyCDs(ri.getID());
             // System.out.println(allyCD[0] + ", " + allyCD[1]);
             // if this ally action cooldown >= 10 and goes after me
             // or action cooldown >= 20 and goes before me, they won't be able to pick up the flag.
-            if (allyCD[0] >= 10 && !Comms.turnOrderBefore(rc.getID(), ri.getID()) || 
-                allyCD[0] >= 20 && Comms.turnOrderBefore(rc.getID(), ri.getID())){
+            if (allyCD[0] >= 10 && !Comms.turnOrderBefore(rc.getID(), ri.getID()) ||
+                    allyCD[0] >= 20 && Comms.turnOrderBefore(rc.getID(), ri.getID())){
                 continue;
             }
 
