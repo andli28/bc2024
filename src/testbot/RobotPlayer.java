@@ -1,4 +1,4 @@
-package mainbot;
+package testbot;
 
 import battlecode.common.*;
 import battlecode.world.Flag;
