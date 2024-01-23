@@ -685,7 +685,7 @@ public strictfp class RobotPlayer {
                         haveSeenCombat = true;
                         rc.setIndicatorString("In combat");
                     } else if (shouldNotTrain && Info.numFlagsNearbyNotPickedUp != 0) {
-                        role = CAPTURING;
+                        role = CAPTURING; //changed here
                         rc.setIndicatorString("Capturing");
                     } else if (closestDisplacedFlag != null &&
                             rc.senseMapInfo(rc.getLocation()).getTeamTerritory().equals(rc.getTeam())
@@ -1569,6 +1569,7 @@ public strictfp class RobotPlayer {
         float bestMaintainDist = Integer.MAX_VALUE;
         float bestRetreatDist = averageDistFromEnemies;
         float bestAttackDist = Integer.MAX_VALUE;
+        int lowestHostiles = Integer.MAX_VALUE;
         float numEnemiesIfChase = Integer.MAX_VALUE;
 
         Direction[] validCombatDirs = directions;
@@ -1592,6 +1593,11 @@ public strictfp class RobotPlayer {
                     }
                 }
                 float averageDist = (float) averageDistanceSquaredFrom(enemies, tempLoc);
+//                int numHostilesCanAttack = rc.senseNearbyRobots(tempLoc, GameConstants.ATTACK_RADIUS_SQUARED, rc.getTeam().opponent()).length;
+//                if (numHostilesCanAttack < lowestHostiles && numHostilesCanAttack > 0) {
+//                    lowestHostiles = numHostilesCanAttack;
+//                    bestAttack = validCombatDirs[i];
+//                }
                 if (averageDist > 3 && averageDist < bestAttackDist) {
                     bestAttackDist = averageDist;
                     bestAttack = validCombatDirs[i];
@@ -1640,6 +1646,7 @@ public strictfp class RobotPlayer {
         MapLocation advanceLoc = bestAttack == null ? rc.getLocation()
                 : rc.getLocation().add(bestAttack);
         int dmg = 0;
+        int dmgIfChill = 0;
         // int stunnedHostilesInVision = 0;
         for (int i = enemies.length; --i >= 0;) {
             RobotInfo enemy = enemies[i];
@@ -1648,6 +1655,10 @@ public strictfp class RobotPlayer {
             // if (!Comms.stunnedEnemiesContains(enemy.getLocation())) {
             if (enemy.getLocation().distanceSquaredTo(advanceLoc) <= 10) {
                 dmg += SkillType.ATTACK.skillEffect
+                        + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
+            }
+            if (enemy.getLocation().distanceSquaredTo(rc.getLocation()) <= 10) {
+                dmgIfChill += SkillType.ATTACK.skillEffect
                         + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
             }
             // } else {
@@ -1803,12 +1814,17 @@ public strictfp class RobotPlayer {
         // Now: Two options: Go in or get out
         // if going in gets you killed, go out. If there are more enemies than friends, go out. If you have no cooldown, go out.
         // Otherwise, go in.
+        //changed here
         if (rc.getHealth() <= dmg || numHostiles - 2 /*- stunnedHostilesInVision*/ >= numFriendlies
                 || (!rc.isActionReady() && !(rc.getActionCooldownTurns()/10 == 1 && rc.getLocation().distanceSquaredTo(closestHostile) >= 17))
                 || (rc.isActionReady() && lowestCurrHostile != null)) {
+//            if (rc.getHealth() <= dmg && rc.isActionReady() && rc.getHealth() > dmgIfChill) {
+//                optimalDir = null;
+//                rc.setIndicatorString("Chill " + dmgIfChill);
+//            }
             optimalDir = bestRetreat;
             if (optimalDir != null) {
-                rc.setIndicatorString("In combat bestRetreat: " + bestRetreat.toString());
+                rc.setIndicatorString("In combat bestRetreat: " + bestRetreat.toString() + " " + dmg);
             }
         } else {
             optimalDir = bestAttack;
