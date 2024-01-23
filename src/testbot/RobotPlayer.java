@@ -680,13 +680,13 @@ public strictfp class RobotPlayer {
                             && (bigCloseCrumb != null && turnCount > GameConstants.SETUP_ROUNDS - 40)) {
                         role = CRUMBS;
                         rc.setIndicatorString("CRUMBS: " + bigCloseCrumb.toString());
-                    } else if (shouldNotTrain && Info.numFlagsNearbyNotPickedUp != 0) {
-                        role = CAPTURING;
-                        rc.setIndicatorString("Capturing");
                     } else if (shouldNotTrain && (enemies.length != 0 && turnCount > GameConstants.SETUP_ROUNDS)) {
                         role = INCOMBAT;
                         haveSeenCombat = true;
                         rc.setIndicatorString("In combat");
+                    } else if (shouldNotTrain && Info.numFlagsNearbyNotPickedUp != 0) {
+                        role = CAPTURING;
+                        rc.setIndicatorString("Capturing");
                     } else if (closestDisplacedFlag != null &&
                             rc.senseMapInfo(rc.getLocation()).getTeamTerritory().equals(rc.getTeam())
                             && rc.getLocation().distanceSquaredTo(closestDisplacedFlag) < distanceForDefense) {
@@ -1804,7 +1804,8 @@ public strictfp class RobotPlayer {
         // if going in gets you killed, go out. If there are more enemies than friends, go out. If you have no cooldown, go out.
         // Otherwise, go in.
         if (rc.getHealth() <= dmg || numHostiles - 2 /*- stunnedHostilesInVision*/ >= numFriendlies
-                || !rc.isActionReady() || (rc.isActionReady() && lowestCurrHostile != null)) {
+                || (!rc.isActionReady() && !(rc.getActionCooldownTurns()/10 == 1 && rc.getLocation().distanceSquaredTo(closestHostile) >= 17))
+                || (rc.isActionReady() && lowestCurrHostile != null)) {
             optimalDir = bestRetreat;
             if (optimalDir != null) {
                 rc.setIndicatorString("In combat bestRetreat: " + bestRetreat.toString());
