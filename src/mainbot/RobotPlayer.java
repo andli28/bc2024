@@ -851,12 +851,13 @@ public strictfp class RobotPlayer {
                         optimalDir = findOptimalCombatDir(rc, enemies, lowestCurrHostile, closestHostile, friendlyToHideBehind, protectFriend, averageDistSqFromEnemies,
                                 woundedRetreatThreshold, numHostiles, numFriendlies);
                         if (optimalDir != null) {
-                            if (!SENTRY || (SENTRY && rc.getLocation().add(optimalDir)
+                            if (!SENTRY || (SENTRY && !retireSentry && rc.getLocation().add(optimalDir)
                                     .distanceSquaredTo(homeFlag) < sentryWanderingLimit)) {
                                 attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
                             }
                         } else {
                             rc.setIndicatorString("combat null: " + averageDistSqFromEnemies);
+                            attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
                         }
                         if (nearestWater != null) {
                             if (rc.canFill(nearestWater)) {
@@ -928,7 +929,7 @@ public strictfp class RobotPlayer {
                         // if you're a sentry, you cannot leave sight of the flag, so you are confined
                         // to a wandering limit
                         Direction dir = Pathfinder.pathfind(rc.getLocation(), lowestCurrFriendlySeen);
-                        if (!SENTRY || (SENTRY
+                        if (!SENTRY || (SENTRY && !retireSentry
                                 && rc.getLocation().add(dir).distanceSquaredTo(homeFlag) < sentryWanderingLimit)) {
                             healMove(rc, dir, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
                         }
