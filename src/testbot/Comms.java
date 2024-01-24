@@ -46,7 +46,7 @@ public class Comms {
 
     // comms[9:11][15] enemy flag exists
     // comms[9:11][11:6], [5:0] x, y coords of default enemy flag locs
-    // comms[12:14][15] enemy flag exists
+    // comms[12:14][15] enemy flag exists, [14] carry bit
     // comms[12:14][11:6], [5:0] x, y coords of current enemy flag locs
     // comms[15:17] flag ids of enemy flags, all enemy flag info follows this order
     // comms[18] ally attack spec ducks
@@ -73,6 +73,7 @@ public class Comms {
     public static final int[] STUN_TRAP_INDICES = { 30, 31, 32, 33 };
     public static final int ENEMY_COUNT_INDEX = 62;
     public static final int SEQUENCE_INDEX = 63;
+    public static final int CARRY_BIT = 14;
 
     public static RobotController rc;
     public static int[] comms = new int[64];
@@ -80,7 +81,7 @@ public class Comms {
 
     public static RobotInfo[] nearbyEnemies;
     public static FlagInfo[] nearbyFlags;
-    public static Team carrying;
+    public static int carry_idx = -1;
     public static Spec prevSpec = Spec.NONE;
     // killed enemy unit respawn tracking
     public static int turnKillCount = 0;
@@ -107,6 +108,7 @@ public class Comms {
         // check if info to write is already there and if can write
         if (rc.readSharedArray(index) != val && rc.canWriteSharedArray(index, val)) {
             rc.writeSharedArray(index, val);
+            comms[index] = val; // update locally
         }
     }
 
@@ -210,6 +212,9 @@ public class Comms {
 
         // sense updating for alive guys only
         if (rc.isSpawned()) {
+            if (!rc.hasFlag()) {
+                carry_idx = -1;
+            }
             // reformat to extract this
             // optimally 1 call pre and post move
             nearbyFlags = rc.senseNearbyFlags(-1);
@@ -220,6 +225,12 @@ public class Comms {
                 updateCurrFlags();
                 updateClosestEnemyToAllyFlags();
                 writeSelfCDs();
+            }
+        } else {
+            // if dead clear carry bit from flag you were carrying
+            if (carry_idx != -1) {
+                write(12 + carry_idx, comms[carry_idx] & ~(1 << CARRY_BIT));
+                carry_idx = -1;
             }
         }
         prevEndTurnLoc = rc.isSpawned() ? rc.getLocation() : null;
@@ -359,8 +370,9 @@ public class Comms {
                     // enemy current pings persistent after death to avoid default dup(check
                     // currents)
                     int idx = getFlagIndexFromID(fi.getID());
+                    carry_idx = idx;
                     if (idx != -1) {
-                        write(12 + idx, encodeLoc(fi.getLocation()));
+                        write(12 + idx, encodeLoc(fi.getLocation()) + (1 << CARRY_BIT));
                     }
                 }
             }
@@ -381,8 +393,9 @@ public class Comms {
                     validComm = true;
                 }
             }
-            if (!validComm)
+            if (!validComm) {
                 write(12 + i, 0);
+            }
         }
 
         for (int i = 3; --i >= 0;) {
@@ -418,6 +431,11 @@ public class Comms {
     // can have null entries
     public static MapLocation[] getCurrentEnemyFlagLocations() {
         return new MapLocation[] { decodeLoc(comms[12]), decodeLoc(comms[13]), decodeLoc(comms[14]) };
+    }
+
+    public static boolean[] getCarriedEnemyFlags() {
+        return new boolean[] { ((comms[12] >> CARRY_BIT) & 0x1) == 1, ((comms[13] >> CARRY_BIT) & 0x1) == 1,
+                ((comms[14] >> CARRY_BIT) & 0x1) == 1 };
     }
 
     // returns arr of size 3 containing displaced enemy flag current locs, can

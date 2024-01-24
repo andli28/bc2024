@@ -94,6 +94,7 @@ public strictfp class RobotPlayer {
     static final int RESPAWN = 9;
     static final int CRUMBS = 10;
     static final int LINEUP = 11;
+    static final int ESCORT = 12;
 
     // Default unit to scouting.
     static int role = SCOUTING;
@@ -428,29 +429,30 @@ public strictfp class RobotPlayer {
                     MapLocation targetFlag = null;
                     MapLocation[] enemyFlagLocs = Comms.getCurrentEnemyFlagLocations();
                     MapLocation[] broadCastLocs = rc.senseBroadcastFlagLocations();
-                    ;
+                    boolean[] targetsCarried = Comms.getCarriedEnemyFlags();
+
                     if (attackSquadOne) {
-                        if (enemyFlagLocs[0] != null) {
+                        if (enemyFlagLocs[0] != null && !targetsCarried[0]) {
                             targetFlag = enemyFlagLocs[0];
-                        } else if (enemyFlagLocs[1] != null) {
+                        } else if (enemyFlagLocs[1] != null && !targetsCarried[1]) {
                             targetFlag = enemyFlagLocs[1];
-                        } else if (enemyFlagLocs[2] != null) {
+                        } else if (enemyFlagLocs[2] != null && !targetsCarried[2]) {
                             targetFlag = enemyFlagLocs[2];
                         }
                     } else if (attackSquadTwo) {
-                        if (enemyFlagLocs[1] != null) {
+                        if (enemyFlagLocs[1] != null && !targetsCarried[1]) {
                             targetFlag = enemyFlagLocs[1];
-                        } else if (enemyFlagLocs[0] != null) {
+                        } else if (enemyFlagLocs[0] != null && !targetsCarried[0]) {
                             targetFlag = enemyFlagLocs[0];
-                        } else if (enemyFlagLocs[2] != null) {
+                        } else if (enemyFlagLocs[2] != null && !targetsCarried[2]) {
                             targetFlag = enemyFlagLocs[2];
                         }
                     } else if (attackSquadThree) {
-                        if (enemyFlagLocs[2] != null) {
+                        if (enemyFlagLocs[2] != null && !targetsCarried[2]) {
                             targetFlag = enemyFlagLocs[2];
-                        } else if (enemyFlagLocs[1] != null) {
+                        } else if (enemyFlagLocs[1] != null && !targetsCarried[1]) {
                             targetFlag = enemyFlagLocs[1];
-                        } else if (enemyFlagLocs[0] != null) {
+                        } else if (enemyFlagLocs[0] != null && !targetsCarried[0]) {
                             targetFlag = enemyFlagLocs[0];
                         }
                     }
@@ -472,6 +474,12 @@ public strictfp class RobotPlayer {
                             } else {
                                 targetFlag = broadCastLocs[2];
                             }
+                        }
+                    }
+
+                    for (int i = enemyFlagLocs.length-1; i>=0; i--) {
+                        if (enemyFlagLocs[i] != null && targetsCarried[i] && tgtLocation != null && tgtLocation.equals(enemyFlagLocs[i])) {
+                            targetFlag = null;
                         }
                     }
 
@@ -664,7 +672,10 @@ public strictfp class RobotPlayer {
                         // && rc.getHealth() < GameConstants.DEFAULT_HEALTH * woundedRetreatThreshold) {
                         // role = WOUNDED;
                         // rc.setIndicatorString("Wounded");
-                    } else if (rc.getExperience(SkillType.BUILD) >= 30 && rc.getCrumbs() > 250
+                    } else if (false && targetFlag != null && rc.canSenseRobotAtLocation(targetFlag) && rc.senseRobotAtLocation(targetFlag).hasFlag) {
+                        role = ESCORT;
+                        rc.setIndicatorString("Escort " + targetFlag.toString());
+                    }else if (rc.getExperience(SkillType.BUILD) >= 30 && rc.getCrumbs() > 250
                             && (enemies.length != 0 && turnCount > GameConstants.SETUP_ROUNDS)) {
                         role = BUILDING;
                         rc.setIndicatorString("Building");
@@ -859,8 +870,7 @@ public strictfp class RobotPlayer {
                             if (!SENTRY || (SENTRY && !retireSentry && rc.getLocation().add(optimalDir)
                                     .distanceSquaredTo(homeFlag) < sentryWanderingLimit)) {
                                 attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
-                            }
-                            else if (shouldProtectAtAllCosts) {
+                            } else if (shouldProtectAtAllCosts) {
                                 attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
                             }
                         } else {
@@ -912,14 +922,14 @@ public strictfp class RobotPlayer {
                             // home
                             // drop flag in their direction
 
-                            MapLocation relay = findFlagRelay();
-                            if (!relay.equals(new MapLocation(-1, -1))) {
-                                Direction dir = Pathfinder
-                                        .passableDirectionTowards(rc.getLocation().directionTo(relay));
-                                if (dir != Direction.CENTER && rc.canDropFlag(rc.adjacentLocation(dir))) {
-                                    rc.dropFlag(rc.adjacentLocation(dir));
-                                }
-                            }
+//                            MapLocation relay = findFlagRelay();
+//                            if (!relay.equals(new MapLocation(-1, -1))) {
+//                                Direction dir = Pathfinder
+//                                        .passableDirectionTowards(rc.getLocation().directionTo(relay));
+//                                if (dir != Direction.CENTER && rc.canDropFlag(rc.adjacentLocation(dir))) {
+//                                    rc.dropFlag(rc.adjacentLocation(dir));
+//                                }
+//                            }
                             // If you dropped the flag you wouldn't be able to move anyways
                             Direction dir = Pathfinder.pathfindHome();
                             if (rc.canMove(dir)) {
@@ -1001,6 +1011,18 @@ public strictfp class RobotPlayer {
                             rc.setIndicatorString("Lining up: " + nearestDividerWithOpenNeighbor.toString());
                         } else {
                             rc.setIndicatorString("Lined up!");
+                        }
+                    } else if (role == ESCORT) {
+                        Direction optimalDir = null;
+                        if (rc.getLocation().distanceSquaredTo(targetFlag) > 10) {
+                            optimalDir = Pathfinder.pathfind(rc.getLocation(), targetFlag);
+                        } else {
+                            optimalDir = Pathfinder.pathfind(rc.getLocation(), targetFlag).opposite();
+                        }
+                        if (closestHostile != null) {
+                            attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
+                        } else {
+                            healMove(rc, optimalDir, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
                         }
                     } else if (role == WOUNDED) {
 
