@@ -851,18 +851,18 @@ public strictfp class RobotPlayer {
                         // to a wandering limit
                         optimalDir = findOptimalCombatDir(rc, enemies, lowestCurrHostile, closestHostile, friendlyToHideBehind, protectFriend, averageDistSqFromEnemies,
                                 woundedRetreatThreshold, numHostiles, numFriendlies);
-//                        boolean shouldProtectAtAllCosts = closestDisplacedFlag != null && rc.getLocation().distanceSquaredTo(closestDisplacedFlag) < 20;
-//                        if (shouldProtectAtAllCosts) {
-//                            optimalDir = testbot.Pathfinder.pathfind(rc.getLocation(), closestDisplacedFlag);
-//                        }
+                        boolean shouldProtectAtAllCosts = closestDisplacedFlag != null && rc.getLocation().distanceSquaredTo(closestDisplacedFlag) < 20;
+                        if (shouldProtectAtAllCosts) {
+                            optimalDir = Pathfinder.pathfind(rc.getLocation(), closestDisplacedFlag);
+                        }
                         if (optimalDir != null) {
                             if (!SENTRY || (SENTRY && !retireSentry && rc.getLocation().add(optimalDir)
                                     .distanceSquaredTo(homeFlag) < sentryWanderingLimit)) {
                                 attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
                             }
-//                            else if (shouldProtectAtAllCosts) {
-//                                attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
-//                            }
+                            else if (shouldProtectAtAllCosts) {
+                                attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
+                            }
                         } else {
                             rc.setIndicatorString("combat null: " + averageDistSqFromEnemies);
                             attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
