@@ -339,6 +339,7 @@ public strictfp class RobotPlayer {
                     }
 
                     // if you are a sentry, and it is your shift, prepare to sentry by respawning.
+                    // TODO: allow sentry to simply run back home if close enough (can now be dragged away if chasing a target who has the flag)
                     boolean shouldRespawn = false;
                     if ((sentryShiftOne && shiftOneSwapIn || sentryShiftTwo && shiftTwoSwapIn)
                             && !rc.canSenseLocation(homeFlag) && !retireSentry) {
@@ -850,9 +851,15 @@ public strictfp class RobotPlayer {
                         // to a wandering limit
                         optimalDir = findOptimalCombatDir(rc, enemies, lowestCurrHostile, closestHostile, friendlyToHideBehind, protectFriend, averageDistSqFromEnemies,
                                 woundedRetreatThreshold, numHostiles, numFriendlies);
+                        boolean shouldProtectAtAllCosts = closestDisplacedFlag != null && rc.getLocation().distanceSquaredTo(closestDisplacedFlag) < 20;
+                        if (shouldProtectAtAllCosts) {
+                            optimalDir = testbot.Pathfinder.pathfind(rc.getLocation(), closestDisplacedFlag);
+                        }
                         if (optimalDir != null) {
                             if (!SENTRY || (SENTRY && !retireSentry && rc.getLocation().add(optimalDir)
                                     .distanceSquaredTo(homeFlag) < sentryWanderingLimit)) {
+                                attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
+                            } else if (shouldProtectAtAllCosts) {
                                 attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
                             }
                         } else {
@@ -1819,10 +1826,11 @@ public strictfp class RobotPlayer {
         if (rc.getHealth() <= dmg || numHostiles - 2 /*- stunnedHostilesInVision*/ >= numFriendlies
                 || (!rc.isActionReady() && !(rc.getActionCooldownTurns()/10 == 1 && rc.getLocation().distanceSquaredTo(closestHostile) >= 17))
                 || (rc.isActionReady() && lowestCurrHostile != null)) {
-//            if (rc.getHealth() <= dmg && rc.isActionReady() && rc.getHealth() > dmgIfChill) {
+//            if (lowestCurrHostile == null && SkillType.ATTACK.getSkillEffect(rc.getLevel(SkillType.ATTACK)) <= dmgIfChill
+//                    && rc.isActionReady() && rc.getHealth() > dmgIfChill && numFriendlies + 1 >= numHostiles + 2) {
 //                optimalDir = null;
 //                rc.setIndicatorString("Chill " + dmgIfChill);
-//            }
+//            } else {
             optimalDir = bestRetreat;
             if (optimalDir != null) {
                 rc.setIndicatorString("In combat bestRetreat: " + bestRetreat.toString() + " " + dmg);
