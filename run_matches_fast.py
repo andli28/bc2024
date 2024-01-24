@@ -16,7 +16,7 @@ emojiMap = {
 errors = []
 currentBot = 'mainbot'
 
-bots = ['v6_1']
+bots = ['v6_2_SentryFix']
 botsSet = set(bots)
 
 # See https://github.com/battlecode/battlecode24/blob/master/client/src/constants.ts
@@ -96,7 +96,7 @@ if __name__ == "__main__":
     # Show how many matches to play, along with how many cpus we have
     print('We have a maximum of {} cpus'.format(os.cpu_count()))
     
-    with concurrent.futures.ProcessPoolExecutor(max_workers=(min(5, os.cpu_count()))) as executor:
+    with concurrent.futures.ProcessPoolExecutor(max_workers=(min(3, os.cpu_count()))) as executor:
         print('Running {} matches on {} workers'.format(len(matches), executor._max_workers))
         future_to_game = {executor.submit(run_match, bot, map): (bot, map) for bot, map in matches}
         for future in concurrent.futures.as_completed(future_to_game):
