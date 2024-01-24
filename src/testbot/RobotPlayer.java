@@ -477,9 +477,11 @@ public strictfp class RobotPlayer {
                         }
                     }
 
+                    //set target flag as to null if someone is already escorting it.
                     for (int i = enemyFlagLocs.length-1; i>=0; i--) {
                         if (enemyFlagLocs[i] != null && targetsCarried[i] && tgtLocation != null && tgtLocation.equals(enemyFlagLocs[i])) {
                             targetFlag = null;
+                            tgtLocation = null;
                         }
                     }
 
