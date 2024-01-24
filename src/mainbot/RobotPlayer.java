@@ -1,10 +1,7 @@
 package mainbot;
 
 import battlecode.common.*;
-import battlecode.world.Flag;
 
-import java.awt.*;
-import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
