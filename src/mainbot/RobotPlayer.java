@@ -680,14 +680,14 @@ public strictfp class RobotPlayer {
                             && (bigCloseCrumb != null && turnCount > GameConstants.SETUP_ROUNDS - 40)) {
                         role = CRUMBS;
                         rc.setIndicatorString("CRUMBS: " + bigCloseCrumb.toString());
+                    } else if (shouldNotTrain && Info.numFlagsNearbyNotPickedUp != 0) {
+                        role = CAPTURING; //changed here
+                        rc.setIndicatorString("Capturing");
                     } else if (shouldNotTrain && (enemies.length != 0 && turnCount > GameConstants.SETUP_ROUNDS)) {
                         role = INCOMBAT;
                         haveSeenCombat = true;
                         rc.setIndicatorString("In combat");
-                    } else if (shouldNotTrain && Info.numFlagsNearbyNotPickedUp != 0) {
-                        role = CAPTURING; //changed here
-                        rc.setIndicatorString("Capturing");
-                    } else if (closestDisplacedFlag != null &&
+                    }  else if (closestDisplacedFlag != null &&
                             rc.senseMapInfo(rc.getLocation()).getTeamTerritory().equals(rc.getTeam())
                             && rc.getLocation().distanceSquaredTo(closestDisplacedFlag) < distanceForDefense) {
                         role = DEFENDING;
