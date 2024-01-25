@@ -1,10 +1,7 @@
 package testbot;
 
 import battlecode.common.*;
-import battlecode.world.Flag;
 
-import java.awt.*;
-import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -110,6 +107,8 @@ public strictfp class RobotPlayer {
     static boolean attackSquadOne = false;
     static boolean attackSquadTwo = false;
     static boolean attackSquadThree = false;
+    static boolean initialSetTrapStun = false;
+    static boolean initialSetTrapWater = false;
 
     /**
      * run() is the method that is called when a robot is instantiated in the
@@ -148,9 +147,9 @@ public strictfp class RobotPlayer {
             turnCount += 1; // We have now been alive for one more turn!
 
             // Resignation at 500 turns for testing purposes
-//             if (turnCount == 200) {
-//             rc.resign();
-//             }
+            if (turnCount == 200) {
+                rc.resign();
+            }
 
             // Try/catch blocks stop unhandled exceptions, which cause your robot to
             // explode.
@@ -312,9 +311,9 @@ public strictfp class RobotPlayer {
                 }
 
                 if (rc.isSpawned()) {
-                    if (turnCount > 5 && Comms.shortId == 0) {
-                        System.out.println(turnCount);
-                    }
+//                    if (turnCount > 5 && Comms.shortId == 0) {
+//                        System.out.println(turnCount);
+//                    }
                     Info.update();
                     // if (turnCount > 2 && Comms.shortId ==1) {
                     // System.out.println(turnCount);
@@ -391,7 +390,7 @@ public strictfp class RobotPlayer {
                     for (int i = nearbyMap.length - 1; i >= 0; i--) {
                         MapInfo singleMap = nearbyMap[i];
                         int distToSingleMap = rc.getLocation().distanceSquaredTo(singleMap.getMapLocation());
-                        if (BUILDERSPECIALIST && singleMap.isPassable() && !singleMap.isSpawnZone()
+                        if (BUILDERSPECIALIST && distToSingleMap <= 11 && singleMap.isPassable() && !singleMap.isSpawnZone()
                                 && !rc.isLocationOccupied(singleMap.getMapLocation())
                                 && diggable == null && rc.getExperience(SkillType.BUILD) <= 30 &&
                                 distToSingleMap < lowestDistToDiggable &&  !doSidesHaveWater(rc, singleMap.getMapLocation())
@@ -657,7 +656,7 @@ public strictfp class RobotPlayer {
                     } else if (BUILDERSPECIALIST && diggable != null &&
                             rc.getExperience(SkillType.BUILD) < 30 && turnCount > 25) {
                         role = TRAINBUILD;
-                        rc.setIndicatorString("Training builder");
+                        rc.setIndicatorString("Training builder: " + diggable.toString());
                     } else if (false && escortTgt != null) {
                         role = ESCORT;
                         rc.setIndicatorString("Escort " + targetFlag.toString());
@@ -713,7 +712,8 @@ public strictfp class RobotPlayer {
                         // their homes
                         // if you have lvl 6 building, have over 100 crumbs, no enemies are around, and
                         // can sense your home location, check if you can stun trap corners.
-                        if (rc.getExperience(SkillType.BUILD) >= 30 && rc.getCrumbs() >= 100 & dirToClosestBroadcastFromHomeFlag != null) {
+                        if (rc.getExperience(SkillType.BUILD) >= 30 && rc.getCrumbs() >= 100 & dirToClosestBroadcastFromHomeFlag != null
+                                && (!initialSetTrapStun || !initialSetTrapWater)) {
                             if (turnCount < turnsTillAllowingCombat && homeFlag != null
                                     && !rc.canSenseLocation(homeFlag)) {
                                 optimalDir = Pathfinder.pathfind(rc.getLocation(), homeFlag);
@@ -737,8 +737,16 @@ public strictfp class RobotPlayer {
                                         MapLocation spawnCheck = null;
                                         if (i == 1) {
                                             spawnCheck = new MapLocation(homeFlag.x, homeFlag.y);
+                                            if (rc.canSenseLocation(spawnCheck)
+                                                    && rc.senseMapInfo(spawnCheck).getTrapType() == TrapType.STUN) {
+                                                initialSetTrapStun = true;
+                                            }
                                         } else if (i == 0) {
                                             spawnCheck = homeFlag.add(dirToClosestBroadcastFromHomeFlag);
+                                            if (rc.canSenseLocation(spawnCheck)
+                                                    && rc.senseMapInfo(spawnCheck).getTrapType() == TrapType.WATER) {
+                                                initialSetTrapWater = true;
+                                            }
                                         }
                                         int distSqToCorner = rc.getLocation().distanceSquaredTo(spawnCheck);
                                         if (rc.canSenseLocation(spawnCheck)
@@ -1939,7 +1947,7 @@ public strictfp class RobotPlayer {
     }
 
     public static boolean aNeighborIsADamOrWall(RobotController rc, MapLocation x) throws GameActionException {
-        MapInfo[] locations = rc.senseNearbyMapInfos(x, 16);
+        MapInfo[] locations = rc.senseNearbyMapInfos(x, 4);
         for (int i = locations.length - 1; i >= 0; i--) {
             if (locations[i].isDam() ||
                     (x.distanceSquaredTo(locations[i].getMapLocation()) <= 2 && locations[i].isWall())) {
