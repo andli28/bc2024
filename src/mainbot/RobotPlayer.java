@@ -1932,8 +1932,8 @@ public strictfp class RobotPlayer {
     }
 
     public static void clearTheWay(RobotController rc) throws GameActionException {
-        // fill water with the most sides with water, but if you find a water with a
-        // neighboring dam, prioritize clearing that.
+        // fill water with the most sides with water, but if you find a water with a crumb, prioritize clearing that, else if you find a water with a
+        // neighboring dam, prioritize clearing that
         MapLocation fillLoc = null;
         int mostSides = 1;
         MapInfo[] nearbyInteractSquares = rc.senseNearbyMapInfos(GameConstants.INTERACT_RADIUS_SQUARED);
@@ -1941,7 +1941,10 @@ public strictfp class RobotPlayer {
             MapLocation buildLoc = nearbyInteractSquares[i].getMapLocation();
             if (isInBounds(rc, buildLoc) && nearbyInteractSquares[i].isWater() &&
                     rc.canFill(buildLoc)) {
-                if (aNeighborIsADamOrWall(rc, buildLoc)) {
+                if (nearbyInteractSquares[i].getCrumbs() != 0) {
+                    fillLoc = buildLoc;
+                    break;
+                } else if (aNeighborIsADamOrWall(rc, buildLoc)) {
                     fillLoc = buildLoc;
                     break;
                 } else if (numSidesWithWater(rc, buildLoc) > mostSides) {
