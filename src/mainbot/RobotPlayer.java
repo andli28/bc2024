@@ -656,7 +656,7 @@ public strictfp class RobotPlayer {
                         role = ESCORT;
                         rc.setIndicatorString("Escort " + targetFlag.toString());
                     }else if ((BUILDERSPECIALIST || rc.getLevel(SkillType.BUILD) > 3) && rc.getCrumbs() > 200
-                            && (enemies.length != 0 && turnCount > GameConstants.SETUP_ROUNDS)) {
+                            && (enemies.length != 0 && turnCount > GameConstants.SETUP_ROUNDS-20)) {
                         role = BUILDING;
                         rc.setIndicatorString("Building");
                     } else if (shouldRespawn) {
@@ -869,11 +869,6 @@ public strictfp class RobotPlayer {
                         } else {
                             rc.setIndicatorString("combat null: " + averageDistSqFromEnemies);
                             attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
-                        }
-                        if (nearestWater != null) {
-                            if (rc.canFill(nearestWater)) {
-                                rc.fill(nearestWater);
-                            }
                         }
                     } else if (role == BUILDING) {
 
