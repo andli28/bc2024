@@ -1948,16 +1948,10 @@ public strictfp class RobotPlayer {
     //is a neighbor of a location a dam or are there more than or equal to 7 impassibles nearby
     public static boolean aNeighborIsADamOrWall(RobotController rc, MapLocation x) throws GameActionException {
         MapInfo[] locations = rc.senseNearbyMapInfos(x, 4);
-        int numImpassibles = 0;
         for (int i = locations.length - 1; i >= 0; i--) {
             if (locations[i].isDam()) {
                 return true;
-            } else if (!locations[i].isPassable() && locations[i].getMapLocation().distanceSquaredTo(x) <= 2) {
-                numImpassibles++;
             }
-        }
-        if (numImpassibles >=7) {
-            return true;
         }
         return false;
     }
