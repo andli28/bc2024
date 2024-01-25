@@ -541,7 +541,7 @@ public class Comms {
             MapLocation enemy = sampledEnemies[i];
             if (closestSampleEnemyLoc == null
                     || (Pathfinder.travelDistance(closestSampleEnemyLoc, rc.getLocation()) > Pathfinder
-                    .travelDistance(enemy, rc.getLocation()))) {
+                            .travelDistance(enemy, rc.getLocation()))) {
                 closestSampleEnemyLoc = enemy;
             }
         }
