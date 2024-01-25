@@ -494,10 +494,6 @@ public strictfp class RobotPlayer {
                         }
                         if (optBroadcast != null) {
                             dirToClosestBroadcastFromHomeFlag = homeFlag.directionTo(optBroadcast);
-                            if (turnCount < 200) {
-                                System.out.println("Broadcast " + dirToClosestBroadcastFromHomeFlag.toString());
-
-                            }
                         }
                     }
 
