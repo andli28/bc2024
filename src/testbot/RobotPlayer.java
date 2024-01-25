@@ -486,14 +486,13 @@ public strictfp class RobotPlayer {
 
                     Direction dirToClosestBroadcastFromHomeFlag = null;
                     if (BUILDERSPECIALIST && homeFlag != null) {
-                        MapLocation[] sampleBroadcasts = rc.senseBroadcastFlagLocations();
                         int tempDist = Integer.MAX_VALUE;
                         MapLocation optBroadcast = null;
-                        for (int i = sampleBroadcasts.length-1; i>=0; i--) {
-                            int distToBC = homeFlag.distanceSquaredTo(sampleBroadcasts[i]);
+                        for (int i = broadCastLocs.length-1; i>=0; i--) {
+                            int distToBC = homeFlag.distanceSquaredTo(broadCastLocs[i]);
                             if (distToBC < tempDist) {
                                 tempDist = distToBC;
-                                optBroadcast = sampleBroadcasts[i];
+                                optBroadcast = broadCastLocs[i];
                             }
                         }
                         if (optBroadcast != null) {
@@ -653,14 +652,10 @@ public strictfp class RobotPlayer {
                     if (rc.hasFlag()) {
                         role = RETURNING;
                         rc.setIndicatorString("Returning");
-                    } else if (BUILDERSPECIALIST && diggable != null &&
-                            rc.getExperience(SkillType.BUILD) < 30 && turnCount > 25) {
-                        role = TRAINBUILD;
-                        rc.setIndicatorString("Training builder: " + diggable.toString());
                     } else if (false && escortTgt != null) {
                         role = ESCORT;
                         rc.setIndicatorString("Escort " + targetFlag.toString());
-                    }else if (rc.getExperience(SkillType.BUILD) >= 30 && rc.getCrumbs() > 250
+                    }else if ((BUILDERSPECIALIST || rc.getLevel(SkillType.BUILD) > 3) && rc.getCrumbs() > 200
                             && (enemies.length != 0 && turnCount > GameConstants.SETUP_ROUNDS)) {
                         role = BUILDING;
                         rc.setIndicatorString("Building");
@@ -684,7 +679,11 @@ public strictfp class RobotPlayer {
                         role = INCOMBAT;
                         haveSeenCombat = true;
                         rc.setIndicatorString("In combat");
-                    }  else if (closestDisplacedFlag != null &&
+                    } else if (BUILDERSPECIALIST && diggable != null &&
+                            rc.getExperience(SkillType.BUILD) < 30) {
+                        role = TRAINBUILD;
+                        rc.setIndicatorString("Training builder: " + diggable.toString());
+                    } else if (closestDisplacedFlag != null &&
                             rc.senseMapInfo(rc.getLocation()).getTeamTerritory().equals(rc.getTeam())
                             && rc.getLocation().distanceSquaredTo(closestDisplacedFlag) < distanceForDefense) {
                         role = DEFENDING;
@@ -1946,13 +1945,19 @@ public strictfp class RobotPlayer {
         return false;
     }
 
+    //is a neighbor of a location a dam or are there more than or equal to 7 impassibles nearby
     public static boolean aNeighborIsADamOrWall(RobotController rc, MapLocation x) throws GameActionException {
         MapInfo[] locations = rc.senseNearbyMapInfos(x, 4);
+        int numImpassibles = 0;
         for (int i = locations.length - 1; i >= 0; i--) {
-            if (locations[i].isDam() ||
-                    (x.distanceSquaredTo(locations[i].getMapLocation()) <= 2 && locations[i].isWall())) {
+            if (locations[i].isDam()) {
                 return true;
+            } else if (!locations[i].isPassable() && locations[i].getMapLocation().distanceSquaredTo(x) <= 2) {
+                numImpassibles++;
             }
+        }
+        if (numImpassibles >=7) {
+            return true;
         }
         return false;
     }
