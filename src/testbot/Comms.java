@@ -229,7 +229,7 @@ public class Comms {
         } else {
             // if dead clear carry bit from flag you were carrying
             if (carry_idx != -1) {
-                write(12 + carry_idx, comms[carry_idx] & ~(1 << CARRY_BIT));
+                write(12 + carry_idx, comms[12 + carry_idx] & ~(1 << CARRY_BIT));
                 carry_idx = -1;
             }
         }

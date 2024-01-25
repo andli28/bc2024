@@ -95,6 +95,7 @@ public strictfp class RobotPlayer {
     static final int CRUMBS = 10;
     static final int LINEUP = 11;
     static final int ESCORT = 12;
+    static final int TRAINBUILD = 13;
 
     // Default unit to scouting.
     static int role = SCOUTING;
@@ -147,7 +148,7 @@ public strictfp class RobotPlayer {
             turnCount += 1; // We have now been alive for one more turn!
 
             // Resignation at 500 turns for testing purposes
-//             if (turnCount == 700) {
+//             if (turnCount == 200) {
 //             rc.resign();
 //             }
 
@@ -373,7 +374,9 @@ public strictfp class RobotPlayer {
                     MapLocation nearestWaterTrap = null;
                     MapLocation nearestWater = null;
                     MapLocation nearestDividerWithOpenNeighbor = null;
+                    MapLocation diggable = null;
 
+                    int lowestDistToDiggable = Integer.MAX_VALUE;
                     int lowestDistToStunTrap = Integer.MAX_VALUE;
                     int lowestDistToExplosiveTrap = Integer.MAX_VALUE;
                     int lowestDistToWaterTrap = Integer.MAX_VALUE;
@@ -386,6 +389,13 @@ public strictfp class RobotPlayer {
                     for (int i = nearbyMap.length - 1; i >= 0; i--) {
                         MapInfo singleMap = nearbyMap[i];
                         int distToSingleMap = rc.getLocation().distanceSquaredTo(singleMap.getMapLocation());
+                        if (diggable == null && BUILDERSPECIALIST && rc.getExperience(SkillType.BUILD) <= 30 &&
+                                distToSingleMap < lowestDistToDiggable && singleMap.isPassable() && !singleMap.isSpawnZone()
+                                && !rc.isLocationOccupied(singleMap.getMapLocation())
+                                && !doSidesHaveWater(rc, singleMap.getMapLocation())
+                                && !aNeighborIsADamOrWall(rc, singleMap.getMapLocation())) {
+                            diggable = singleMap.getMapLocation();
+                        }
                         if (singleMap.isWater() && distToSingleMap < lowestDistToWater) {
                             lowestDistToWater = distToSingleMap;
                             nearestWater = singleMap.getMapLocation();
@@ -418,10 +428,6 @@ public strictfp class RobotPlayer {
                     // if you were randomly chosen as a builder specialist && turncount is between
                     // 75 and max setup rounds
                     // , train by digging until you have 30 exp
-
-                    if (BUILDERSPECIALIST && rc.getExperience(SkillType.BUILD) < 30 && turnCount > 25) {
-                        trainToSixByDigging(rc);
-                    }
 
                     // Splitting units into groups that equally attack all flags. If it exists in
                     // comms,
@@ -477,11 +483,34 @@ public strictfp class RobotPlayer {
                         }
                     }
 
+                    Direction dirToClosestBroadcastFromHomeFlag = null;
+                    if (BUILDERSPECIALIST && homeFlag != null) {
+                        MapLocation[] sampleBroadcasts = rc.senseBroadcastFlagLocations();
+                        int tempDist = Integer.MAX_VALUE;
+                        MapLocation optBroadcast = null;
+                        for (int i = sampleBroadcasts.length-1; i>=0; i--) {
+                            int distToBC = homeFlag.distanceSquaredTo(sampleBroadcasts[i]);
+                            if (distToBC < tempDist) {
+                                tempDist = distToBC;
+                                optBroadcast = sampleBroadcasts[i];
+                            }
+                        }
+                        if (optBroadcast != null) {
+                            dirToClosestBroadcastFromHomeFlag = homeFlag.directionTo(optBroadcast);
+                        }
+                    }
+
+                    MapLocation escortTgt = null;
                     //set target flag as to null if someone is already escorting it.
                     for (int i = enemyFlagLocs.length-1; i>=0; i--) {
                         if (enemyFlagLocs[i] != null && targetsCarried[i] && tgtLocation != null && tgtLocation.equals(enemyFlagLocs[i])) {
                             targetFlag = null;
                             tgtLocation = null;
+                            turnsNotReachedTgt = 0;
+                            lastTurnPursingCrumb = false;
+                            if (rc.canSenseLocation(enemyFlagLocs[i])) {
+                                escortTgt = enemyFlagLocs[i];
+                            }
                         }
                     }
 
@@ -674,7 +703,11 @@ public strictfp class RobotPlayer {
                         // && rc.getHealth() < GameConstants.DEFAULT_HEALTH * woundedRetreatThreshold) {
                         // role = WOUNDED;
                         // rc.setIndicatorString("Wounded");
-                    } else if (false && targetFlag != null && rc.canSenseRobotAtLocation(targetFlag) && rc.senseRobotAtLocation(targetFlag).hasFlag) {
+                    } else if (BUILDERSPECIALIST && diggable != null &&
+                            rc.getExperience(SkillType.BUILD) < 30 && turnCount > 25) {
+                        role = TRAINBUILD;
+                        rc.setIndicatorString("Training builder");
+                    } else if (false && escortTgt != null) {
                         role = ESCORT;
                         rc.setIndicatorString("Escort " + targetFlag.toString());
                     }else if (rc.getExperience(SkillType.BUILD) >= 30 && rc.getCrumbs() > 250
@@ -729,7 +762,7 @@ public strictfp class RobotPlayer {
                         // their homes
                         // if you have lvl 6 building, have over 100 crumbs, no enemies are around, and
                         // can sense your home location, check if you can stun trap corners.
-                        if (rc.getExperience(SkillType.BUILD) >= 30 && rc.getCrumbs() >= 100) {
+                        if (rc.getExperience(SkillType.BUILD) >= 30 && rc.getCrumbs() >= 100 & dirToClosestBroadcastFromHomeFlag != null) {
                             if (turnCount < turnsTillAllowingCombat && homeFlag != null
                                     && !rc.canSenseLocation(homeFlag)) {
                                 optimalDir = Pathfinder.pathfind(rc.getLocation(), homeFlag);
@@ -747,36 +780,35 @@ public strictfp class RobotPlayer {
                                     }
                                 }
                                 if (homeFlagStillExists) {
-                                    MapLocation closestCornerWithoutStun = null;
-                                    int distToClosestCorner = Integer.MAX_VALUE;
-                                    for (int i = 3; i >= 0; i--) {
+                                    MapLocation closestViableLocWithoutTrap = null;
+                                    int distToClosestViableLoc = Integer.MAX_VALUE;
+                                    for (int i = 1; i >= 0; i--) {
                                         MapLocation spawnCheck = null;
-                                        if (i == 3) {
-                                            spawnCheck = new MapLocation(homeFlag.x + 1, homeFlag.y + 1);
-                                        } else if (i == 2) {
-                                            spawnCheck = new MapLocation(homeFlag.x + 1, homeFlag.y - 1);
-                                        } else if (i == 1) {
-                                            spawnCheck = new MapLocation(homeFlag.x - 1, homeFlag.y - 1);
+                                        if (i == 1) {
+                                            spawnCheck = new MapLocation(homeFlag.x, homeFlag.y);
                                         } else if (i == 0) {
-                                            spawnCheck = new MapLocation(homeFlag.x - 1, homeFlag.y + 1);
+                                            spawnCheck = homeFlag.add(dirToClosestBroadcastFromHomeFlag);
                                         }
                                         int distSqToCorner = rc.getLocation().distanceSquaredTo(spawnCheck);
                                         if (rc.canSenseLocation(spawnCheck)
                                                 && rc.senseMapInfo(spawnCheck).getTrapType() == TrapType.NONE
-                                                && distSqToCorner < distToClosestCorner) {
-                                            distToClosestCorner = distSqToCorner;
-                                            closestCornerWithoutStun = spawnCheck;
+                                                && distSqToCorner < distToClosestViableLoc) {
+                                            distToClosestViableLoc = distSqToCorner;
+                                            closestViableLocWithoutTrap = spawnCheck;
                                         }
                                     }
 
-                                    if (closestCornerWithoutStun != null) {
+                                    if (closestViableLocWithoutTrap != null) {
                                         rc.setIndicatorString(
-                                                "Scouting: Stun Trapping: " + closestCornerWithoutStun.toString());
-                                        if (rc.canBuild(TrapType.STUN, closestCornerWithoutStun)) {
-                                            rc.build(TrapType.STUN, closestCornerWithoutStun);
+                                                "Scouting: Trapping: " + closestViableLocWithoutTrap.toString());
+                                        if (closestViableLocWithoutTrap.equals(homeFlag) && rc.canBuild(TrapType.STUN, closestViableLocWithoutTrap)) {
+                                            rc.build(TrapType.STUN, closestViableLocWithoutTrap);
+                                        } else if (closestViableLocWithoutTrap.equals(homeFlag.add(dirToClosestBroadcastFromHomeFlag))
+                                                && rc.canBuild(TrapType.WATER, closestViableLocWithoutTrap)) {
+                                            rc.build(TrapType.WATER, closestViableLocWithoutTrap);
                                         } else {
                                             optimalDir = Pathfinder.pathfind(rc.getLocation(),
-                                                    closestCornerWithoutStun);
+                                                    closestViableLocWithoutTrap);
                                         }
                                     }
                                 }
@@ -812,10 +844,13 @@ public strictfp class RobotPlayer {
                         // dig any nearby water, healmove, then dig any nearby water
                         // TODO: potentially should dig nearby water, then call pathfinding, then dig
                         // again to see if digging that space gives pathfinder an option to move
-                        clearTheWay(rc);
+                        if (lastTurnPursingCrumb || turnCount > 150) {
+                            clearTheWay(rc);
+                        }
                         healMove(rc, optimalDir, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
-                        clearTheWay(rc);
-
+                        if (lastTurnPursingCrumb || turnCount > 150) {
+                            clearTheWay(rc);
+                        }
                     } else if (role == INCOMBAT) {
 
                         Direction optimalDir = null;
@@ -1016,16 +1051,28 @@ public strictfp class RobotPlayer {
                         }
                     } else if (role == ESCORT) {
                         Direction optimalDir = null;
-                        if (rc.getLocation().distanceSquaredTo(targetFlag) > 10) {
-                            optimalDir = Pathfinder.pathfind(rc.getLocation(), targetFlag);
+                        if (rc.getLocation().distanceSquaredTo(escortTgt) > 10) {
+                            optimalDir = Pathfinder.pathfind(rc.getLocation(), escortTgt);
                         } else {
-                            optimalDir = Pathfinder.pathfind(rc.getLocation(), targetFlag).opposite();
+                            optimalDir = Pathfinder.pathfind(rc.getLocation(), escortTgt).opposite();
                         }
                         if (closestHostile != null) {
                             attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
                         } else {
                             healMove(rc, optimalDir, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
                         }
+                    } else if (role == TRAINBUILD) {
+                        trainToSixByDigging(rc);
+                        Direction optimalDir = null;
+                        if (diggable != null) {
+                            optimalDir = Pathfinder.pathfind(rc.getLocation(), diggable);
+                            if (closestHostile != null) {
+                                attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
+                            } else {
+                                healMove(rc, optimalDir, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
+                            }
+                        }
+                        trainToSixByDigging(rc);
                     } else if (role == WOUNDED) {
 
                         // enable units to go in any direction.
@@ -1554,13 +1601,13 @@ public strictfp class RobotPlayer {
             throws GameActionException {
 
         MapInfo[] squaresWithinInteract = rc.senseNearbyMapInfos(GameConstants.INTERACT_RADIUS_SQUARED);
-        MapLocation fillableWater = null;
+//        MapLocation fillableWater = null;
         boolean dug = false;
 
         for (int i = squaresWithinInteract.length - 1; i >= 0; i--) {
-            if (squaresWithinInteract[i].isWater()) {
-                fillableWater = squaresWithinInteract[i].getMapLocation();
-            }
+//            if (squaresWithinInteract[i].isWater()) {
+//                fillableWater = squaresWithinInteract[i].getMapLocation();
+//            }
             if (rc.canDig(squaresWithinInteract[i].getMapLocation())
                     && !doSidesHaveWater(rc, squaresWithinInteract[i].getMapLocation())
                     && !aNeighborIsADamOrWall(rc, squaresWithinInteract[i].getMapLocation())) {
@@ -1571,12 +1618,12 @@ public strictfp class RobotPlayer {
         }
         // if you can't find anywhere to dig, fill up a nearby water to dig on a future
         // turn (check if can do it this turn too)
-        if (!dug && fillableWater != null && rc.canFill(fillableWater)) {
-            rc.fill(fillableWater);
-            if (rc.canDig(fillableWater)) {
-                rc.dig(fillableWater);
-            }
-        }
+//        if (!dug && fillableWater != null && rc.canFill(fillableWater)) {
+//            rc.fill(fillableWater);
+//            if (rc.canDig(fillableWater)) {
+//                rc.dig(fillableWater);
+//            }
+//        }
     }
 
     public static Direction findOptimalCombatDir(RobotController rc, RobotInfo[] enemies, MapLocation lowestCurrHostile, MapLocation closestHostile,
@@ -1975,13 +2022,13 @@ public strictfp class RobotPlayer {
         MapLocation sideThree = new MapLocation(x.x, x.y - 1);
         MapLocation sideFour = new MapLocation(x.x, x.y + 1);
 
-        if (isInBounds(rc, sideOne) && rc.senseMapInfo(sideOne).isWater()) {
+        if (isInBounds(rc, sideOne) && rc.canSenseLocation(sideOne) && rc.senseMapInfo(sideOne).isWater()) {
             return true;
-        } else if (isInBounds(rc, sideTwo) && rc.senseMapInfo(sideTwo).isWater()) {
+        } else if (isInBounds(rc, sideTwo) && rc.canSenseLocation(sideTwo) && rc.senseMapInfo(sideTwo).isWater()) {
             return true;
-        } else if (isInBounds(rc, sideThree) && rc.senseMapInfo(sideThree).isWater()) {
+        } else if (isInBounds(rc, sideThree) && rc.canSenseLocation(sideThree) && rc.senseMapInfo(sideThree).isWater()) {
             return true;
-        } else if (isInBounds(rc, sideFour) && rc.senseMapInfo(sideFour).isWater()) {
+        } else if (isInBounds(rc, sideFour) && rc.canSenseLocation(sideFour) && rc.senseMapInfo(sideFour).isWater()) {
             return true;
         } else {
             return false;
@@ -2049,9 +2096,10 @@ public strictfp class RobotPlayer {
     }
 
     public static boolean aNeighborIsADamOrWall(RobotController rc, MapLocation x) throws GameActionException {
-        MapInfo[] locations = rc.senseNearbyMapInfos(x, 4);
+        MapInfo[] locations = rc.senseNearbyMapInfos(x, 16);
         for (int i = locations.length - 1; i >= 0; i--) {
-            if (locations[i].isDam() || locations[i].isWall()) {
+            if (locations[i].isDam() ||
+                    (x.distanceSquaredTo(locations[i].getMapLocation()) <= 2 && locations[i].isWall())) {
                 return true;
             }
         }
