@@ -67,9 +67,6 @@ public class Pathfinder {
             return bestDir;
         }
 
-        // if (rc.getID() == 11291)
-        // System.out.println("buhgdir1: " + buhgDir.toString());
-
         // tldr a better first buhg dir guess system
         if (buhgDir == Rot.NONE) {
             // if blocked and no prev buhg choose a buhg dir depending on some ob bounds
@@ -111,11 +108,6 @@ public class Pathfinder {
             initBlockDist = travelDistance(src, tgt);
         }
         turnsBuhgging++;
-
-        if (rc.getID() == 11291)
-            System.out.println("buhgdir2: " + buhgDir.toString());
-        if (rc.getID() == 11291)
-            System.out.println("lastBuhgDir: " + lastBuhgDir.toString());
 
         // flag for if we end up buhgging around a robot
         // in this case do not update lastbuhgdir, as it may result in us circling
