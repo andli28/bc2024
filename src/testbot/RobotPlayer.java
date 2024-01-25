@@ -878,9 +878,27 @@ public strictfp class RobotPlayer {
                     } else if (role == BUILDING) {
 
                         Direction optimalDir = null;
-
-                        layTrapWithinRangeOfEnemy(rc, nearestExplosiveTrap, nearestStunTrap, enemies, closestHostile,
-                                explosiveTrapPreferredDist, stunTrapPreferredDist, buildThreshold);
+                        // dummy mapLocation. Build whlie cooldown + buildCD< 10 and build != null.
+                        //laytrapwithinrangeofenemy will return either null (if nothing is built) or the maplocation of the trap that is built
+                        // update nearest stun and explosive trap with this information and repeat while loop until cd restriction or return null
+                        // signifying htat there is nowhere to build.
+                        MapLocation build = new MapLocation(0,0);
+                        int buildCD = SkillType.BUILD.getCooldown(rc.getLevel(SkillType.BUILD));
+                        while(rc.getActionCooldownTurns()+buildCD<10 && build != null) {
+                            build = layTrapWithinRangeOfEnemy(rc, nearestExplosiveTrap, nearestStunTrap, enemies, closestHostile,
+                                    explosiveTrapPreferredDist, stunTrapPreferredDist, buildThreshold);
+                            if (build != null) {
+                                MapInfo updateLoc = rc.senseMapInfo(build);
+                                int distToUpdate = rc.getLocation().distanceSquaredTo(build);
+                                if (updateLoc.getTrapType() == TrapType.STUN && distToUpdate < lowestDistToStunTrap) {
+                                    nearestStunTrap = build;
+                                    lowestDistToStunTrap = distToUpdate;
+                                } else if (updateLoc.getTrapType() == TrapType.EXPLOSIVE && distToUpdate < lowestDistToExplosiveTrap) {
+                                    nearestExplosiveTrap = build;
+                                    lowestDistToExplosiveTrap = distToUpdate;
+                                }
+                            }
+                        }
                         optimalDir = findOptimalCombatDir(rc, enemies, lowestCurrHostile, closestHostile, averageDistSqFromEnemies,
                                 woundedRetreatThreshold, numHostiles, numFriendlies);
                         attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
@@ -1255,7 +1273,7 @@ public strictfp class RobotPlayer {
 
     /**
      * Building a trap (taking into account trap spacing) within the given range of
-     * the closest enemy
+     * the closest enemy returns location of built trap.
      *
      * @param rc                         robotcontroller
      * @param nearestExplosiveTrap       maplocation of nearest explosive trap
@@ -1270,7 +1288,7 @@ public strictfp class RobotPlayer {
      *                                   from the enemy
      * @throws GameActionException
      */
-    public static void layTrapWithinRangeOfEnemy(RobotController rc, MapLocation nearestExplosiveTrap,
+    public static MapLocation layTrapWithinRangeOfEnemy(RobotController rc, MapLocation nearestExplosiveTrap,
                                                  MapLocation nearestStunTrap, RobotInfo[] enemies, MapLocation closestEnemy, int explosiveTrapPreferredDist,
                                                  int stunTrapPreferredDist,
                                                  int buildThreshold) throws GameActionException {
@@ -1282,6 +1300,7 @@ public strictfp class RobotPlayer {
         // 4. IF you can't build the explosive trap, but can build the stun trap at
         // least stunTrapPreferredDist sq units away from the first one, do so.
         // TODO build twice a turn?
+        MapLocation built = null;
         float closestToEnemy = Integer.MAX_VALUE;
         MapLocation closestDirToEnemy = null;
         for (int i = Direction.allDirections().length - 1; i >= 0; i--) {
@@ -1297,10 +1316,12 @@ public strictfp class RobotPlayer {
             if (nearestExplosiveTrap == null) {
                 if (rc.canBuild(TrapType.EXPLOSIVE, closestDirToEnemy)) {
                     rc.build(TrapType.EXPLOSIVE, closestDirToEnemy);
+                    built = closestDirToEnemy;
                 }
             } else if (nearestStunTrap == null) {
                 if (rc.canBuild(TrapType.STUN, closestDirToEnemy)) {
                     rc.build(TrapType.STUN, closestDirToEnemy);
+                    built = closestDirToEnemy;
                 }
             } else {
                 int distTonearestExplosiveTrap = closestDirToEnemy.distanceSquaredTo(nearestExplosiveTrap);
@@ -1322,6 +1343,7 @@ public strictfp class RobotPlayer {
 
                     if (passedCheckForCloserTrap) {
                         rc.build(TrapType.EXPLOSIVE, closestDirToEnemy);
+                        built = closestDirToEnemy;
                     }
                 } else if (distTonearestStunTrap > stunTrapPreferredDist
                         && rc.canBuild(TrapType.STUN, closestDirToEnemy)) {
@@ -1340,10 +1362,12 @@ public strictfp class RobotPlayer {
 
                     if (passedCheckForCloserTrap) {
                         rc.build(TrapType.STUN, closestDirToEnemy);
+                        built = closestDirToEnemy;
                     }
                 }
             }
         }
+        return built;
     }
 
     /**
