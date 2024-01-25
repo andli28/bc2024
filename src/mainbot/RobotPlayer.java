@@ -144,7 +144,7 @@ public strictfp class RobotPlayer {
             turnCount += 1; // We have now been alive for one more turn!
 
             // Resignation at 500 turns for testing purposes
-//             if (turnCount == 700) {
+//             if (turnCount == 400) {
 //             rc.resign();
 //             }
 
@@ -479,6 +479,8 @@ public strictfp class RobotPlayer {
                         if (enemyFlagLocs[i] != null && targetsCarried[i] && tgtLocation != null && tgtLocation.equals(enemyFlagLocs[i])) {
                             targetFlag = null;
                             tgtLocation = null;
+                            turnsNotReachedTgt = 0;
+                            lastTurnPursingCrumb = false;
                         }
                     }
 
