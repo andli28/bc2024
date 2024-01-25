@@ -21,13 +21,16 @@ botsSet = set(bots)
 
 # See https://github.com/battlecode/battlecode24/blob/master/client/src/constants.ts
 
+sprint2Maps = ['BedWars', 'Bunkers', 'Checkered', 'Diagonal', 'Divergent', 'EndAround', 'FloodGates',
+    'Foxes', 'Fusbol', 'GaltonBoard', 'HeMustBeFreed', 'Intercontinental', 'Klein', 'QueenOfHearts',
+    'QuestionableChess', 'Racetrack', 'Rainbow', 'TreeSearch']
 sprint1Maps = ['AceOfSpades', 'Alien', 'Ambush', 'Battlecode24', 'BigDucksBigPond', 'Canals', 'CH3353C4K3F4CT0RY',
-    'Duck', 'Fountain', 'Hockey', 'MazeRunner', 'Rivers', 'Snake', 'Soccer', 'SteamboatMickey', 'Yinyang']
+    'Duck', 'Fountain', 'Hockey', 'HungerGames', 'MazeRunner', 'Rivers', 'Snake', 'Soccer', 'SteamboatMickey', 'Yinyang']
 initialMaps = ['DefaultHuge', 'DefaultLarge', 'DefaultMedium', 'DefaultSmall']
 customMaps = ['pathfinder', 'bridge_aquifer', 'buh', 'crashtest1', 'Maze', 'one_on_one', 'pathfinder2', 'two_moats',
               'kirby', 'diagonal_grid']
 
-maps = initialMaps + sprint1Maps # + customMaps
+maps = sprint1Maps + sprint2Maps # + initialMaps + customMaps
 mapsSet = set(maps)
 
 matches = set(product(bots, maps))
