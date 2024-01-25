@@ -98,24 +98,26 @@ if __name__ == "__main__":
     results = {}
     # Show how many matches to play, along with how many cpus we have
     print('We have a maximum of {} cpus'.format(os.cpu_count()))
+    numMatches = len(matches)
     
     with concurrent.futures.ProcessPoolExecutor(max_workers=(min(3, os.cpu_count()))) as executor:
-        print('Running {} matches on {} workers'.format(len(matches), executor._max_workers))
+        print('Running {} matches on {} workers'.format(numMatches, executor._max_workers))
         future_to_game = {executor.submit(run_match, bot, map): (bot, map) for bot, map in matches}
         for future in concurrent.futures.as_completed(future_to_game):
-            print('Finished number {} of {}'.format(len(results) + 1, len(matches)))
+            print('Finished number {} of {}'.format(len(results) + 1, numMatches))
             bot, map = future_to_game[future]
             try:
                 results[(bot, map)], toAddWins = future.result()
                 totalWins += toAddWins
             except Exception as exc:
                 print('%r generated an exception: %s' % (bot, exc))
+                numMatches -= 1
 
     # Construct table
     table = [[results.get((bot, map), 'N/A') for bot in bots] for map in maps]
     # Create Wins, Losses, WinRatio variables
     Wins = totalWins
-    Losses = len(matches)*2 - Wins
+    Losses = numMatches*2 - Wins
     if Wins + Losses == 0:
         WinRatio = 0
     else:
