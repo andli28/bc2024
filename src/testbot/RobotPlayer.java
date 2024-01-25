@@ -109,6 +109,7 @@ public strictfp class RobotPlayer {
     static boolean attackSquadThree = false;
     static boolean initialSetTrapStun = false;
     static boolean initialSetTrapWater = false;
+    static boolean shouldGoHomeAndTrap = false;
 
     /**
      * run() is the method that is called when a robot is instantiated in the
@@ -642,6 +643,20 @@ public strictfp class RobotPlayer {
                     // distance squared to defend a flag
                     int distanceForDefense = 200;
 
+                    //boolean representing if you should go home and trap
+                    // if you're a builderspecialist and its between the given turns, and you have a missing initial trap and you have crumbs, go home and trap
+                    // if its not between the turns, set to false.
+                    if (BUILDERSPECIALIST && ((turnCount > 100 && turnCount < turnsTillAllowingCombat) || rc.getExperience(SkillType.BUILD) >= 30)
+                            && dirToClosestBroadcastFromHomeFlag != null) {
+                        if ((!initialSetTrapStun || !initialSetTrapWater) && rc.getCrumbs() >= 100) {
+                            shouldGoHomeAndTrap = true;
+                        } else if (!(!initialSetTrapStun || !initialSetTrapWater)) {
+                            shouldGoHomeAndTrap = false;
+                        }
+                    } else {
+                        shouldGoHomeAndTrap = false;
+                    }
+
                     // Role Delegation (outdated)
                     // If you have a flag, return
                     // else if your health is below retreat threshold with nearby enemies, you're
@@ -684,8 +699,8 @@ public strictfp class RobotPlayer {
                         role = INCOMBAT;
                         haveSeenCombat = true;
                         rc.setIndicatorString("In combat");
-                    } else if (BUILDERSPECIALIST && diggable != null &&
-                            rc.getExperience(SkillType.BUILD) < 30) {
+                    } else if (BUILDERSPECIALIST && !shouldGoHomeAndTrap
+                            && diggable != null && rc.getExperience(SkillType.BUILD) < 30) {
                         role = TRAINBUILD;
                         rc.setIndicatorString("Training builder: " + diggable.toString());
                     } else if (closestDisplacedFlag != null &&
@@ -716,13 +731,11 @@ public strictfp class RobotPlayer {
                         // their homes
                         // if you have lvl 6 building, have over 100 crumbs, no enemies are around, and
                         // can sense your home location, check if you can stun trap corners.
-                        if (rc.getExperience(SkillType.BUILD) >= 30 && rc.getCrumbs() >= 100 & dirToClosestBroadcastFromHomeFlag != null
-                                && (!initialSetTrapStun || !initialSetTrapWater)) {
-                            if (turnCount < turnsTillAllowingCombat && homeFlag != null
-                                    && !rc.canSenseLocation(homeFlag)) {
+                        if ((BUILDERSPECIALIST || rc.getLevel(SkillType.BUILD) > 3) && dirToClosestBroadcastFromHomeFlag != null) {
+                            if (shouldGoHomeAndTrap && !rc.canSenseLocation(homeFlag)) {
                                 optimalDir = Pathfinder.pathfind(rc.getLocation(), homeFlag);
                                 rc.setIndicatorString("Scouting: Going home to see if I can set traps");
-                            } else if (rc.canSenseLocation(homeFlag)) {
+                            } else if (rc.canSenseLocation(homeFlag) && rc.getCrumbs() >= 100) {
                                 // TODO this is another opportunity to see if home flag still exists to update
                                 // in comms
                                 boolean homeFlagStillExists = false;
@@ -804,13 +817,20 @@ public strictfp class RobotPlayer {
                             }
                         }
 
+                        // if you're a builderspecialist and you need to train, check to see if you can train before and after moving.
                         // dig any nearby water, healmove, then dig any nearby water
                         // TODO: potentially should dig nearby water, then call pathfinding, then dig
                         // again to see if digging that space gives pathfinder an option to move
+                        if (BUILDERSPECIALIST && rc.getExperience(SkillType.BUILD) < 30) {
+                            trainToSixByDigging(rc);
+                        }
                         if (lastTurnPursingCrumb || turnCount > 150) {
                             clearTheWay(rc);
                         }
                         healMove(rc, optimalDir, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
+                        if (BUILDERSPECIALIST && rc.getExperience(SkillType.BUILD) < 30) {
+                            trainToSixByDigging(rc);
+                        }
                         if (lastTurnPursingCrumb || turnCount > 150) {
                             clearTheWay(rc);
                         }
@@ -1289,9 +1309,9 @@ public strictfp class RobotPlayer {
      * @throws GameActionException
      */
     public static MapLocation layTrapWithinRangeOfEnemy(RobotController rc, MapLocation nearestExplosiveTrap,
-                                                 MapLocation nearestStunTrap, RobotInfo[] enemies, MapLocation closestEnemy, int explosiveTrapPreferredDist,
-                                                 int stunTrapPreferredDist,
-                                                 int buildThreshold) throws GameActionException {
+                                                        MapLocation nearestStunTrap, RobotInfo[] enemies, MapLocation closestEnemy, int explosiveTrapPreferredDist,
+                                                        int stunTrapPreferredDist,
+                                                        int buildThreshold) throws GameActionException {
         // Iterate through all building directions, and go through the following logic:
         // 1 . If there are no nearby Explosive traps, build one,
         // 2. Else if there are no nearby Stun Traps, build one.
