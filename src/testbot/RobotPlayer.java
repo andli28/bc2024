@@ -147,9 +147,9 @@ public strictfp class RobotPlayer {
             turnCount += 1; // We have now been alive for one more turn!
 
             // Resignation at 500 turns for testing purposes
-            if (turnCount == 200) {
-                rc.resign();
-            }
+//            if (turnCount == 200) {
+//                rc.resign();
+//            }
 
             // Try/catch blocks stop unhandled exceptions, which cause your robot to
             // explode.
