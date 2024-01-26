@@ -629,6 +629,7 @@ public strictfp class RobotPlayer {
                     int stunTrapPreferredDist = 2;
                     if (rc.getCrumbs() > 3000) {
                         explosiveTrapPreferredDist = 16;
+                        stunTrapPreferredDist = 1;
                     } else if (rc.getCrumbs() > 200) {
                         stunTrapPreferredDist = 1;
                     }
