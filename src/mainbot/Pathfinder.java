@@ -50,12 +50,10 @@ public class Pathfinder {
         if (Clock.getBytecodesLeft() > 5000) {
             Direction bfsDir = Bfs.getBestDir(tgt);
             if (bfsDir != null) {
-                rc.setIndicatorString("bfs towards " + tgt);
                 return bfsDir;
             }
         }
 
-        rc.setIndicatorString("default pathfind towards " + tgt);
         // some variant buh g with wall avoidance
         Direction dirTo = src.directionTo(tgt);
 
