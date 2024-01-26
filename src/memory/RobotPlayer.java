@@ -323,6 +323,12 @@ public strictfp class RobotPlayer {
                     // if (turnCount > 2 && Comms.shortId ==1) {
                     // System.out.println(turnCount);
                     // }
+
+                    // clear waypoint mem on spawn
+                    if (turnsAlive == 0) {
+                        prevWaypoints = new MapLocation[20];
+                        prevWaypointIndex = 0;
+                    }
                     // Turns Alive
                     turnsAlive++;
 
@@ -939,18 +945,6 @@ public strictfp class RobotPlayer {
                             // }
                             // }
                             // If you dropped the flag you wouldn't be able to move anyways
-
-                            // repel dir from enemies if any
-                            // abstract this code if needed
-                            double dx = 0;
-                            double dy = 0;
-                            for (int i = enemies.length - 1; i >= 0; i--) {
-                                MapLocation enemyLoc = enemies[i].getLocation();
-                                int distToEnemy = rc.getLocation().distanceSquaredTo(enemyLoc);
-                                dx += (rc.getLocation().x - enemyLoc.x) * 100 / distToEnemy;
-                                dy += (rc.getLocation().y - enemyLoc.y) * 100 / distToEnemy;
-                            }
-
                             // backtrack home along waypoint list
                             MapLocation currTgt = prevWaypoints[prevWaypointIndex];
                             if (currTgt != null) {
