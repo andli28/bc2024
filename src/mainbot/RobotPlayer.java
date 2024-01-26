@@ -2090,10 +2090,17 @@ public strictfp class RobotPlayer {
     // impassibles nearby
     public static boolean aNeighborIsADamOrWall(RobotController rc, MapLocation x) throws GameActionException {
         MapInfo[] locations = rc.senseNearbyMapInfos(x, 4);
+        int adjWallCounter = 0;
         for (int i = locations.length - 1; i >= 0; i--) {
             if (locations[i].isDam()) {
                 return true;
             }
+            if (locations[i].isWall() && x.distanceSquaredTo(locations[i].getMapLocation()) == 1) {
+                adjWallCounter += 1;
+            }
+        }
+        if (adjWallCounter >= 2) {
+            return true;
         }
         return false;
     }
