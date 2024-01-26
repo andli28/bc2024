@@ -1,4 +1,4 @@
-package mainbot;
+package v7_2_BFS_plus_memory;
 
 import battlecode.common.*;
 
@@ -71,7 +71,6 @@ public strictfp class RobotPlayer {
     static int turnsPursuingStun = 0;
     static boolean retireSentry = false;
     static MapLocation homeFlag = null;
-    static int homeFlagIndex = -1;
     static HashSet<Integer> prevEnemiesIn1Step = new HashSet<>();
     static int prevHp = 1000;
 
@@ -111,6 +110,11 @@ public strictfp class RobotPlayer {
     static boolean initialSetTrapStun = false;
     static boolean initialSetTrapWater = false;
     static boolean shouldGoHomeAndTrap = false;
+
+    // previous waypoints for backtracking on flag return
+    static MapLocation[] prevWaypoints = new MapLocation[20];
+    static int prevWaypointIndex = 0;
+    static final int WAYPOINT_SPACING = 5; // min true travel dist between waypoints
 
     /**
      * run() is the method that is called when a robot is instantiated in the
@@ -206,13 +210,10 @@ public strictfp class RobotPlayer {
                         MapLocation[] homeFlags = Comms.getDefaultAllyFlagLocations();
                         if (Comms.shortId == 0 || Comms.shortId == 1 || Comms.shortId == 2) {
                             homeFlag = homeFlags[0];
-                            homeFlagIndex = 0;
                         } else if (Comms.shortId == 30 || Comms.shortId == 31 || Comms.shortId == 29) {
                             homeFlag = homeFlags[1];
-                            homeFlagIndex = 1;
                         } else if (Comms.shortId == 48 || Comms.shortId == 49 || Comms.shortId == 47) {
                             homeFlag = homeFlags[2];
-                            homeFlagIndex = 2;
                         }
                         if (BUILDERSPECIALIST) {
                             initialBuilderSpawn = homeFlag;
@@ -324,6 +325,12 @@ public strictfp class RobotPlayer {
                     // if (turnCount > 2 && Comms.shortId ==1) {
                     // System.out.println(turnCount);
                     // }
+
+                    // clear waypoint mem on spawn
+                    if (turnsAlive == 0) {
+                        prevWaypoints = new MapLocation[20];
+                        prevWaypointIndex = 0;
+                    }
                     // Turns Alive
                     turnsAlive++;
 
@@ -987,10 +994,31 @@ public strictfp class RobotPlayer {
                             // }
                             // }
                             // If you dropped the flag you wouldn't be able to move anyways
-                            Direction dir = Pathfinder.pathfindHome();
-                            if (rc.canMove(dir)) {
-                                rc.move(dir);
+                            // backtrack home along waypoint list
+                            MapLocation currTgt = prevWaypoints[prevWaypointIndex];
+                            if (currTgt != null) {
+                                Direction dir = Pathfinder.pathfind(rc.getLocation(), currTgt);
+                                if (rc.canMove(dir)) {
+                                    rc.move(dir);
+                                }
+                                // if you can see this waypoint, pop it and ready to move to prev one
+                                if (rc.canSenseLocation(currTgt)) {
+                                    prevWaypoints[prevWaypointIndex] = null;
+                                    prevWaypointIndex = (prevWaypointIndex - 1) < 0 ? prevWaypoints.length - 1
+                                            : prevWaypointIndex - 1;
+                                }
+                                // if you can see home just go
+                                if (rc.canSenseLocation(Info.closestSpawn)) {
+                                    prevWaypoints = new MapLocation[20];
+                                }
+                                // once we exausted all waypoints just go back home
+                            } else {
+                                Direction dir = Pathfinder.pathfindHome();
+                                if (rc.canMove(dir)) {
+                                    rc.move(dir);
+                                }
                             }
+
                         }
                     } else if (role == DEFENDING) {
 
@@ -1108,13 +1136,16 @@ public strictfp class RobotPlayer {
                         // TODO this is an opportunity to update if homeFlag exists in comms
                         // if you're location is the same as the closest default, check if its still
                         // there. If not, retire sentry.
-                        MapLocation[] allyFlags = null;
-                        if (turnCount <= 200) {
-                            allyFlags = Comms.getDefaultAllyFlagLocations();
-                        } else {
-                            allyFlags = Comms.getCurrentAllyFlagLocations();
+                        if (rc.canSenseLocation(homeFlag)) {
+                            retireSentry = true;
+                            FlagInfo[] allyFlags = rc.senseNearbyFlags(GameConstants.VISION_RADIUS_SQUARED);
+                            for (int i = allyFlags.length - 1; i >= 0; i--) {
+                                if (allyFlags[i].getLocation().equals(homeFlag)) {
+                                    retireSentry = false;
+                                    break;
+                                }
+                            }
                         }
-                        retireSentry = !(allyFlags[homeFlagIndex] != null && allyFlags[homeFlagIndex].equals(homeFlag));
                     }
 
                     // increment turnsnotreachedtarget if you are not at your target location.
@@ -1167,6 +1198,16 @@ public strictfp class RobotPlayer {
                         prevEnemiesIn1Step.add(ri.getID());
                     }
                     prevHp = rc.getHealth();
+
+                    // if alive update waypoint list as needed
+                    if (role != RETURNING && turnsAlive % 5 == 0 && rc.getRoundNum() > 200) {
+                        MapLocation prevWP = prevWaypoints[prevWaypointIndex];
+                        if (prevWP == null
+                                || Pathfinder.trueTravelDistance(prevWP, rc.getLocation()) >= WAYPOINT_SPACING) {
+                            prevWaypointIndex = (prevWaypointIndex + 1) % prevWaypoints.length;
+                            prevWaypoints[prevWaypointIndex] = rc.getLocation();
+                        }
+                    }
                 }
                 Comms.update();
 

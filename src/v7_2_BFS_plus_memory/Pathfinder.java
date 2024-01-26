@@ -1,4 +1,4 @@
-package mainbot;
+package v7_2_BFS_plus_memory;
 
 import battlecode.common.*;
 
@@ -117,6 +117,11 @@ public class Pathfinder {
                 initBlockDist = travelDistance(src, tgt);
             }
             turnsBuhgging++;
+
+            if (rc.getID() == 11291)
+                System.out.println("buhgdir2: " + buhgDir.toString());
+            if (rc.getID() == 11291)
+                System.out.println("lastBuhgDir: " + lastBuhgDir.toString());
 
             // flag for if we end up buhgging around a robot
             // in this case do not update lastbuhgdir, as it may result in us circling
