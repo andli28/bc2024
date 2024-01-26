@@ -112,6 +112,11 @@ public strictfp class RobotPlayer {
     static boolean initialSetTrapWater = false;
     static boolean shouldGoHomeAndTrap = false;
 
+    // previous waypoints for backtracking on flag return
+    static MapLocation[] prevWaypoints = new MapLocation[20];
+    static int prevWaypointIndex = 0;
+    static final int WAYPOINT_SPACING = 5; // min true travel dist between waypoints
+
     /**
      * run() is the method that is called when a robot is instantiated in the
      * Battlecode world.
@@ -324,6 +329,13 @@ public strictfp class RobotPlayer {
                     // if (turnCount > 2 && Comms.shortId ==1) {
                     // System.out.println(turnCount);
                     // }
+
+                    // clear waypoint mem on spawn
+                    if (turnsAlive == 0) {
+                        prevWaypoints = new MapLocation[20];
+                        prevWaypointIndex = 0;
+                    }
+
                     // Turns Alive
                     turnsAlive++;
 
@@ -987,10 +999,31 @@ public strictfp class RobotPlayer {
                             // }
                             // }
                             // If you dropped the flag you wouldn't be able to move anyways
-                            Direction dir = Pathfinder.pathfindHome();
-                            if (rc.canMove(dir)) {
-                                rc.move(dir);
+                            // backtrack home along waypoint list
+                            MapLocation currTgt = prevWaypoints[prevWaypointIndex];
+                            if (currTgt != null) {
+                                Direction dir = Pathfinder.pathfind(rc.getLocation(), currTgt);
+                                if (rc.canMove(dir)) {
+                                    rc.move(dir);
+                                }
+                                // if you can see this waypoint, pop it and ready to move to prev one
+                                if (rc.canSenseLocation(currTgt)) {
+                                    prevWaypoints[prevWaypointIndex] = null;
+                                    prevWaypointIndex = (prevWaypointIndex - 1) < 0 ? prevWaypoints.length - 1
+                                            : prevWaypointIndex - 1;
+                                }
+                                // if you can see home just go
+                                if (rc.canSenseLocation(Info.closestSpawn)) {
+                                    prevWaypoints = new MapLocation[20];
+                                }
+                                // once we exausted all waypoints just go back home
+                            } else {
+                                Direction dir = Pathfinder.pathfindHome();
+                                if (rc.canMove(dir)) {
+                                    rc.move(dir);
+                                }
                             }
+
                         }
                     } else if (role == DEFENDING) {
 
@@ -1167,6 +1200,16 @@ public strictfp class RobotPlayer {
                         prevEnemiesIn1Step.add(ri.getID());
                     }
                     prevHp = rc.getHealth();
+
+                    // if alive update waypoint list as needed
+                    if (role != RETURNING && turnsAlive % 5 == 0 && rc.getRoundNum() > 200) {
+                        MapLocation prevWP = prevWaypoints[prevWaypointIndex];
+                        if (prevWP == null
+                                || Pathfinder.trueTravelDistance(prevWP, rc.getLocation()) >= WAYPOINT_SPACING) {
+                            prevWaypointIndex = (prevWaypointIndex + 1) % prevWaypoints.length;
+                            prevWaypoints[prevWaypointIndex] = rc.getLocation();
+                        }
+                    }
                 }
                 Comms.update();
 
