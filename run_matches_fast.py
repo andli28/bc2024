@@ -16,7 +16,7 @@ emojiMap = {
 errors = []
 currentBot = 'mainbot'
 
-bots = ['v7']
+bots = ['v7_1']
 botsSet = set(bots)
 
 # See https://github.com/battlecode/battlecode24/blob/master/client/src/constants.ts
