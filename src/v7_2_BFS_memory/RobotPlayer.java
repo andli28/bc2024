@@ -1,4 +1,4 @@
-package v7_2_BFS_plus_memory;
+package v7_2_BFS_memory;
 
 import battlecode.common.*;
 
