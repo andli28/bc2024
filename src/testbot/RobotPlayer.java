@@ -109,6 +109,7 @@ public strictfp class RobotPlayer {
     static boolean attackSquadThree = false;
     static boolean initialSetTrapStun = false;
     static boolean initialSetTrapWater = false;
+    static boolean shouldGoHomeAndTrap = false;
 
     /**
      * run() is the method that is called when a robot is instantiated in the
@@ -624,10 +625,11 @@ public strictfp class RobotPlayer {
 
                     // when building explosive or stun traps, this is the preferred distance when
                     // building them away from one another
-                    int explosiveTrapPreferredDist = 16;
+                    int explosiveTrapPreferredDist = Integer.MAX_VALUE;
                     int stunTrapPreferredDist = 2;
                     if (rc.getCrumbs() > 3000) {
-                        stunTrapPreferredDist = 0;
+                        explosiveTrapPreferredDist = 16;
+                        stunTrapPreferredDist = 1;
                     } else if (rc.getCrumbs() > 200) {
                         stunTrapPreferredDist = 1;
                     }
@@ -641,6 +643,20 @@ public strictfp class RobotPlayer {
                     int sentryWanderingLimit = 12;
                     // distance squared to defend a flag
                     int distanceForDefense = 200;
+
+                    //boolean representing if you should go home and trap
+                    // if you're a builderspecialist and its between the given turns, and you have a missing initial trap and you have crumbs, go home and trap
+                    // if its not between the turns, set to false.
+                    if (BUILDERSPECIALIST && ((turnCount > 100 && turnCount < turnsTillAllowingCombat) || rc.getExperience(SkillType.BUILD) >= 30)
+                            && dirToClosestBroadcastFromHomeFlag != null) {
+                        if ((!initialSetTrapStun || !initialSetTrapWater) && rc.getCrumbs() >= 100) {
+                            shouldGoHomeAndTrap = true;
+                        } else if (!(!initialSetTrapStun || !initialSetTrapWater)) {
+                            shouldGoHomeAndTrap = false;
+                        }
+                    } else {
+                        shouldGoHomeAndTrap = false;
+                    }
 
                     // Role Delegation (outdated)
                     // If you have a flag, return
@@ -684,8 +700,8 @@ public strictfp class RobotPlayer {
                         role = INCOMBAT;
                         haveSeenCombat = true;
                         rc.setIndicatorString("In combat");
-                    } else if (BUILDERSPECIALIST && diggable != null &&
-                            rc.getExperience(SkillType.BUILD) < 30) {
+                    } else if (BUILDERSPECIALIST && !shouldGoHomeAndTrap
+                            && diggable != null && rc.getExperience(SkillType.BUILD) < 30) {
                         role = TRAINBUILD;
                         rc.setIndicatorString("Training builder: " + diggable.toString());
                     } else if (closestDisplacedFlag != null &&
@@ -716,13 +732,11 @@ public strictfp class RobotPlayer {
                         // their homes
                         // if you have lvl 6 building, have over 100 crumbs, no enemies are around, and
                         // can sense your home location, check if you can stun trap corners.
-                        if (rc.getExperience(SkillType.BUILD) >= 30 && rc.getCrumbs() >= 100 & dirToClosestBroadcastFromHomeFlag != null
-                                && (!initialSetTrapStun || !initialSetTrapWater)) {
-                            if (turnCount < turnsTillAllowingCombat && homeFlag != null
-                                    && !rc.canSenseLocation(homeFlag)) {
+                        if ((BUILDERSPECIALIST || rc.getLevel(SkillType.BUILD) > 3) && dirToClosestBroadcastFromHomeFlag != null) {
+                            if (shouldGoHomeAndTrap && !rc.canSenseLocation(homeFlag)) {
                                 optimalDir = Pathfinder.pathfind(rc.getLocation(), homeFlag);
                                 rc.setIndicatorString("Scouting: Going home to see if I can set traps");
-                            } else if (rc.canSenseLocation(homeFlag)) {
+                            } else if (rc.canSenseLocation(homeFlag) && rc.getCrumbs() >= 100) {
                                 // TODO this is another opportunity to see if home flag still exists to update
                                 // in comms
                                 boolean homeFlagStillExists = false;
@@ -804,13 +818,20 @@ public strictfp class RobotPlayer {
                             }
                         }
 
+                        // if you're a builderspecialist and you need to train, check to see if you can train before and after moving.
                         // dig any nearby water, healmove, then dig any nearby water
                         // TODO: potentially should dig nearby water, then call pathfinding, then dig
                         // again to see if digging that space gives pathfinder an option to move
+                        if (BUILDERSPECIALIST && rc.getExperience(SkillType.BUILD) < 30) {
+                            trainToSixByDigging(rc);
+                        }
                         if (lastTurnPursingCrumb || turnCount > 150) {
                             clearTheWay(rc);
                         }
                         healMove(rc, optimalDir, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
+                        if (BUILDERSPECIALIST && rc.getExperience(SkillType.BUILD) < 30) {
+                            trainToSixByDigging(rc);
+                        }
                         if (lastTurnPursingCrumb || turnCount > 150) {
                             clearTheWay(rc);
                         }
@@ -882,6 +903,7 @@ public strictfp class RobotPlayer {
                         //laytrapwithinrangeofenemy will return either null (if nothing is built) or the maplocation of the trap that is built
                         // update nearest stun and explosive trap with this information and repeat while loop until cd restriction or return null
                         // signifying htat there is nowhere to build.
+                        // TODO: check if can build before and after move
                         MapLocation build = new MapLocation(0,0);
                         int buildCD = SkillType.BUILD.getCooldown(rc.getLevel(SkillType.BUILD));
                         while(rc.getActionCooldownTurns()+buildCD<10 && build != null) {
@@ -1289,9 +1311,9 @@ public strictfp class RobotPlayer {
      * @throws GameActionException
      */
     public static MapLocation layTrapWithinRangeOfEnemy(RobotController rc, MapLocation nearestExplosiveTrap,
-                                                 MapLocation nearestStunTrap, RobotInfo[] enemies, MapLocation closestEnemy, int explosiveTrapPreferredDist,
-                                                 int stunTrapPreferredDist,
-                                                 int buildThreshold) throws GameActionException {
+                                                        MapLocation nearestStunTrap, RobotInfo[] enemies, MapLocation closestEnemy, int explosiveTrapPreferredDist,
+                                                        int stunTrapPreferredDist,
+                                                        int buildThreshold) throws GameActionException {
         // Iterate through all building directions, and go through the following logic:
         // 1 . If there are no nearby Explosive traps, build one,
         // 2. Else if there are no nearby Stun Traps, build one.
@@ -1313,59 +1335,66 @@ public strictfp class RobotPlayer {
             }
         }
         if (closestDirToEnemy != null) {
-            if (nearestExplosiveTrap == null) {
-                if (rc.canBuild(TrapType.EXPLOSIVE, closestDirToEnemy)) {
-                    rc.build(TrapType.EXPLOSIVE, closestDirToEnemy);
-                    built = closestDirToEnemy;
+//            if (nearestExplosiveTrap == null) {
+//                if (rc.canBuild(TrapType.EXPLOSIVE, closestDirToEnemy)) {
+//                    rc.build(TrapType.EXPLOSIVE, closestDirToEnemy);
+//                    built = closestDirToEnemy;
+//                }
+//            } else if (nearestStunTrap == null) {
+//                if (rc.canBuild(TrapType.STUN, closestDirToEnemy)) {
+//                    rc.build(TrapType.STUN, closestDirToEnemy);
+//                    built = closestDirToEnemy;
+//                }
+//            } else {
+            int distTonearestExplosiveTrap = Integer.MAX_VALUE;
+            int distTonearestStunTrap = Integer.MAX_VALUE;
+
+            if (nearestExplosiveTrap != null) {
+                distTonearestExplosiveTrap = closestDirToEnemy.distanceSquaredTo(nearestExplosiveTrap);
+            }
+            if (nearestStunTrap != null) {
+                distTonearestStunTrap = closestDirToEnemy.distanceSquaredTo(nearestStunTrap);
+            }
+
+            if (distTonearestStunTrap > stunTrapPreferredDist
+                    && rc.canBuild(TrapType.STUN, closestDirToEnemy)) {
+                // checking for traps at the new build location to ensure that there is no traps
+                // there that would be closer to the closest trap given.
+                MapInfo[] tilesToCheckForCloserStunTrap = rc.senseNearbyMapInfos(closestDirToEnemy,
+                        stunTrapPreferredDist);
+
+                boolean passedCheckForCloserTrap = true;
+                for (int j = tilesToCheckForCloserStunTrap.length - 1; j >= 0; j--) {
+                    if (tilesToCheckForCloserStunTrap[j].getTrapType() == TrapType.STUN) {
+                        passedCheckForCloserTrap = false;
+                        break;
+                    }
                 }
-            } else if (nearestStunTrap == null) {
-                if (rc.canBuild(TrapType.STUN, closestDirToEnemy)) {
+
+                if (passedCheckForCloserTrap) {
                     rc.build(TrapType.STUN, closestDirToEnemy);
                     built = closestDirToEnemy;
                 }
-            } else {
-                int distTonearestExplosiveTrap = closestDirToEnemy.distanceSquaredTo(nearestExplosiveTrap);
-                int distTonearestStunTrap = closestDirToEnemy.distanceSquaredTo(nearestStunTrap);
-
-                if (distTonearestExplosiveTrap > explosiveTrapPreferredDist
-                        && rc.canBuild(TrapType.EXPLOSIVE, closestDirToEnemy)) {
-                    // checking for traps at the new build location to ensure that there is no traps
-                    // there that would be closer to the closest trap given.
-                    MapInfo[] tilesToCheckForCloserExplosiveTrap = rc.senseNearbyMapInfos(closestDirToEnemy,
-                            explosiveTrapPreferredDist);
-                    boolean passedCheckForCloserTrap = true;
-                    for (int j = tilesToCheckForCloserExplosiveTrap.length - 1; j >= 0; j--) {
-                        if (tilesToCheckForCloserExplosiveTrap[j].getTrapType() == TrapType.EXPLOSIVE) {
-                            passedCheckForCloserTrap = false;
-                            break;
-                        }
-                    }
-
-                    if (passedCheckForCloserTrap) {
-                        rc.build(TrapType.EXPLOSIVE, closestDirToEnemy);
-                        built = closestDirToEnemy;
-                    }
-                } else if (distTonearestStunTrap > stunTrapPreferredDist
-                        && rc.canBuild(TrapType.STUN, closestDirToEnemy)) {
-                    // checking for traps at the new build location to ensure that there is no traps
-                    // there that would be closer to the closest trap given.
-                    MapInfo[] tilesToCheckForCloserStunTrap = rc.senseNearbyMapInfos(closestDirToEnemy,
-                            stunTrapPreferredDist);
-
-                    boolean passedCheckForCloserTrap = true;
-                    for (int j = tilesToCheckForCloserStunTrap.length - 1; j >= 0; j--) {
-                        if (tilesToCheckForCloserStunTrap[j].getTrapType() == TrapType.STUN) {
-                            passedCheckForCloserTrap = false;
-                            break;
-                        }
-                    }
-
-                    if (passedCheckForCloserTrap) {
-                        rc.build(TrapType.STUN, closestDirToEnemy);
-                        built = closestDirToEnemy;
+            } else if (distTonearestExplosiveTrap > explosiveTrapPreferredDist
+                    && rc.canBuild(TrapType.EXPLOSIVE, closestDirToEnemy)) {
+                // checking for traps at the new build location to ensure that there is no traps
+                // there that would be closer to the closest trap given.
+                MapInfo[] tilesToCheckForCloserExplosiveTrap = rc.senseNearbyMapInfos(closestDirToEnemy,
+                        explosiveTrapPreferredDist);
+                boolean passedCheckForCloserTrap = true;
+                for (int j = tilesToCheckForCloserExplosiveTrap.length - 1; j >= 0; j--) {
+                    if (tilesToCheckForCloserExplosiveTrap[j].getTrapType() == TrapType.EXPLOSIVE) {
+                        passedCheckForCloserTrap = false;
+                        break;
                     }
                 }
+
+                if (passedCheckForCloserTrap) {
+                    rc.build(TrapType.EXPLOSIVE, closestDirToEnemy);
+                    built = closestDirToEnemy;
+                }
             }
+//            }
         }
         return built;
     }
