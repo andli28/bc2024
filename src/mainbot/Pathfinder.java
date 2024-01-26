@@ -42,17 +42,20 @@ public class Pathfinder {
     public static Direction pathfind(MapLocation src, MapLocation tgt) throws GameActionException {
         assert tgt != null;
 
+        if (!rc.isMovementReady() || src.equals(tgt))
+            return Direction.CENTER;
+
         // use bfs if we have > 5k bytecode, otherwise do buhg if no bytecode or no
         // result from bfs
         if (Clock.getBytecodesLeft() > 5000) {
             Direction bfsDir = Bfs.getBestDir(tgt);
             if (bfsDir != null) {
+                rc.setIndicatorString("bfs towards " + tgt);
                 return bfsDir;
             }
         }
 
-        if (!rc.isMovementReady() || src.equals(tgt))
-            return Direction.CENTER;
+        rc.setIndicatorString("default pathfind towards " + tgt);
         // some variant buh g with wall avoidance
         Direction dirTo = src.directionTo(tgt);
 
