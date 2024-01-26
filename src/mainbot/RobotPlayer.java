@@ -888,7 +888,7 @@ public strictfp class RobotPlayer {
                             optimalDir = Pathfinder.pathfind(rc.getLocation(), closestDisplacedFlag);
                         }
                         if (optimalDir != null) {
-                            if (!SENTRY || (SENTRY && !retireSentry && rc.getLocation().add(optimalDir)
+                            if (!SENTRY || retireSentry || (SENTRY && !retireSentry && rc.getLocation().add(optimalDir)
                                     .distanceSquaredTo(homeFlag) < sentryWanderingLimit)) {
                                 attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
                             }
@@ -980,7 +980,7 @@ public strictfp class RobotPlayer {
                         // if you're a sentry, you cannot leave sight of the flag, so you are confined
                         // to a wandering limit
                         Direction dir = Pathfinder.pathfind(rc.getLocation(), lowestCurrFriendlySeen);
-                        if (!SENTRY || (SENTRY && !retireSentry
+                        if (!SENTRY || retireSentry || (SENTRY && !retireSentry
                                 && rc.getLocation().add(dir).distanceSquaredTo(homeFlag) < sentryWanderingLimit)) {
                             healMove(rc, dir, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
                         }
@@ -1085,10 +1085,14 @@ public strictfp class RobotPlayer {
                         // TODO this is an opportunity to update if homeFlag exists in comms
                         // if you're location is the same as the closest default, check if its still
                         // there. If not, retire sentry.
-                        if (rc.getLocation().equals(homeFlag)) {
-                            FlagInfo[] allyFlags = rc.senseNearbyFlags(1, rc.getTeam());
-                            if (allyFlags.length == 0) {
-                                retireSentry = true;
+                        if (rc.canSenseLocation(homeFlag)) {
+                            retireSentry = true;
+                            FlagInfo[] allyFlags = rc.senseNearbyFlags(GameConstants.VISION_RADIUS_SQUARED);
+                            for (int i = allyFlags.length-1; i>=0; i--) {
+                                if (allyFlags[i].getLocation().equals(homeFlag)) {
+                                    retireSentry = false;
+                                    break;
+                                }
                             }
                         }
                     }
