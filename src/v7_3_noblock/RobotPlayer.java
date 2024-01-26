@@ -1,4 +1,4 @@
-package mainbot;
+package v7_3_noblock;
 
 import battlecode.common.*;
 
@@ -71,7 +71,6 @@ public strictfp class RobotPlayer {
     static int turnsPursuingStun = 0;
     static boolean retireSentry = false;
     static MapLocation homeFlag = null;
-    static int homeFlagIndex = -1;
     static HashSet<Integer> prevEnemiesIn1Step = new HashSet<>();
     static int prevHp = 1000;
 
@@ -211,13 +210,10 @@ public strictfp class RobotPlayer {
                         MapLocation[] homeFlags = Comms.getDefaultAllyFlagLocations();
                         if (Comms.shortId == 0 || Comms.shortId == 1 || Comms.shortId == 2) {
                             homeFlag = homeFlags[0];
-                            homeFlagIndex = 0;
                         } else if (Comms.shortId == 30 || Comms.shortId == 31 || Comms.shortId == 29) {
                             homeFlag = homeFlags[1];
-                            homeFlagIndex = 1;
                         } else if (Comms.shortId == 48 || Comms.shortId == 49 || Comms.shortId == 47) {
                             homeFlag = homeFlags[2];
-                            homeFlagIndex = 2;
                         }
                         if (BUILDERSPECIALIST) {
                             initialBuilderSpawn = homeFlag;
@@ -335,7 +331,6 @@ public strictfp class RobotPlayer {
                         prevWaypoints = new MapLocation[20];
                         prevWaypointIndex = 0;
                     }
-
                     // Turns Alive
                     turnsAlive++;
 
@@ -1141,13 +1136,16 @@ public strictfp class RobotPlayer {
                         // TODO this is an opportunity to update if homeFlag exists in comms
                         // if you're location is the same as the closest default, check if its still
                         // there. If not, retire sentry.
-                        MapLocation[] allyFlags = null;
-                        if (turnCount <= 200) {
-                            allyFlags = Comms.getDefaultAllyFlagLocations();
-                        } else {
-                            allyFlags = Comms.getCurrentAllyFlagLocations();
+                        if (rc.canSenseLocation(homeFlag)) {
+                            retireSentry = true;
+                            FlagInfo[] allyFlags = rc.senseNearbyFlags(GameConstants.VISION_RADIUS_SQUARED);
+                            for (int i = allyFlags.length - 1; i >= 0; i--) {
+                                if (allyFlags[i].getLocation().equals(homeFlag)) {
+                                    retireSentry = false;
+                                    break;
+                                }
+                            }
                         }
-                        retireSentry = !(allyFlags[homeFlagIndex] != null && allyFlags[homeFlagIndex].equals(homeFlag));
                     }
 
                     // increment turnsnotreachedtarget if you are not at your target location.
