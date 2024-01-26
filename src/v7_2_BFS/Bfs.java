@@ -1,4 +1,4 @@
-package maze;
+package v7_2_BFS;
 
 import battlecode.common.Direction;
 import battlecode.common.MapLocation;
