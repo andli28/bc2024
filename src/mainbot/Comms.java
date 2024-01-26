@@ -97,6 +97,11 @@ public class Comms {
     public static int[] turnOrder = new int[50];
     public static HashMap<Integer, Integer> idToShortId = new HashMap<>();
 
+    // dropped enemy flag turn and loc for clearing if it gets returned
+    public static int droppedEnemyFlagTurn = -1;
+    public static MapLocation droppedEnemyFlagLoc = null;
+    public static int droppedEnemyFlagIdx = -1;
+
     public static void receive() throws GameActionException {
         // yea yea unroll this later
         for (int i = 64; --i >= 0;) {
@@ -210,14 +215,55 @@ public class Comms {
             }
         }
 
+        // do we have the flag drop upgrade at this point?
+        GlobalUpgrade[] upgrades = rc.getGlobalUpgrades(rc.getTeam());
+        boolean hasFlagDrop = false;
+        for (int i = upgrades.length; --i >= 0;) {
+            if (upgrades[i] == GlobalUpgrade.CAPTURING) {
+                hasFlagDrop = true;
+                break;
+            }
+        }
+
+        // if you have dropped a flag and that flag current pos has changed in
+        // comms(update) you don't need to clear it later(someone else will handle it)
+        int flagStickTurns = hasFlagDrop ? 4 + GlobalUpgrade.CAPTURING.flagReturnDelayChange : 4;
+        if (droppedEnemyFlagIdx != -1 && comms[12 + droppedEnemyFlagIdx] != encodeLoc(droppedEnemyFlagLoc)) {
+            droppedEnemyFlagTurn = -1;
+            droppedEnemyFlagLoc = null;
+            droppedEnemyFlagIdx = -1;
+        } else if (droppedEnemyFlagIdx != -1 && rc.getRoundNum() - droppedEnemyFlagTurn > flagStickTurns) {
+            // clear dropped flag if it has been past stick time
+            MapLocation[] defaultEnemyFlagLocs = getDefaultEnemyFlagLocations();
+            write(12 + droppedEnemyFlagIdx, encodeLoc(defaultEnemyFlagLocs[droppedEnemyFlagIdx]));
+            droppedEnemyFlagTurn = -1;
+            droppedEnemyFlagLoc = null;
+            droppedEnemyFlagIdx = -1;
+        }
+
         // sense updating for alive guys only
         if (rc.isSpawned()) {
-            if (!rc.hasFlag()) {
+            // we dropped the flag this turn(this runs end of each turn and we had flag at
+            // end of last)
+            nearbyFlags = rc.senseNearbyFlags(-1);
+            if (carry_idx != -1 && !rc.hasFlag()) {
+                droppedEnemyFlagTurn = rc.getRoundNum();
+                // look for where we dropped flag within 2 r^2
+                int droppedFlagID = comms[15 + carry_idx];
+                for (int i = nearbyFlags.length; --i >= 0;) {
+                    if (nearbyFlags[i].getID() == droppedFlagID) {
+                        droppedEnemyFlagLoc = nearbyFlags[i].getLocation();
+                        break;
+                    }
+                }
+                droppedEnemyFlagIdx = carry_idx;
+                // if we cant find it we captured it
+                if (droppedEnemyFlagLoc == null) {
+                    droppedEnemyFlagTurn = -1;
+                    droppedEnemyFlagIdx = -1;
+                }
                 carry_idx = -1;
             }
-            // reformat to extract this
-            // optimally 1 call pre and post move
-            nearbyFlags = rc.senseNearbyFlags(-1);
             updateFlagLocs();
             if (rc.getRoundNum() > 2) {
                 nearbyEnemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
@@ -227,9 +273,12 @@ public class Comms {
                 writeSelfCDs();
             }
         } else {
-            // if dead clear carry bit from flag you were carrying
+            // if dead clear carry bit from flag you were carrying and note dropped flag
             if (carry_idx != -1) {
                 write(12 + carry_idx, comms[12 + carry_idx] & ~(1 << CARRY_BIT));
+                droppedEnemyFlagTurn = rc.getRoundNum() - 1;
+                droppedEnemyFlagLoc = prevEndTurnLoc;
+                droppedEnemyFlagIdx = carry_idx;
                 carry_idx = -1;
             }
         }
@@ -381,6 +430,7 @@ public class Comms {
 
     // update curr flags by invalidating dissapeared flags
     public static void updateCurrFlags() throws GameActionException {
+        MapLocation[] defaultEnemyFlagLocs = getDefaultEnemyFlagLocations();
         for (int i = 3; --i >= 0;) {
             // enemy flags
             MapLocation loc = decodeLoc(comms[12 + i]);
@@ -394,7 +444,9 @@ public class Comms {
                 }
             }
             if (!validComm) {
-                write(12 + i, 0);
+                // if its not here anymore and no other ally has it it must have returned to its
+                // default loc
+                write(12 + i, encodeLoc(defaultEnemyFlagLocs[i]));
             }
         }
 

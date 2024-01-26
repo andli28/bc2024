@@ -516,7 +516,8 @@ public strictfp class RobotPlayer {
 
                     MapLocation escortTgt = null;
                     // set target flag as to null if someone is already escorting it.
-                    // Only calculate after turn 200 cuz flag enemy flag can't be accessed until then
+                    // Only calculate after turn 200 cuz flag enemy flag can't be accessed until
+                    // then
                     if (turnCount >= GameConstants.SETUP_ROUNDS) {
                         for (int i = enemyFlagLocs.length - 1; i >= 0; i--) {
                             if (enemyFlagLocs[i] != null && targetsCarried[i] && tgtLocation != null
