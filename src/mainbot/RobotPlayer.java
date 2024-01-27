@@ -987,7 +987,12 @@ public strictfp class RobotPlayer {
                         }
 
                         if (enemies.length != 0) {
-                            attackMove(rc, dir, lowestCurrHostile, lowestCurrHostileHealth);
+                            if (lowestCurrHostile != null) {
+                                attackMove(rc, dir, lowestCurrHostile, lowestCurrHostileHealth);
+                            } else {
+                                attackMove(rc, dir, lowestCurrHostile, lowestCurrHostileHealth);
+                                clearTheWay(rc);
+                            }
                         } else if (nearestWater != null) {
                             if (lowestCurrFriendly != null) {
                                 healMove(rc, dir, lowestCurrFriendly, lowestCurrFriendlyHealth,

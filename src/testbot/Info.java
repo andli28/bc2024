@@ -1,6 +1,7 @@
 package testbot;
 
 import battlecode.common.*;
+import mainbot.utils.*;
 
 public class Info {
     public static RobotController rc;
@@ -12,15 +13,15 @@ public class Info {
     public static int VISION_DIST;
     
     public static MapLocation[] spawnLocs;
+    public static IterableLocSet spawnLocsSet;
     public static MapLocation closestSpawn;
     public static int numFlagsNearbyNotPickedUp;
     public static MapLocation closestFlag;
     public static int closestFlagDist;
+    public static FlagInfo closestFlagInfo;
 
     public static RobotInfo[] friendly_robots;    
     public static MapLocation centerOfFriendliesLocation;
-
-
 
     public static RobotInfo[] enemy_robots;
 
@@ -30,6 +31,11 @@ public class Info {
         // TODO: Add other initialization code here (transfer some from RobotPlayer)
 
         spawnLocs = rc.getAllySpawnLocations();
+        spawnLocsSet = new IterableLocSet(spawnLocs.length);
+        for (int i = spawnLocs.length - 1; i >= 0; i--) {
+            spawnLocsSet.add(spawnLocs[i]);
+        }
+        //don't have to update iterable if not iterating through it.
 
     }
 
@@ -63,6 +69,7 @@ public class Info {
         // find closest flagLoc:
         MapLocation closestFlag = null;
         int closestFlagDist = Integer.MAX_VALUE;
+        FlagInfo closestFlagInfo = null;
         for (int i = nearbyFlags.length - 1; i >= 0; i--) {
             if (!nearbyFlags[i].isPickedUp()) {
                 int distSqToSpawn = rc.getLocation()
@@ -70,11 +77,13 @@ public class Info {
                 if (distSqToSpawn < closestFlagDist) {
                     closestFlagDist = distSqToSpawn;
                     closestFlag = nearbyFlags[i].getLocation();
+                    closestFlagInfo = nearbyFlags[i];
                 }
             }
         }
         Info.closestFlag = closestFlag;
         Info.closestFlagDist = closestFlagDist;
+        Info.closestFlagInfo = closestFlagInfo;
 
     }
 

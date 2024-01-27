@@ -656,9 +656,7 @@ public strictfp class RobotPlayer {
                     // if you're a builderspecialist and its between the given turns, and you have a
                     // missing initial trap and you have crumbs, go home and trap
                     // if its not between the turns, set to false.
-                    if (BUILDERSPECIALIST
-                            && ((turnCount > 100 && turnCount < turnsTillAllowingCombat)
-                                    || rc.getExperience(SkillType.BUILD) >= 30)
+                    if (BUILDERSPECIALIST && (turnCount > 100 && turnCount < turnsTillAllowingCombat)
                             && dirToClosestBroadcastFromHomeFlag != null) {
                         if ((!initialSetTrapStun || !initialSetTrapWater) && rc.getCrumbs() >= 100) {
                             shouldGoHomeAndTrap = true;
@@ -970,15 +968,40 @@ public strictfp class RobotPlayer {
                         Direction dir;
                         if (rc.canPickupFlag(Info.closestFlag)) {
                             rc.pickupFlag(Info.closestFlag);
+                            if(Info.spawnLocsSet.contains(rc.getLocation())) {
+                                Comms.captureFlag(Info.closestFlagInfo.getID());
+                            }
                             dir = Pathfinder.pathfindHome();
                         } else {
                             dir = Pathfinder.pathfind(rc.getLocation(), Info.closestFlag);
-                            if (rc.canPickupFlag(Info.closestFlag)) {
-                                rc.pickupFlag(Info.closestFlag);
+                            if (rc.canPickupFlag(Info.closestFlag)) {  
+                                rc.pickupFlag(Info.closestFlag);                                                              
+                                if(Info.spawnLocsSet.contains(rc.getLocation())) {
+                                    Comms.captureFlag(Info.closestFlagInfo.getID());
+                                }
                             }
                         }
 
-                        healMove(rc, dir, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
+                        if (rc.canMove(dir) && Info.spawnLocsSet.contains(rc.getLocation().add(dir))){
+                            Comms.captureFlag(Info.closestFlagInfo.getID());
+                        }
+
+                        if (enemies.length != 0) {
+                            attackMove(rc, dir, lowestCurrHostile, lowestCurrHostileHealth);
+                        } else if (nearestWater != null) {
+                            if (lowestCurrFriendly != null) {
+                                healMove(rc, dir, lowestCurrFriendly, lowestCurrFriendlyHealth,
+                                        attackerCanHeal);
+                                clearTheWay(rc);
+                            } else {
+                                clearTheWay(rc);
+                                healMove(rc, dir, lowestCurrFriendly, lowestCurrFriendlyHealth,
+                                        attackerCanHeal);
+                                clearTheWay(rc);
+                            }
+                        } else {
+                            healMove(rc, dir, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
+                        }
 
                     } else if (role == RETURNING) {
                         // If we are holding an enemy flag, singularly focus on moving towards
