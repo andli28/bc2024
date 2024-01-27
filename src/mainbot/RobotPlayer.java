@@ -812,7 +812,7 @@ public strictfp class RobotPlayer {
                                 tgtLocation = bigCloseCrumb;
                                 turnsNotReachedTgt = 0;
                                 lastTurnPursingCrumb = true;
-                            } else if (turnCount > turnsTillAllowingCombat && targetFlag != null) {
+                            } else if (turnCount > turnsTillAllowingCombat && targetFlag != null && !rc.canSenseLocation(targetFlag)) {
                                 tgtLocation = targetFlag;
                                 turnsNotReachedTgt = 0;
                             } else if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||

@@ -44,6 +44,16 @@ public class Pathfinder {
 
         if (!rc.isMovementReady() || src.equals(tgt))
             return Direction.CENTER;
+
+        // use bfs if we have > 5k bytecode, otherwise do buhg if no bytecode or no
+        // result from bfs
+        if (Clock.getBytecodesLeft() > 5000) {
+            Direction bfsDir = Bfs.getBestDir(tgt);
+            if (bfsDir != null) {
+                return bfsDir;
+            }
+        }
+
         // some variant buh g with wall avoidance
         Direction dirTo = src.directionTo(tgt);
 
@@ -111,11 +121,6 @@ public class Pathfinder {
             initBlockDist = travelDistance(src, tgt);
         }
         turnsBuhgging++;
-
-        if (rc.getID() == 11291)
-            System.out.println("buhgdir2: " + buhgDir.toString());
-        if (rc.getID() == 11291)
-            System.out.println("lastBuhgDir: " + lastBuhgDir.toString());
 
         // flag for if we end up buhgging around a robot
         // in this case do not update lastbuhgdir, as it may result in us circling
