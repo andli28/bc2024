@@ -317,6 +317,19 @@ public class Comms {
 
     }
 
+    // called when capturing a flag in same turn as pickup in robotplayer
+    // for explicitly when comms doesnt even register the flag dropoff(same turn
+    // pickup + capture)
+    public static void captureFlag(int flagID) throws GameActionException {
+        int idx = getFlagIndexFromID(flagID);
+        if (idx != -1) {
+            // clear default, current, and id entries for this flag
+            write(9 + idx, 0);
+            write(12 + idx, 0);
+            write(15 + idx, 0);
+        }
+    }
+
     public static int getAllyAttackSpecs() {
         return comms[18];
     }
