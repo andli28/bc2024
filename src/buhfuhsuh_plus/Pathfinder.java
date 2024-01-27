@@ -45,9 +45,9 @@ public class Pathfinder {
         if (!rc.isMovementReady() || src.equals(tgt))
             return Direction.CENTER;
 
-        // use bfs if we have > 5k bytecode, otherwise do buhg if no bytecode or no
-        // result from bfs
-        if (Clock.getBytecodesLeft() > 5000) {
+        // use bfs if we have > 5k bytecode and not currently buhgging, otherwise do
+        // greedy/buhg if no bytecode or no result from bfs
+        if (buhgDir == Rot.NONE && Clock.getBytecodesLeft() > 5000) {
             Direction bfsDir = Bfs.getBestDir(tgt);
             // make sure bfs returns dir that is not null and gets u closer to your target
             if (bfsDir != null
