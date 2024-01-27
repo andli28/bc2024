@@ -656,9 +656,7 @@ public strictfp class RobotPlayer {
                     // if you're a builderspecialist and its between the given turns, and you have a
                     // missing initial trap and you have crumbs, go home and trap
                     // if its not between the turns, set to false.
-                    if (BUILDERSPECIALIST
-                            && ((turnCount > 100 && turnCount < turnsTillAllowingCombat)
-                                    || rc.getExperience(SkillType.BUILD) >= 30)
+                    if (BUILDERSPECIALIST && (turnCount > 100 && turnCount < turnsTillAllowingCombat)
                             && dirToClosestBroadcastFromHomeFlag != null) {
                         if ((!initialSetTrapStun || !initialSetTrapWater) && rc.getCrumbs() >= 100) {
                             shouldGoHomeAndTrap = true;
