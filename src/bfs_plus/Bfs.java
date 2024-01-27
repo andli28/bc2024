@@ -1,4 +1,4 @@
-package buhfuhsuh_plus;
+package bfs_plus;
 
 import battlecode.common.Direction;
 import battlecode.common.MapLocation;

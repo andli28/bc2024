@@ -1,4 +1,4 @@
-package buhfuhsuh_plus.utils;
+package bfs_plus.utils;
 
 import battlecode.common.*;
 
@@ -23,7 +23,7 @@ public class IterableLocSet {
     }
 
     private String locToStr(MapLocation loc) {
-        return "^" + (char)(loc.x) + (char)(loc.y);
+        return "^" + (char) (loc.x) + (char) (loc.y);
     }
 
     public void add(MapLocation loc) {
@@ -35,7 +35,7 @@ public class IterableLocSet {
     }
 
     public void add(int x, int y) {
-        String key = "^" + (char)x + (char)y;
+        String key = "^" + (char) x + (char) y;
         if (keys.indexOf(key) == -1) {
             keys.append(key);
             size++;
@@ -48,20 +48,20 @@ public class IterableLocSet {
         if ((index = keys.indexOf(key)) >= 0) {
             keys.delete(index, index + 3);
             size--;
-            
-            if(earliestRemoved > index)
+
+            if (earliestRemoved > index)
                 earliestRemoved = index;
         }
     }
 
     public void remove(int x, int y) {
-        String key = "^" + (char)x + (char)y;
+        String key = "^" + (char) x + (char) y;
         int index;
         if ((index = keys.indexOf(key)) >= 0) {
             keys.delete(index, index + 3);
             size--;
-            
-            if(earliestRemoved > index)
+
+            if (earliestRemoved > index)
                 earliestRemoved = index;
         }
     }
@@ -71,7 +71,7 @@ public class IterableLocSet {
     }
 
     public boolean contains(int x, int y) {
-        return keys.indexOf("^" + (char)x + (char)y) >= 0;
+        return keys.indexOf("^" + (char) x + (char) y) >= 0;
     }
 
     public void clear() {
@@ -82,7 +82,7 @@ public class IterableLocSet {
 
     public void updateIterable() {
         for (int i = earliestRemoved / 3; i < size; i++) {
-            locs[i] = new MapLocation(keys.charAt(i*3+1), keys.charAt(i*3+2));
+            locs[i] = new MapLocation(keys.charAt(i * 3 + 1), keys.charAt(i * 3 + 2));
         }
         earliestRemoved = size * 3;
     }

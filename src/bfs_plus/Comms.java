@@ -1,4 +1,4 @@
-package buhfuhsuh_plus_plus;
+package bfs_plus;
 
 import battlecode.common.*;
 

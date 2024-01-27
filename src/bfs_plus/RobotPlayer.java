@@ -1,4 +1,4 @@
-package buhfuhsuh_plus;
+package bfs_plus;
 
 import battlecode.common.*;
 
@@ -818,7 +818,8 @@ public strictfp class RobotPlayer {
                                 tgtLocation = bigCloseCrumb;
                                 turnsNotReachedTgt = 0;
                                 lastTurnPursingCrumb = true;
-                            } else if (turnCount > turnsTillAllowingCombat && targetFlag != null && !rc.canSenseLocation(targetFlag)) {
+                            } else if (turnCount > turnsTillAllowingCombat && targetFlag != null
+                                    && !rc.canSenseLocation(targetFlag)) {
                                 tgtLocation = targetFlag;
                                 turnsNotReachedTgt = 0;
                             } else if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||
@@ -921,7 +922,7 @@ public strictfp class RobotPlayer {
                             attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
                         }
                     } else if (role == BUILDING) {
-                        //System.out.println("1, " + Clock.getBytecodesLeft());
+                        // System.out.println("1, " + Clock.getBytecodesLeft());
                         Direction optimalDir = null;
                         // dummy mapLocation. Build whlie cooldown + buildCD< 10 and build != null.
                         // laytrapwithinrangeofenemy will return either null (if nothing is built) or
@@ -949,14 +950,14 @@ public strictfp class RobotPlayer {
                                 }
                             }
                         }
-                        //System.out.println("2. " + Clock.getBytecodesLeft());
+                        // System.out.println("2. " + Clock.getBytecodesLeft());
                         // Calculate the average distance from all enemies.
                         if (rc.isMovementReady()) {
                             float averageDistSqFromEnemies = averageDistanceSquaredFrom(enemies, rc.getLocation());
                             optimalDir = findOptimalCombatDir(rc, enemies, lowestCurrHostile, closestHostile,
                                     averageDistSqFromEnemies,
                                     numHostiles, numFriendlies);
-                            //System.out.println("3. " + Clock.getBytecodesLeft());
+                            // System.out.println("3. " + Clock.getBytecodesLeft());
                         }
                         attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
                         if (optimalDir == null) {
@@ -970,21 +971,21 @@ public strictfp class RobotPlayer {
                         Direction dir;
                         if (rc.canPickupFlag(Info.closestFlag)) {
                             rc.pickupFlag(Info.closestFlag);
-                            if(Info.spawnLocsSet.contains(rc.getLocation())) {
+                            if (Info.spawnLocsSet.contains(rc.getLocation())) {
                                 Comms.captureFlag(Info.closestFlagInfo.getID());
                             }
                             dir = Pathfinder.pathfindHome();
                         } else {
                             dir = Pathfinder.pathfind(rc.getLocation(), Info.closestFlag);
-                            if (rc.canPickupFlag(Info.closestFlag)) {  
-                                rc.pickupFlag(Info.closestFlag);                                                              
-                                if(Info.spawnLocsSet.contains(rc.getLocation())) {
+                            if (rc.canPickupFlag(Info.closestFlag)) {
+                                rc.pickupFlag(Info.closestFlag);
+                                if (Info.spawnLocsSet.contains(rc.getLocation())) {
                                     Comms.captureFlag(Info.closestFlagInfo.getID());
                                 }
                             }
                         }
 
-                        if (rc.canMove(dir) && Info.spawnLocsSet.contains(rc.getLocation().add(dir))){
+                        if (rc.canMove(dir) && Info.spawnLocsSet.contains(rc.getLocation().add(dir))) {
                             Comms.captureFlag(Info.closestFlagInfo.getID());
                         }
 
@@ -1716,7 +1717,7 @@ public strictfp class RobotPlayer {
                     : rc.getLocation().add(bestAttack);
             int dmg = 0;
             // int stunnedHostilesInVision = 0;
-            for (int i = enemies.length; --i >= 0; ) {
+            for (int i = enemies.length; --i >= 0;) {
                 RobotInfo enemy = enemies[i];
                 // 10 r^2 is max dist where enemy is 1 move from attack range
                 // if enemy is not in stunned cache
@@ -1894,7 +1895,7 @@ public strictfp class RobotPlayer {
             // changed here
             if (rc.getHealth() <= dmg || numHostiles - 2 /*- stunnedHostilesInVision*/ >= numFriendlies
                     || (!rc.isActionReady() && !(rc.getActionCooldownTurns() / 10 == 1
-                    && rc.getLocation().distanceSquaredTo(closestHostile) >= 17))
+                            && rc.getLocation().distanceSquaredTo(closestHostile) >= 17))
                     || (rc.isActionReady() && lowestCurrHostile != null)) {
                 // if (lowestCurrHostile == null &&
                 // SkillType.ATTACK.getSkillEffect(rc.getLevel(SkillType.ATTACK)) <= dmgIfChill
