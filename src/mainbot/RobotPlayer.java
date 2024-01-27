@@ -976,8 +976,11 @@ public strictfp class RobotPlayer {
                             dir = Pathfinder.pathfindHome();
                         } else {
                             dir = Pathfinder.pathfind(rc.getLocation(), Info.closestFlag);
-                            if (rc.canPickupFlag(Info.closestFlag)) {
-                                rc.pickupFlag(Info.closestFlag);
+                            if (rc.canPickupFlag(Info.closestFlag)) {  
+                                rc.pickupFlag(Info.closestFlag);                                                              
+                                if(Info.spawnLocsSet.contains(rc.getLocation())) {
+                                    Comms.captureFlag(Info.closestFlagInfo.getID());
+                                }
                             }
                         }
 
