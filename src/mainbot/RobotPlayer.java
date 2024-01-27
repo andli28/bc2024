@@ -970,12 +970,19 @@ public strictfp class RobotPlayer {
                         Direction dir;
                         if (rc.canPickupFlag(Info.closestFlag)) {
                             rc.pickupFlag(Info.closestFlag);
+                            if(Info.spawnLocsSet.contains(rc.getLocation())) {
+                                Comms.captureFlag(Info.closestFlagInfo.getID());
+                            }
                             dir = Pathfinder.pathfindHome();
                         } else {
                             dir = Pathfinder.pathfind(rc.getLocation(), Info.closestFlag);
                             if (rc.canPickupFlag(Info.closestFlag)) {
                                 rc.pickupFlag(Info.closestFlag);
                             }
+                        }
+
+                        if (rc.canMove(dir) && Info.spawnLocsSet.contains(rc.getLocation().add(dir))){
+                            Comms.captureFlag(Info.closestFlagInfo.getID());
                         }
 
                         healMove(rc, dir, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
