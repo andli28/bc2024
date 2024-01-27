@@ -259,6 +259,10 @@ public class Comms {
                 droppedEnemyFlagIdx = carry_idx;
                 // if we cant find it we captured it
                 if (droppedEnemyFlagLoc == null) {
+                    // clear enemy flag entry(default + current and locally no dropped flag)
+                    write(9 + carry_idx, 0);
+                    write(12 + carry_idx, 0);
+                    write(15 + carry_idx, 0);
                     droppedEnemyFlagTurn = -1;
                     droppedEnemyFlagIdx = -1;
                 }
