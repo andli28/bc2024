@@ -986,7 +986,22 @@ public strictfp class RobotPlayer {
                             Comms.captureFlag(Info.closestFlagInfo.getID());
                         }
 
-                        healMove(rc, dir, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
+                        if (enemies.length != 0) {
+                            attackMove(rc, dir, lowestCurrHostile, lowestCurrHostileHealth);
+                        } else if (nearestWater != null) {
+                            if (lowestCurrFriendly != null) {
+                                healMove(rc, dir, lowestCurrFriendly, lowestCurrFriendlyHealth,
+                                        attackerCanHeal);
+                                clearTheWay(rc);
+                            } else {
+                                clearTheWay(rc);
+                                healMove(rc, dir, lowestCurrFriendly, lowestCurrFriendlyHealth,
+                                        attackerCanHeal);
+                                clearTheWay(rc);
+                            }
+                        } else {
+                            healMove(rc, dir, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
+                        }
 
                     } else if (role == RETURNING) {
                         // If we are holding an enemy flag, singularly focus on moving towards
