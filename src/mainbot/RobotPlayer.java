@@ -403,10 +403,12 @@ public strictfp class RobotPlayer {
                     for (int i = nearbyMap.length - 1; i >= 0; i--) {
                         MapInfo singleMap = nearbyMap[i];
                         int distToSingleMap = rc.getLocation().distanceSquaredTo(singleMap.getMapLocation());
-                        if (BUILDERSPECIALIST && distToSingleMap <= 11 && singleMap.isPassable()
+                        if (diggable == null && BUILDERSPECIALIST
+                                && rc.getExperience(SkillType.BUILD) <= 30
+                                && distToSingleMap <= 11
+                                && singleMap.isPassable()
                                 && !singleMap.isSpawnZone()
                                 && !rc.isLocationOccupied(singleMap.getMapLocation())
-                                && diggable == null && rc.getExperience(SkillType.BUILD) <= 30
                                 && !doSidesHaveWater(rc, singleMap.getMapLocation())
                                 && !aNeighborIsADamOrWall(rc, singleMap.getMapLocation())) {
                             diggable = singleMap.getMapLocation();
@@ -743,8 +745,10 @@ public strictfp class RobotPlayer {
                         if ((BUILDERSPECIALIST || rc.getLevel(SkillType.BUILD) > 3)
                                 && dirToClosestBroadcastFromHomeFlag != null) {
                             if (shouldGoHomeAndTrap && !rc.canSenseLocation(homeFlag)) {
-                                optimalDir = Pathfinder.pathfind(rc.getLocation(), homeFlag);
-                                rc.setIndicatorString("Scouting: Going home to see if I can set traps");
+                                if (rc.isMovementReady()) {
+                                    optimalDir = Pathfinder.pathfind(rc.getLocation(), homeFlag);
+                                    rc.setIndicatorString("Scouting: Going home to see if I can set traps");
+                                }
                             } else if (rc.canSenseLocation(homeFlag) && rc.getCrumbs() >= 100) {
                                 // TODO this is another opportunity to see if home flag still exists to update
                                 // in comms
@@ -795,8 +799,10 @@ public strictfp class RobotPlayer {
                                                 && rc.canBuild(TrapType.WATER, closestViableLocWithoutTrap)) {
                                             rc.build(TrapType.WATER, closestViableLocWithoutTrap);
                                         } else {
-                                            optimalDir = Pathfinder.pathfind(rc.getLocation(),
-                                                    closestViableLocWithoutTrap);
+                                            if (rc.isMovementReady()) {
+                                                optimalDir = Pathfinder.pathfind(rc.getLocation(),
+                                                        closestViableLocWithoutTrap);
+                                            }
                                         }
                                     }
                                 }
@@ -807,7 +813,7 @@ public strictfp class RobotPlayer {
                         // pursue nearby crumbs
                         // If there are no nearby crumbs, go to either a random location, or if it is
                         // beyond a certain turn, go to the targetFlag.
-                        if (optimalDir == null) {
+                        if (optimalDir == null && rc.isMovementReady()) {
                             if (bigCloseCrumb != null) {
                                 tgtLocation = bigCloseCrumb;
                                 turnsNotReachedTgt = 0;
@@ -894,13 +900,15 @@ public strictfp class RobotPlayer {
                         // if you're a sentry, you cannot leave sight of the flag, so you are confined
                         // to a wandering limit
                         // Calculate the average distance from all enemies.
-                        float averageDistSqFromEnemies = averageDistanceSquaredFrom(enemies, rc.getLocation());
-                        optimalDir = findOptimalCombatDir(rc, enemies, lowestCurrHostile, closestHostile,
-                                averageDistSqFromEnemies,
-                                numHostiles, numFriendlies);
+                        if (rc.isMovementReady()) {
+                            float averageDistSqFromEnemies = averageDistanceSquaredFrom(enemies, rc.getLocation());
+                            optimalDir = findOptimalCombatDir(rc, enemies, lowestCurrHostile, closestHostile,
+                                    averageDistSqFromEnemies,
+                                    numHostiles, numFriendlies);
+                        }
                         boolean shouldProtectAtAllCosts = closestDisplacedFlag != null
                                 && rc.getLocation().distanceSquaredTo(closestDisplacedFlag) < 20;
-                        if (shouldProtectAtAllCosts) {
+                        if (shouldProtectAtAllCosts && rc.isMovementReady()) {
                             optimalDir = Pathfinder.pathfind(rc.getLocation(), closestDisplacedFlag);
                         }
                         if (optimalDir != null) {
@@ -909,11 +917,11 @@ public strictfp class RobotPlayer {
                                 attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
                             }
                         } else {
-                            rc.setIndicatorString("combat null: " + averageDistSqFromEnemies);
+                            rc.setIndicatorString("combat null");
                             attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
                         }
                     } else if (role == BUILDING) {
-
+                        //System.out.println("1, " + Clock.getBytecodesLeft());
                         Direction optimalDir = null;
                         // dummy mapLocation. Build whlie cooldown + buildCD< 10 and build != null.
                         // laytrapwithinrangeofenemy will return either null (if nothing is built) or
@@ -941,14 +949,18 @@ public strictfp class RobotPlayer {
                                 }
                             }
                         }
+                        //System.out.println("2. " + Clock.getBytecodesLeft());
                         // Calculate the average distance from all enemies.
-                        float averageDistSqFromEnemies = averageDistanceSquaredFrom(enemies, rc.getLocation());
-                        optimalDir = findOptimalCombatDir(rc, enemies, lowestCurrHostile, closestHostile,
-                                averageDistSqFromEnemies,
-                                numHostiles, numFriendlies);
+                        if (rc.isMovementReady()) {
+                            float averageDistSqFromEnemies = averageDistanceSquaredFrom(enemies, rc.getLocation());
+                            optimalDir = findOptimalCombatDir(rc, enemies, lowestCurrHostile, closestHostile,
+                                    averageDistSqFromEnemies,
+                                    numHostiles, numFriendlies);
+                            //System.out.println("3. " + Clock.getBytecodesLeft());
+                        }
                         attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
                         if (optimalDir == null) {
-                            rc.setIndicatorString("building null: " + averageDistSqFromEnemies);
+                            rc.setIndicatorString("building move null dir");
                         }
 
                     } else if (role == CAPTURING) {
@@ -1105,7 +1117,9 @@ public strictfp class RobotPlayer {
                         trainToSixByDigging(rc);
                         Direction optimalDir = null;
                         if (diggable != null) {
-                            optimalDir = Pathfinder.pathfind(rc.getLocation(), diggable);
+                            if (rc.isMovementReady()) {
+                                optimalDir = Pathfinder.pathfind(rc.getLocation(), diggable);
+                            }
                             if (closestHostile != null) {
                                 attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
                             } else {
@@ -1382,10 +1396,10 @@ public strictfp class RobotPlayer {
         MapLocation closestDirToEnemy = null;
         for (int i = Direction.allDirections().length - 1; i >= 0; i--) {
             MapLocation buildLoc = rc.getLocation().add(Direction.allDirections()[i]);
-            float avgDistEnemy = averageDistanceSquaredFrom(enemies, buildLoc);
+            int distToClosestEnemy = buildLoc.distanceSquaredTo(closestEnemy);
             if (rc.canBuild(TrapType.STUN, buildLoc) && buildLoc.distanceSquaredTo(closestEnemy) <= buildThreshold
-                    && avgDistEnemy < closestToEnemy) {
-                closestToEnemy = avgDistEnemy;
+                    && distToClosestEnemy < closestToEnemy) {
+                closestToEnemy = distToClosestEnemy;
                 closestDirToEnemy = buildLoc;
             }
         }
@@ -1654,239 +1668,240 @@ public strictfp class RobotPlayer {
         // Best Attacking direction is the direction that tries to keep troops at an
         // average distance
         // equal to the attack radius squared.
-
-        Direction bestRetreat = null;
-        Direction bestAttack = null;
-        float bestRetreatDist = averageDistFromEnemies;
-        float bestAttackDist = Integer.MAX_VALUE;
-
-        Direction[] validCombatDirs = directions;
-        for (int i = validCombatDirs.length - 1; i >= 0; i--) {
-            MapLocation tempLoc = rc.getLocation().add(validCombatDirs[i]);
-
-            if (rc.canSenseLocation(tempLoc) && rc.sensePassability(tempLoc)
-                    && !rc.canSenseRobotAtLocation(tempLoc)) {
-                float averageDist = (float) averageDistanceSquaredFrom(enemies, tempLoc);
-                if (averageDist > 3 && averageDist < bestAttackDist) {
-                    bestAttackDist = averageDist;
-                    bestAttack = validCombatDirs[i];
-                }
-
-                if (averageDist > bestRetreatDist) {
-                    bestRetreatDist = averageDist;
-                    bestRetreat = validCombatDirs[i];
-                }
-            }
-        }
-
-        // Decide whether the bestAttack direction or bestRetreat direction is optimal
-        // for the situation.
-
-        // if health is less than half your health or the number of hostiles is larger
-        // than 1,
-        // go to best retreat dir. Otherwise, go to the best Attack dir.
         Direction optimalDir = null;
+        if (rc.isMovementReady()) {
+            Direction bestRetreat = null;
+            Direction bestAttack = null;
+            float bestRetreatDist = averageDistFromEnemies;
+            float bestAttackDist = Integer.MAX_VALUE;
 
-        // count damage you can take next round if you move bestAttack
-        MapLocation advanceLoc = bestAttack == null ? rc.getLocation()
-                : rc.getLocation().add(bestAttack);
-        int dmg = 0;
-        // int stunnedHostilesInVision = 0;
-        for (int i = enemies.length; --i >= 0;) {
-            RobotInfo enemy = enemies[i];
-            // 10 r^2 is max dist where enemy is 1 move from attack range
-            // if enemy is not in stunned cache
-            // if (!Comms.stunnedEnemiesContains(enemy.getLocation())) {
-            if (enemy.getLocation().distanceSquaredTo(advanceLoc) <= 10) {
-                dmg += SkillType.ATTACK.skillEffect
-                        + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
+            Direction[] validCombatDirs = directions;
+            for (int i = validCombatDirs.length - 1; i >= 0; i--) {
+                MapLocation tempLoc = rc.getLocation().add(validCombatDirs[i]);
+
+                if (rc.canSenseLocation(tempLoc) && rc.sensePassability(tempLoc)
+                        && !rc.canSenseRobotAtLocation(tempLoc)) {
+                    float averageDist = (float) averageDistanceSquaredFrom(enemies, tempLoc);
+                    if (averageDist > 3 && averageDist < bestAttackDist) {
+                        bestAttackDist = averageDist;
+                        bestAttack = validCombatDirs[i];
+                    }
+
+                    if (averageDist > bestRetreatDist) {
+                        bestRetreatDist = averageDist;
+                        bestRetreat = validCombatDirs[i];
+                    }
+                }
             }
-            // } else {
-            // stunnedHostilesInVision++;
+
+            // Decide whether the bestAttack direction or bestRetreat direction is optimal
+            // for the situation.
+
+            // if health is less than half your health or the number of hostiles is larger
+            // than 1,
+            // go to best retreat dir. Otherwise, go to the best Attack dir.
+
+            // count damage you can take next round if you move bestAttack
+            MapLocation advanceLoc = bestAttack == null ? rc.getLocation()
+                    : rc.getLocation().add(bestAttack);
+            int dmg = 0;
+            // int stunnedHostilesInVision = 0;
+            for (int i = enemies.length; --i >= 0; ) {
+                RobotInfo enemy = enemies[i];
+                // 10 r^2 is max dist where enemy is 1 move from attack range
+                // if enemy is not in stunned cache
+                // if (!Comms.stunnedEnemiesContains(enemy.getLocation())) {
+                if (enemy.getLocation().distanceSquaredTo(advanceLoc) <= 10) {
+                    dmg += SkillType.ATTACK.skillEffect
+                            + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
+                }
+                // } else {
+                // stunnedHostilesInVision++;
+                // }
+            }
+            // if there's a nearby hostile to shoot, always kite, othewise if you have to go
+            // in, make sure that you have a clear numbers advantage.
+            // best attack should either be the direction that puts you into range of one
+            // enemy and the least number of other enemies OR
+            // the direction that keeps you nearby, but not inrange of enemies.
+            // Always rotates units so that the highest HP unit is up front
+            // Goal: If there's a nearby hostile to shoot you should kite
+            // Two different playstyles: Attacking and defending.
+            // You're attacking if you have a two man advantage
+
+            // Chase Direction : Direction to chase the enemy if you have an advantage
+            // (minimizes enemies that can hit, while guarenteeing you can hit one).
+            // boolean shouldKite = false;
+            // boolean attacking = false;
+            //
+            // if (numHostiles + 2 <= numFriendlies + 1){
+            // attacking = true;
             // }
-        }
-        // if there's a nearby hostile to shoot, always kite, othewise if you have to go
-        // in, make sure that you have a clear numbers advantage.
-        // best attack should either be the direction that puts you into range of one
-        // enemy and the least number of other enemies OR
-        // the direction that keeps you nearby, but not inrange of enemies.
-        // Always rotates units so that the highest HP unit is up front
-        // Goal: If there's a nearby hostile to shoot you should kite
-        // Two different playstyles: Attacking and defending.
-        // You're attacking if you have a two man advantage
+            //
+            // if (lowestCurrHostile != null) {
+            // shouldKite = true;
+            // }
 
-        // Chase Direction : Direction to chase the enemy if you have an advantage
-        // (minimizes enemies that can hit, while guarenteeing you can hit one).
-        // boolean shouldKite = false;
-        // boolean attacking = false;
-        //
-        // if (numHostiles + 2 <= numFriendlies + 1){
-        // attacking = true;
-        // }
-        //
-        // if (lowestCurrHostile != null) {
-        // shouldKite = true;
-        // }
-
-        // if attacking, if your action is reacy, if there isn't a closest hostile,
-        // chsse, otherwise,
-        // if you can maintain a 10sq distance from the targets, shoot then go,
-        // otherwise retreat.
-        // if your action isn't ready, hide behind a friend with higher hp if it exists
-        // otherwise maintain distance
-        // if not attacking, if your action is ready, maintain distance.
-        // if (attacking) {
-        // if (rc.isActionReady()) {
-        // if (bestProtectDir != null && rc.getHealth() == GameConstants.DEFAULT_HEALTH)
-        // {
-        // optimalDir = bestProtectDir;
-        // if (optimalDir != null) {
-        // rc.setIndicatorString("In combat bestProtect: Friend: " +
-        // protectFriend.toString());
-        // }
-        // } else if (bestHideDir != null && rc.getHealth() < 750) {
-        // optimalDir = bestHideDir;
-        // if (optimalDir != null) {
-        // rc.setIndicatorString("In combat bestHide: Friend: " +
-        // hideBehindFriend.toString());
-        // }
-        // } else if (lowestCurrHostile == null) {
-        // if (bestChase != null ) {
-        // optimalDir = bestChase;
-        // if (optimalDir != null) {
-        // rc.setIndicatorString("In combat bestChase: " + bestChase.toString());
-        // }
-        // } else if (bestAttack != null) {
-        // optimalDir = bestAttack;
-        // if (optimalDir != null) {
-        // rc.setIndicatorString("In combat bestAttack: " + bestAttack.toString());
-        // }
-        // }
-        // } else {
-        // if (bestMaintain != null) {
-        // optimalDir = bestMaintain;
-        // if (optimalDir != null) {
-        // rc.setIndicatorString("In combat bestMaintain: " + bestMaintain.toString());
-        // }
-        // } else if (bestRetreat != null) {
-        // optimalDir = bestRetreat;
-        // if (optimalDir != null) {
-        // rc.setIndicatorString("In combat bestRetreat: " + bestRetreat.toString());
-        // }
-        // }
-        // }
-        // } else if (bestHideDir != null) {
-        // optimalDir = bestHideDir;
-        // if (optimalDir != null) {
-        // rc.setIndicatorString("In combat bestHide: Friend: " +
-        // hideBehindFriend.toString());
-        // }
-        // } else if (bestMaintain != null) {
-        // optimalDir = bestMaintain;
-        // if (optimalDir != null) {
-        // rc.setIndicatorString("In combat bestMaintain: " + bestMaintain.toString());
-        // }
-        // } else if (bestRetreat != null) {
-        // optimalDir = bestRetreat;
-        // if (optimalDir != null) {
-        // rc.setIndicatorString("In combat bestRetreat: " + bestRetreat.toString());
-        // }
-        // }
-        // } else {
-        // if (rc.isActionReady()) {
-        // if (lowestCurrHostile == null) {
-        // optimalDir = bestMaintain;
-        // if (optimalDir != null) {
-        // rc.setIndicatorString("In combat bestMaintain: " + bestMaintain.toString());
-        // }
-        // } else {
-        // if (bestMaintain != null) {
-        // optimalDir = bestMaintain;
-        // if (optimalDir != null) {
-        // rc.setIndicatorString("In combat bestMaintain: " + bestMaintain.toString());
-        // }
-        // } else if (bestRetreat != null) {
-        // optimalDir = bestRetreat;
-        // if (optimalDir != null) {
-        // rc.setIndicatorString("In combat bestRetreat: " + bestRetreat.toString());
-        // }
-        // }
-        // }
-        // } else if (bestHideDir != null) {
-        // optimalDir = bestHideDir;
-        // if (optimalDir != null) {
-        // rc.setIndicatorString("In combat bestHide: Friend: " +
-        // hideBehindFriend.toString());
-        // }
-        // } else if (bestMaintain != null) {
-        // optimalDir = bestMaintain;
-        // if (optimalDir != null) {
-        // rc.setIndicatorString("In combat bestMaintain: " + bestMaintain.toString());
-        // }
-        // } else if (bestRetreat != null) {
-        // optimalDir = bestRetreat;
-        // if (optimalDir != null) {
-        // rc.setIndicatorString("In combat bestRetreat: " + bestRetreat.toString());
-        // }
-        // }
-        // }
-        // Direction slideDir = null;
-        // if (lowestCurrHostile != null &&
-        // rc.getLocation().distanceSquaredTo(lowestCurrHostile) == 4) {
-        // Direction toEnemy = rc.getLocation().directionTo(lowestCurrHostile);
-        // Direction leftRotate = toEnemy.rotateLeft().rotateLeft();
-        // Direction rightRotate = toEnemy.rotateRight().rotateRight();
-        // MapLocation leftPos = rc.getLocation().add(leftRotate);
-        // MapLocation rightPos = rc.getLocation().add(rightRotate);
-        // int dmgLeft = 0;
-        // int dmgRight = 0;
-        // for (int i = enemies.length-1; i>=0 ;i--) {
-        // RobotInfo enemy = enemies[i];
-        // if (rc.canSenseLocation(leftPos) && rc.sensePassability(leftPos)
-        // && !rc.canSenseRobotAtLocation(leftPos)) {
-        // if (enemy.getLocation().distanceSquaredTo(leftPos) < 10) {
-        // dmgLeft += SkillType.ATTACK.skillEffect
-        // + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
-        // }
-        // }
-        // if (rc.canSenseLocation(rightPos) && rc.sensePassability(rightPos)
-        // && !rc.canSenseRobotAtLocation(rightPos)) {
-        // if (enemy.getLocation().distanceSquaredTo(rightPos) < 10) {
-        // dmgRight += SkillType.ATTACK.skillEffect
-        // + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
-        // }
-        // }
-        // }
-        // if (dmgLeft < dmgRight && dmgLeft < rc.getHealth()) {
-        // slideDir = leftRotate;
-        // } else if (dmgRight < rc.getHealth()) {
-        // slideDir = rightRotate;
-        // }
-        // }
-        // Now: Two options: Go in or get out
-        // if going in gets you killed, go out. If there are more enemies than friends,
-        // go out. If you have no cooldown, go out.
-        // Otherwise, go in.
-        // changed here
-        if (rc.getHealth() <= dmg || numHostiles - 2 /*- stunnedHostilesInVision*/ >= numFriendlies
-                || (!rc.isActionReady() && !(rc.getActionCooldownTurns() / 10 == 1
-                        && rc.getLocation().distanceSquaredTo(closestHostile) >= 17))
-                || (rc.isActionReady() && lowestCurrHostile != null)) {
-            // if (lowestCurrHostile == null &&
-            // SkillType.ATTACK.getSkillEffect(rc.getLevel(SkillType.ATTACK)) <= dmgIfChill
-            // && rc.isActionReady() && rc.getHealth() > dmgIfChill && numFriendlies + 1 >=
-            // numHostiles + 2) {
-            // optimalDir = null;
-            // rc.setIndicatorString("Chill " + dmgIfChill);
+            // if attacking, if your action is reacy, if there isn't a closest hostile,
+            // chsse, otherwise,
+            // if you can maintain a 10sq distance from the targets, shoot then go,
+            // otherwise retreat.
+            // if your action isn't ready, hide behind a friend with higher hp if it exists
+            // otherwise maintain distance
+            // if not attacking, if your action is ready, maintain distance.
+            // if (attacking) {
+            // if (rc.isActionReady()) {
+            // if (bestProtectDir != null && rc.getHealth() == GameConstants.DEFAULT_HEALTH)
+            // {
+            // optimalDir = bestProtectDir;
+            // if (optimalDir != null) {
+            // rc.setIndicatorString("In combat bestProtect: Friend: " +
+            // protectFriend.toString());
+            // }
+            // } else if (bestHideDir != null && rc.getHealth() < 750) {
+            // optimalDir = bestHideDir;
+            // if (optimalDir != null) {
+            // rc.setIndicatorString("In combat bestHide: Friend: " +
+            // hideBehindFriend.toString());
+            // }
+            // } else if (lowestCurrHostile == null) {
+            // if (bestChase != null ) {
+            // optimalDir = bestChase;
+            // if (optimalDir != null) {
+            // rc.setIndicatorString("In combat bestChase: " + bestChase.toString());
+            // }
+            // } else if (bestAttack != null) {
+            // optimalDir = bestAttack;
+            // if (optimalDir != null) {
+            // rc.setIndicatorString("In combat bestAttack: " + bestAttack.toString());
+            // }
+            // }
             // } else {
-            optimalDir = bestRetreat;
-            if (optimalDir != null) {
-                rc.setIndicatorString("In combat bestRetreat: " + bestRetreat.toString() + " " + dmg);
-            }
-        } else {
-            optimalDir = bestAttack;
-            if (optimalDir != null) {
-                rc.setIndicatorString("In combat bestAttack: " + bestAttack.toString());
+            // if (bestMaintain != null) {
+            // optimalDir = bestMaintain;
+            // if (optimalDir != null) {
+            // rc.setIndicatorString("In combat bestMaintain: " + bestMaintain.toString());
+            // }
+            // } else if (bestRetreat != null) {
+            // optimalDir = bestRetreat;
+            // if (optimalDir != null) {
+            // rc.setIndicatorString("In combat bestRetreat: " + bestRetreat.toString());
+            // }
+            // }
+            // }
+            // } else if (bestHideDir != null) {
+            // optimalDir = bestHideDir;
+            // if (optimalDir != null) {
+            // rc.setIndicatorString("In combat bestHide: Friend: " +
+            // hideBehindFriend.toString());
+            // }
+            // } else if (bestMaintain != null) {
+            // optimalDir = bestMaintain;
+            // if (optimalDir != null) {
+            // rc.setIndicatorString("In combat bestMaintain: " + bestMaintain.toString());
+            // }
+            // } else if (bestRetreat != null) {
+            // optimalDir = bestRetreat;
+            // if (optimalDir != null) {
+            // rc.setIndicatorString("In combat bestRetreat: " + bestRetreat.toString());
+            // }
+            // }
+            // } else {
+            // if (rc.isActionReady()) {
+            // if (lowestCurrHostile == null) {
+            // optimalDir = bestMaintain;
+            // if (optimalDir != null) {
+            // rc.setIndicatorString("In combat bestMaintain: " + bestMaintain.toString());
+            // }
+            // } else {
+            // if (bestMaintain != null) {
+            // optimalDir = bestMaintain;
+            // if (optimalDir != null) {
+            // rc.setIndicatorString("In combat bestMaintain: " + bestMaintain.toString());
+            // }
+            // } else if (bestRetreat != null) {
+            // optimalDir = bestRetreat;
+            // if (optimalDir != null) {
+            // rc.setIndicatorString("In combat bestRetreat: " + bestRetreat.toString());
+            // }
+            // }
+            // }
+            // } else if (bestHideDir != null) {
+            // optimalDir = bestHideDir;
+            // if (optimalDir != null) {
+            // rc.setIndicatorString("In combat bestHide: Friend: " +
+            // hideBehindFriend.toString());
+            // }
+            // } else if (bestMaintain != null) {
+            // optimalDir = bestMaintain;
+            // if (optimalDir != null) {
+            // rc.setIndicatorString("In combat bestMaintain: " + bestMaintain.toString());
+            // }
+            // } else if (bestRetreat != null) {
+            // optimalDir = bestRetreat;
+            // if (optimalDir != null) {
+            // rc.setIndicatorString("In combat bestRetreat: " + bestRetreat.toString());
+            // }
+            // }
+            // }
+            // Direction slideDir = null;
+            // if (lowestCurrHostile != null &&
+            // rc.getLocation().distanceSquaredTo(lowestCurrHostile) == 4) {
+            // Direction toEnemy = rc.getLocation().directionTo(lowestCurrHostile);
+            // Direction leftRotate = toEnemy.rotateLeft().rotateLeft();
+            // Direction rightRotate = toEnemy.rotateRight().rotateRight();
+            // MapLocation leftPos = rc.getLocation().add(leftRotate);
+            // MapLocation rightPos = rc.getLocation().add(rightRotate);
+            // int dmgLeft = 0;
+            // int dmgRight = 0;
+            // for (int i = enemies.length-1; i>=0 ;i--) {
+            // RobotInfo enemy = enemies[i];
+            // if (rc.canSenseLocation(leftPos) && rc.sensePassability(leftPos)
+            // && !rc.canSenseRobotAtLocation(leftPos)) {
+            // if (enemy.getLocation().distanceSquaredTo(leftPos) < 10) {
+            // dmgLeft += SkillType.ATTACK.skillEffect
+            // + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
+            // }
+            // }
+            // if (rc.canSenseLocation(rightPos) && rc.sensePassability(rightPos)
+            // && !rc.canSenseRobotAtLocation(rightPos)) {
+            // if (enemy.getLocation().distanceSquaredTo(rightPos) < 10) {
+            // dmgRight += SkillType.ATTACK.skillEffect
+            // + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
+            // }
+            // }
+            // }
+            // if (dmgLeft < dmgRight && dmgLeft < rc.getHealth()) {
+            // slideDir = leftRotate;
+            // } else if (dmgRight < rc.getHealth()) {
+            // slideDir = rightRotate;
+            // }
+            // }
+            // Now: Two options: Go in or get out
+            // if going in gets you killed, go out. If there are more enemies than friends,
+            // go out. If you have no cooldown, go out.
+            // Otherwise, go in.
+            // changed here
+            if (rc.getHealth() <= dmg || numHostiles - 2 /*- stunnedHostilesInVision*/ >= numFriendlies
+                    || (!rc.isActionReady() && !(rc.getActionCooldownTurns() / 10 == 1
+                    && rc.getLocation().distanceSquaredTo(closestHostile) >= 17))
+                    || (rc.isActionReady() && lowestCurrHostile != null)) {
+                // if (lowestCurrHostile == null &&
+                // SkillType.ATTACK.getSkillEffect(rc.getLevel(SkillType.ATTACK)) <= dmgIfChill
+                // && rc.isActionReady() && rc.getHealth() > dmgIfChill && numFriendlies + 1 >=
+                // numHostiles + 2) {
+                // optimalDir = null;
+                // rc.setIndicatorString("Chill " + dmgIfChill);
+                // } else {
+                optimalDir = bestRetreat;
+                if (optimalDir != null) {
+                    rc.setIndicatorString("In combat bestRetreat: " + bestRetreat.toString() + " " + dmg);
+                }
+            } else {
+                optimalDir = bestAttack;
+                if (optimalDir != null) {
+                    rc.setIndicatorString("In combat bestAttack: " + bestAttack.toString());
+                }
             }
         }
         return optimalDir;
