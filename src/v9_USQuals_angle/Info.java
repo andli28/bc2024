@@ -1,4 +1,4 @@
-package mainbot_angles;
+package v9_USQuals_angle;
 
 import battlecode.common.*;
 import mainbot.utils.*;
