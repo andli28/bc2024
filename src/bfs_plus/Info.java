@@ -1,7 +1,7 @@
 package bfs_plus;
 
 import battlecode.common.*;
-import mainbot.utils.*;
+import bfs_plus.utils.*;
 
 public class Info {
     public static RobotController rc;

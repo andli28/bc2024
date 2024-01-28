@@ -1,17 +1,17 @@
 package v9_USQuals_angle;
 
 import battlecode.common.*;
-import mainbot.utils.*;
+import v9_USQuals_angle.utils.*;
 
 public class Info {
     public static RobotController rc;
-	public static int round_num;
+    public static int round_num;
     public static Team team;
     public static Team enemyTeam;
     public static int MAP_HEIGHT;
     public static int MAP_WIDTH;
     public static int VISION_DIST;
-    
+
     public static MapLocation[] spawnLocs;
     public static IterableLocSet spawnLocsSet;
     public static MapLocation closestSpawn;
@@ -20,13 +20,12 @@ public class Info {
     public static int closestFlagDist;
     public static FlagInfo closestFlagInfo;
 
-    public static RobotInfo[] friendly_robots;    
+    public static RobotInfo[] friendly_robots;
     public static MapLocation centerOfFriendliesLocation;
 
     public static RobotInfo[] enemy_robots;
 
-
-    public static void initialize(RobotController rc) throws GameActionException{
+    public static void initialize(RobotController rc) throws GameActionException {
         Info.rc = rc;
         // TODO: Add other initialization code here (transfer some from RobotPlayer)
 
@@ -35,11 +34,11 @@ public class Info {
         for (int i = spawnLocs.length - 1; i >= 0; i--) {
             spawnLocsSet.add(spawnLocs[i]);
         }
-        //don't have to update iterable if not iterating through it.
+        // don't have to update iterable if not iterating through it.
 
     }
 
-    public static void update() throws GameActionException{
+    public static void update() throws GameActionException {
         friendly_robots = rc.senseNearbyRobots(-1, rc.getTeam());
 
         // find closest spawnLoc:
