@@ -695,7 +695,7 @@ public strictfp class RobotPlayer {
                         role = RESPAWN;
                         rc.setIndicatorString("Respawning");
                     } else if (shouldNotTrain && (lowestDistToDam == 1 || nearestDividerWithOpenNeighbor != null)
-                            && turnCount > GameConstants.SETUP_ROUNDS - 40 && turnCount < GameConstants.SETUP_ROUNDS) {
+                            && turnCount > GameConstants.SETUP_ROUNDS - 40 && turnCount <= GameConstants.SETUP_ROUNDS) {
                         role = LINEUP;
                         rc.setIndicatorString("LINEUP");
                     } else if (shouldNotTrain
