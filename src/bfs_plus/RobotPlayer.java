@@ -1,4 +1,4 @@
-package bfs_plus;
+package mainbot;
 
 import battlecode.common.*;
 
@@ -695,7 +695,7 @@ public strictfp class RobotPlayer {
                         role = RESPAWN;
                         rc.setIndicatorString("Respawning");
                     } else if (shouldNotTrain && (lowestDistToDam == 1 || nearestDividerWithOpenNeighbor != null)
-                            && turnCount > GameConstants.SETUP_ROUNDS - 40 && turnCount < GameConstants.SETUP_ROUNDS) {
+                            && turnCount > GameConstants.SETUP_ROUNDS - 40 && turnCount <= GameConstants.SETUP_ROUNDS) {
                         role = LINEUP;
                         rc.setIndicatorString("LINEUP");
                     } else if (shouldNotTrain
@@ -821,7 +821,10 @@ public strictfp class RobotPlayer {
                                 tgtLocation = targetFlag;
                                 turnsNotReachedTgt = 0;
                             } else if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||
-                                    (rc.canSenseLocation(tgtLocation) && !rc.sensePassability(tgtLocation))
+                                    (rc.canSenseLocation(tgtLocation) && (!rc.sensePassability(tgtLocation)
+                                            || (rc.senseRobotAtLocation(tgtLocation) != null
+                                                    && rc.senseRobotAtLocation(tgtLocation).getTeam()
+                                                            .equals(rc.getTeam()))))
                                     || turnsNotReachedTgt > 50 || lastTurnPursingCrumb) {
                                 tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
                                         3, rc.getMapHeight() - 3);
