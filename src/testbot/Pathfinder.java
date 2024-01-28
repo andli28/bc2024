@@ -49,6 +49,7 @@ public class Pathfinder {
         // result from bfs
         if (Clock.getBytecodesLeft() > 5000) {
             Direction bfsDir = Bfs.getBestDir(tgt);
+            // make sure bfs returns dir that is not null and gets u closer to your target
             if (bfsDir != null) {
                 return bfsDir;
             }
@@ -127,65 +128,44 @@ public class Pathfinder {
         // around imaginary obstacles schizo
         boolean unitBlock = false;
         // standard buhg movement once a dir decided
-        if (buhgDir == Rot.LEFT) {
-            // start scanning from ortho to last move if available, else just base off dir
-            // to tgt
-            Direction moveDir = lastBuhgDir != Direction.CENTER ? lastBuhgDir.rotateRight()
-                    : dirTo.rotateLeft();
-            for (int i = 7; --i >= 0;) {
-                MapLocation currLoc = src.add(moveDir);
-                // wall avoidance
-                if (!rc.onTheMap(currLoc)) {
-                    initBlockDist = travelDistance(src, tgt);
-                    buhgDir = Rot.RIGHT;
-                    lastBuhgDir = Direction.CENTER;
-                    turnsBuhgging = 0;
-                    break;
-                }
-                if (rc.canMove(moveDir)) {
-                    if (!unitBlock)
-                        lastBuhgDir = moveDir;
-                    // check for buhg exiting conditions(closer to goal than init buhgging dist +
-                    // not blocked)
-                    if ((travelDistance(src, tgt) < initBlockDist && directPassable)
-                            || turnsBuhgging > 20) {
-                        initBlockDist = 9999;
-                        buhgDir = Rot.NONE;
-                        turnsBuhgging = 0;
-                        lastBuhgDir = Direction.CENTER;
-                    }
-                    return moveDir;
-                }
-                // if blocked by robot set flag, else clear
-                unitBlock = rc.canSenseRobotAtLocation(currLoc);
-                moveDir = moveDir.rotateLeft();
+        Direction moveDir = buhgDir == Rot.LEFT ? (lastBuhgDir != Direction.CENTER ? lastBuhgDir.rotateRight()
+                : dirTo.rotateLeft())
+                : (lastBuhgDir != Direction.CENTER ? lastBuhgDir.rotateLeft()
+                        : dirTo.rotateRight());
+        // -45, -90, then <=-45
+        for (int i = 8; --i >= 0;) {
+            MapLocation currLoc = src.add(moveDir);
+            // wall avoidance
+            if (!rc.onTheMap(currLoc)) {
+                initBlockDist = travelDistance(src, tgt);
+                buhgDir = buhgDir == Rot.LEFT ? Rot.RIGHT : Rot.LEFT;
+                lastBuhgDir = Direction.CENTER;
+                turnsBuhgging = 0;
+                break;
             }
-        } else {
-            Direction moveDir = lastBuhgDir != Direction.CENTER ? lastBuhgDir.rotateLeft()
-                    : dirTo.rotateRight();
-            for (int i = 7; --i >= 0;) {
-                MapLocation currLoc = src.add(moveDir);
-                if (!rc.onTheMap(currLoc)) {
-                    initBlockDist = travelDistance(src, tgt);
-                    buhgDir = Rot.LEFT;
-                    lastBuhgDir = Direction.CENTER;
+            if (rc.canMove(moveDir)) {
+                if (!unitBlock)
+                    lastBuhgDir = moveDir;
+                // check for buhg exiting conditions(closer to goal than init buhgging dist +
+                // not blocked)
+                if ((travelDistance(src, tgt) < initBlockDist && directPassable)
+                        || turnsBuhgging > 20) {
+                    initBlockDist = 9999;
+                    buhgDir = Rot.NONE;
                     turnsBuhgging = 0;
-                    break;
+                    lastBuhgDir = Direction.CENTER;
                 }
-                if (rc.canMove(moveDir)) {
-                    if (!unitBlock)
-                        lastBuhgDir = moveDir;
-                    if ((travelDistance(src, tgt) < initBlockDist && directPassable)
-                            || turnsBuhgging > 20) {
-                        initBlockDist = 9999;
-                        buhgDir = Rot.NONE;
-                        turnsBuhgging = 0;
-                        lastBuhgDir = Direction.CENTER;
-                    }
-                    return moveDir;
-                }
-                unitBlock = rc.canSenseRobotAtLocation(currLoc);
-                moveDir = moveDir.rotateRight();
+                return moveDir;
+            }
+            // if blocked by robot set flag, else clear
+            unitBlock = rc.canSenseRobotAtLocation(currLoc);
+
+            // -45 then we go -90 first then continue sweeping away from obstacle buh buh
+            // buh
+            if (i == 7) {
+                moveDir = buhgDir == Rot.LEFT ? moveDir.rotateRight() : moveDir.rotateLeft();
+            } else {
+                moveDir = buhgDir == Rot.LEFT ? moveDir.rotateLeft() : moveDir.rotateRight();
             }
         }
         return Direction.CENTER;
