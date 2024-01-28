@@ -1,4 +1,4 @@
-package mainbot;
+package bfs_plus;
 
 import battlecode.common.*;
 
