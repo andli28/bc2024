@@ -658,7 +658,7 @@ public class Comms {
                     // default flags should be ok
                     //TODO REVIST ONLY USING CURRENT ALLY FLAGS?
                     MapLocation defaultAlly = defaultAllyFlagLocs[j];
-                    if (closestEnemiesToFlags[j] == null || mainbotNoSpawnChange.Pathfinder.travelDistance(defaultAlly,
+                    if (closestEnemiesToFlags[j] == null || Pathfinder.travelDistance(defaultAlly,
                             enemyLoc) < Pathfinder.travelDistance(defaultAlly, closestEnemiesToFlags[j])) {
                         closestEnemiesToFlags[j] = enemyLoc;
                     }
