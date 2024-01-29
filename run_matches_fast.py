@@ -16,7 +16,7 @@ emojiMap = {
 errors = []
 currentBot = 'mainbot'
 
-bots = ['v9_USQuals_angle']
+bots = ['v9_1_USQuals_REAL']
 botsSet = set(bots)
 
 # See https://github.com/battlecode/battlecode24/blob/master/client/src/constants.ts
