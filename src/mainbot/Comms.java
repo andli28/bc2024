@@ -659,7 +659,7 @@ public class Comms {
                     //TODO REVIST ONLY USING CURRENT ALLY FLAGS?
                     MapLocation defaultAlly = defaultAllyFlagLocs[j];
                     if (closestEnemiesToFlags[j] == null || mainbotNoSpawnChange.Pathfinder.travelDistance(defaultAlly,
-                            enemyLoc) < mainbotNoSpawnChange.Pathfinder.travelDistance(defaultAlly, closestEnemiesToFlags[j])) {
+                            enemyLoc) < Pathfinder.travelDistance(defaultAlly, closestEnemiesToFlags[j])) {
                         closestEnemiesToFlags[j] = enemyLoc;
                     }
                 }
