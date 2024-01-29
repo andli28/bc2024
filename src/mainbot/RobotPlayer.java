@@ -258,7 +258,7 @@ public strictfp class RobotPlayer {
 
                     // finding the spawn/flag that is in danger with closest enemies.
                     MapLocation closestSpawnInDanger = null;
-                    int enemyDistToClosestSpawnInDanger = 150;
+                    int enemyDistToClosestSpawnInDanger = Integer.MAX_VALUE;
                     MapLocation[] closestEnemiesToFlags = Comms.getClosestEnemyToAllyFlags();
                     int[] distsClosestEnemiesToFlags = Comms.getClosestEnemyDistanceToAllyFlags();
                     for (int i = closestEnemiesToFlags.length - 1; i >= 0; i--) {
