@@ -155,9 +155,9 @@ public strictfp class RobotPlayer {
             turnCount += 1; // We have now been alive for one more turn!
 
             // Resignation at 500 turns for testing purposes
-            // if (turnCount == 200) {
-            // rc.resign();
-            // }
+//             if (turnCount == 700) {
+//             rc.resign();
+//             }
 
             // Try/catch blocks stop unhandled exceptions, which cause your robot to
             // explode.
@@ -180,41 +180,31 @@ public strictfp class RobotPlayer {
                     // decide if this person should be a builder (if shortId == an ID) (Diff ID's
                     // chosen to spawn at diff spawns)
                     if (turnCount == 1) {
-                        // if (Comms.shortId == 2 || Comms.shortId == 29 || Comms.shortId == 47) {
-                        //     BUILDERSPECIALIST = true;
-                        // }
+                        if (Comms.shortId == 2 || Comms.shortId == 29 || Comms.shortId == 47) {
+                            BUILDERSPECIALIST = true;
+                        }
 
                         // decide if this person should be a sentry (Diff ID's chosen to spawn at diff
                         // spawns)
                         // Create two shifts to swap out ducks and ensure these ducks can still get XP.
                         // Rotate shift every 500 turns.
-                        // sentryShiftOne = (Comms.shortId == 0 || Comms.shortId == 30 || Comms.shortId == 49);
-                        // sentryShiftTwo = (Comms.shortId == 1 || Comms.shortId == 31 || Comms.shortId == 48);
-
-
-                        // builders at front, 3 sentries at back. 3 sentries at back2                   
-                        BUILDERSPECIALIST = (Comms.shortId == 0 || Comms.shortId == 1 || Comms.shortId == 2);
-                        sentryShiftOne = (Comms.shortId == 47 || Comms.shortId == 48 || Comms.shortId == 49);
-                        sentryShiftTwo = (Comms.shortId == 44 || Comms.shortId == 45 || Comms.shortId == 46);
-
-                        ATTACKSPECIALIST = (Comms.shortId >= 3 && Comms.shortId < 15);
-
-                        // 16, 16, 18
+                        sentryShiftOne = (Comms.shortId == 0 || Comms.shortId == 30 || Comms.shortId == 49);
+                        sentryShiftTwo = (Comms.shortId == 1 || Comms.shortId == 31 || Comms.shortId == 48);
 
                         if (sentryShiftOne) {
                             SENTRY = true;
                         }
 
-                        attackSquadOne = (Comms.shortId == 0 || Comms.shortId == 44 || Comms.shortId == 47
-                        || Comms.shortId >= 3 && Comms.shortId < 7 || (Comms.shortId >= 15 && Comms.shortId < 24));
-                        attackSquadTwo = (Comms.shortId == 1 || Comms.shortId == 45 || Comms.shortId == 48
-                        || Comms.shortId >= 7 && Comms.shortId < 11 || (Comms.shortId >= 24 && Comms.shortId < 33));
-                        attackSquadThree = (Comms.shortId == 2 || Comms.shortId == 46 || Comms.shortId == 49
-                        || Comms.shortId >= 11 && Comms.shortId < 15 || (Comms.shortId >= 33 && Comms.shortId < 44));
+                        attackSquadOne = (Comms.shortId < 16);
+                        attackSquadTwo = (Comms.shortId >= 16 && Comms.shortId < 32);
+                        attackSquadThree = (Comms.shortId >= 32);
                         // 4 attack specialists per squad
-                        // ATTACKSPECIALIST = ((Comms.shortId > 1 && Comms.shortId < 6)
-                        //         || (Comms.shortId > 15 && Comms.shortId < 20)
-                        //         || (Comms.shortId > 31 && Comms.shortId < 36));
+                        ATTACKSPECIALIST = ((Comms.shortId > 1 && Comms.shortId < 6)
+                                || (Comms.shortId > 15 && Comms.shortId < 20)
+                                || (Comms.shortId > 31 && Comms.shortId < 36));
+                        HEALINGSPECIALIST = ((Comms.shortId >= 6 && Comms.shortId < 10)
+                                || (Comms.shortId >= 20 && Comms.shortId < 24)
+                                || (Comms.shortId >= 31 && Comms.shortId < 35));
                     }
                     // Builder's initial spawn should be their home so that they have real estate to
                     // train
@@ -222,13 +212,13 @@ public strictfp class RobotPlayer {
                     // ensure sentries and builderspecialsits spawn at their appropriate spawns
                     if (turnCount == 2) {
                         MapLocation[] homeFlags = Comms.getDefaultAllyFlagLocations();
-                        if (Comms.shortId == 41 || Comms.shortId == 44 || Comms.shortId == 47) {
+                        if (Comms.shortId == 0 || Comms.shortId == 1 || Comms.shortId == 2) {
                             homeFlag = homeFlags[0];
                             homeFlagIndex = 0;
-                        } else if (Comms.shortId == 42 || Comms.shortId == 45 || Comms.shortId == 48) {
+                        } else if (Comms.shortId == 30 || Comms.shortId == 31 || Comms.shortId == 29) {
                             homeFlag = homeFlags[1];
                             homeFlagIndex = 1;
-                        } else if (Comms.shortId == 43 || Comms.shortId == 46 || Comms.shortId == 49) {
+                        } else if (Comms.shortId == 48 || Comms.shortId == 49 || Comms.shortId == 47) {
                             homeFlag = homeFlags[2];
                             homeFlagIndex = 2;
                         }
@@ -268,7 +258,7 @@ public strictfp class RobotPlayer {
 
                     // finding the spawn/flag that is in danger with closest enemies.
                     MapLocation closestSpawnInDanger = null;
-                    int enemyDistToClosestSpawnInDanger = 150;
+                    int enemyDistToClosestSpawnInDanger = Integer.MAX_VALUE;
                     MapLocation[] closestEnemiesToFlags = Comms.getClosestEnemyToAllyFlags();
                     int[] distsClosestEnemiesToFlags = Comms.getClosestEnemyDistanceToAllyFlags();
                     for (int i = closestEnemiesToFlags.length - 1; i >= 0; i--) {
@@ -916,8 +906,8 @@ public strictfp class RobotPlayer {
                         if (rc.isMovementReady()) {
                             float averageDistSqFromEnemies = averageDistanceSquaredFrom(enemies, rc.getLocation());
                             optimalDir = findOptimalCombatDir(rc, enemies, lowestCurrHostile, closestHostile,
-                                    averageDistSqFromEnemies,
-                                    numHostiles, numFriendlies);
+                                    lowestCurrFriendlySeen, averageDistSqFromEnemies,
+                                    numHostiles, numFriendlies, attackerCanHeal);
                         }
                         boolean shouldProtectAtAllCosts = closestDisplacedFlag != null
                                 && rc.getLocation().distanceSquaredTo(closestDisplacedFlag) < 20;
@@ -967,8 +957,8 @@ public strictfp class RobotPlayer {
                         if (rc.isMovementReady()) {
                             float averageDistSqFromEnemies = averageDistanceSquaredFrom(enemies, rc.getLocation());
                             optimalDir = findOptimalCombatDir(rc, enemies, lowestCurrHostile, closestHostile,
-                                    averageDistSqFromEnemies,
-                                    numHostiles, numFriendlies);
+                                    lowestCurrFriendlySeen, averageDistSqFromEnemies,
+                                    numHostiles, numFriendlies, attackerCanHeal);
                             //System.out.println("3. " + Clock.getBytecodesLeft());
                         }
                         attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
@@ -989,8 +979,8 @@ public strictfp class RobotPlayer {
                             dir = Pathfinder.pathfindHome();
                         } else {
                             dir = Pathfinder.pathfind(rc.getLocation(), Info.closestFlag);
-                            if (rc.canPickupFlag(Info.closestFlag)) {  
-                                rc.pickupFlag(Info.closestFlag);                                                              
+                            if (rc.canPickupFlag(Info.closestFlag)) {
+                                rc.pickupFlag(Info.closestFlag);
                                 if(Info.spawnLocsSet.contains(rc.getLocation())) {
                                     Comms.captureFlag(Info.closestFlagInfo.getID());
                                 }
@@ -1173,7 +1163,7 @@ public strictfp class RobotPlayer {
                     }
 
                     while (lowestCurrFriendly != null && rc.canHeal(lowestCurrFriendly) &&
-                            (closestHostile == null || rc.getLocation().distanceSquaredTo(closestHostile) > 10)) {
+                            (closestHostile == null || rc.getLocation().distanceSquaredTo(closestHostile) > 10 || HEALINGSPECIALIST)) {
                         rc.heal(lowestCurrFriendly);
                     }
 
@@ -1338,7 +1328,7 @@ public strictfp class RobotPlayer {
      * @throws GameActionException
      */
     public static void layTrap(RobotController rc, MapLocation nearestExplosiveTrap, MapLocation nearestStunTrap,
-            int explosiveTrapPreferredDist, int stunTrapPreferredDist)
+                               int explosiveTrapPreferredDist, int stunTrapPreferredDist)
             throws GameActionException {
         // Iterate through all building directions, and go through the following logic:
         // 1 . If there are no nearby Explosive traps, build one,
@@ -1423,9 +1413,9 @@ public strictfp class RobotPlayer {
      * @throws GameActionException
      */
     public static MapLocation layTrapWithinRangeOfEnemy(RobotController rc, MapLocation nearestExplosiveTrap,
-            MapLocation nearestStunTrap, RobotInfo[] enemies, MapLocation closestEnemy, int explosiveTrapPreferredDist,
-            int stunTrapPreferredDist,
-            int buildThreshold) throws GameActionException {
+                                                        MapLocation nearestStunTrap, RobotInfo[] enemies, MapLocation closestEnemy, int explosiveTrapPreferredDist,
+                                                        int stunTrapPreferredDist,
+                                                        int buildThreshold) throws GameActionException {
         // Iterate through all building directions, and go through the following logic:
         // 1 . If there are no nearby Explosive traps, build one,
         // 2. Else if there are no nearby Stun Traps, build one.
@@ -1523,7 +1513,7 @@ public strictfp class RobotPlayer {
      * @throws GameActionException
      */
     public static void attackMove(RobotController rc, Direction optimalDir, MapLocation lowestCurrHostile,
-            int lowestCurrHostileHealth) throws GameActionException {
+                                  int lowestCurrHostileHealth) throws GameActionException {
         // Calculate what would be the lowest health of a hostile after a movement.
         MapLocation aflowestCurrHostile = null;
         int aflowestCurrHostileHealth = Integer.MAX_VALUE;
@@ -1593,7 +1583,7 @@ public strictfp class RobotPlayer {
     }
 
     public static void healMove(RobotController rc, Direction optimalDir, MapLocation lowestCurrFriend,
-            int lowestCurrFriendHealth, boolean attackerCanHeal) throws GameActionException {
+                                int lowestCurrFriendHealth, boolean attackerCanHeal) throws GameActionException {
         // Calculate what would be the lowest health of a friend after a movement.
         MapLocation aflowestCurrFriend = null;
         int aflowestCurrFriendHealth = Integer.MAX_VALUE;
@@ -1701,22 +1691,29 @@ public strictfp class RobotPlayer {
     }
 
     public static Direction findOptimalCombatDir(RobotController rc, RobotInfo[] enemies, MapLocation lowestCurrHostile,
-            MapLocation closestHostile,
-            float averageDistFromEnemies,
-            int numHostiles, int numFriendlies) throws GameActionException {
+                                                 MapLocation closestHostile, MapLocation lowestCurrFriendlySeen, float averageDistFromEnemies,
+                                                 int numHostiles, int numFriendlies, boolean attackerCanHeal) throws GameActionException {
         // Calculate the best retreating direction and best attackign direction
         // Simulate moving to any of the four cardinal directions. Calculate the average
         // distance from all enemies.
         // Best Retreat direction is the direction that maximizes average Distance
         // Best Attacking direction is the direction that tries to keep troops at an
+        // Best Healing direction is the direction closest to an injured friend but furthest from enemies
         // average distance
         // equal to the attack radius squared.
         Direction optimalDir = null;
         if (rc.isMovementReady()) {
             Direction bestRetreat = null;
             Direction bestAttack = null;
+            Direction bestHeal = null;
             float bestRetreatDist = averageDistFromEnemies;
             float bestAttackDist = Integer.MAX_VALUE;
+            float bestHealDist = averageDistFromEnemies;
+            int distToFriend = Integer.MAX_VALUE;
+
+            if (lowestCurrFriendlySeen != null) {
+                distToFriend = rc.getLocation().distanceSquaredTo(lowestCurrFriendlySeen);
+            }
 
             Direction[] validCombatDirs = directions;
             for (int i = validCombatDirs.length - 1; i >= 0; i--) {
@@ -1734,6 +1731,19 @@ public strictfp class RobotPlayer {
                         bestRetreatDist = averageDist;
                         bestRetreat = validCombatDirs[i];
                     }
+
+                    if (lowestCurrFriendlySeen != null && tempLoc.distanceSquaredTo(lowestCurrFriendlySeen) < distToFriend) {
+                        distToFriend = tempLoc.distanceSquaredTo(lowestCurrFriendlySeen);
+                        bestHeal = validCombatDirs[i];
+                        bestHealDist = averageDist;
+
+                    } else if (lowestCurrFriendlySeen != null && tempLoc.distanceSquaredTo(lowestCurrFriendlySeen) == distToFriend) {
+                        if (bestHealDist < averageDist) {
+                            distToFriend = tempLoc.distanceSquaredTo(lowestCurrFriendlySeen);
+                            bestHeal = validCombatDirs[i];
+                            bestHealDist = averageDist;
+                        }
+                    }
                 }
             }
 
@@ -1748,6 +1758,7 @@ public strictfp class RobotPlayer {
             MapLocation advanceLoc = bestAttack == null ? rc.getLocation()
                     : rc.getLocation().add(bestAttack);
             int dmg = 0;
+            int dmgIfHeal = 0;
             // int stunnedHostilesInVision = 0;
             for (int i = enemies.length; --i >= 0; ) {
                 RobotInfo enemy = enemies[i];
@@ -1757,6 +1768,12 @@ public strictfp class RobotPlayer {
                 if (enemy.getLocation().distanceSquaredTo(advanceLoc) <= 10) {
                     dmg += SkillType.ATTACK.skillEffect
                             + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
+                }
+                if (bestHeal != null) {
+                    if (enemy.getLocation().distanceSquaredTo(rc.getLocation().add(bestHeal)) <= 10) {
+                        dmgIfHeal += SkillType.ATTACK.skillEffect
+                                + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
+                    }
                 }
                 // } else {
                 // stunnedHostilesInVision++;
@@ -1925,7 +1942,13 @@ public strictfp class RobotPlayer {
             // go out. If you have no cooldown, go out.
             // Otherwise, go in.
             // changed here
-            if (rc.getHealth() <= dmg || numHostiles - 2 /*- stunnedHostilesInVision*/ >= numFriendlies
+            if (bestHeal != null && HEALINGSPECIALIST && rc.getHealth() <= dmgIfHeal
+                    && numFriendlies - numHostiles >= 4 && rc.getLocation().distanceSquaredTo(closestHostile) > 4) {
+                optimalDir = bestHeal;
+                if (optimalDir != null) {
+                    rc.setIndicatorString("In combat bestHeal: " + bestHeal.toString() + " " + dmgIfHeal);
+                }
+            } else if (rc.getHealth() <= dmg || numHostiles - 2 /*- stunnedHostilesInVision*/ >= numFriendlies
                     || (!rc.isActionReady() && !(rc.getActionCooldownTurns() / 10 == 1
                     && rc.getLocation().distanceSquaredTo(closestHostile) >= 17))
                     || (rc.isActionReady() && lowestCurrHostile != null)) {
@@ -1951,7 +1974,7 @@ public strictfp class RobotPlayer {
     }
 
     public static double orthagonalDistanceOfP3RelativeToP2OnVectorP1P2(MapLocation P1, MapLocation P2,
-            MapLocation P3) {
+                                                                        MapLocation P3) {
         // Set P1 as origin:
         double x2 = P2.x - P1.x;
         double x3 = P3.x - P1.x;
@@ -1973,7 +1996,7 @@ public strictfp class RobotPlayer {
     }
 
     public static Direction findOptimalTrapKiteDir(RobotController rc, MapLocation closestEnemy, RobotInfo[] enemies,
-            MapLocation nearestTrap) {
+                                                   MapLocation nearestTrap) {
         Direction optimalDir = null;
         double optimalOrthoDist = Integer.MIN_VALUE;
 
@@ -2002,7 +2025,7 @@ public strictfp class RobotPlayer {
     }
 
     public static Direction findOptimalPursuingStunDir(RobotController rc, RobotInfo[] enemies,
-            float averageDistFromEnemies) throws GameActionException {
+                                                       float averageDistFromEnemies) throws GameActionException {
         Direction bestAttack = null;
         double bestAttackDist = averageDistFromEnemies;
 
