@@ -180,31 +180,56 @@ public strictfp class RobotPlayer {
                     // decide if this person should be a builder (if shortId == an ID) (Diff ID's
                     // chosen to spawn at diff spawns)
                     if (turnCount == 1) {
-                        if (Comms.shortId == 2 || Comms.shortId == 29 || Comms.shortId == 47) {
-                            BUILDERSPECIALIST = true;
-                        }
+                        // if (Comms.shortId == 2 || Comms.shortId == 29 || Comms.shortId == 47) {
+                        //     BUILDERSPECIALIST = true;
+                        // }
 
-                        // decide if this person should be a sentry (Diff ID's chosen to spawn at diff
-                        // spawns)
-                        // Create two shifts to swap out ducks and ensure these ducks can still get XP.
-                        // Rotate shift every 500 turns.
-                        sentryShiftOne = (Comms.shortId == 0 || Comms.shortId == 30 || Comms.shortId == 49);
-                        sentryShiftTwo = (Comms.shortId == 1 || Comms.shortId == 31 || Comms.shortId == 48);
+                        // // decide if this person should be a sentry (Diff ID's chosen to spawn at diff
+                        // // spawns)
+                        // // Create two shifts to swap out ducks and ensure these ducks can still get XP.
+                        // // Rotate shift every 500 turns.
+                        // sentryShiftOne = (Comms.shortId == 0 || Comms.shortId == 30 || Comms.shortId == 49);
+                        // sentryShiftTwo = (Comms.shortId == 1 || Comms.shortId == 31 || Comms.shortId == 48);
+
+                        // if (sentryShiftOne) {
+                        //     SENTRY = true;
+                        // }
+
+                        // builders at front, 3 sentries at back. 3 sentries at back2                   
+                        BUILDERSPECIALIST = (Comms.shortId == 0 || Comms.shortId == 1 || Comms.shortId == 2);
+                        sentryShiftOne = (Comms.shortId == 47 || Comms.shortId == 48 || Comms.shortId == 49);
+                        sentryShiftTwo = (Comms.shortId == 44 || Comms.shortId == 45 || Comms.shortId == 46);
+
+                        ATTACKSPECIALIST = (Comms.shortId >= 3 && Comms.shortId < 15);
+                        HEALINGSPECIALIST = (Comms.shortId >= 15 && Comms.shortId < 27);
+
+                        // 16, 16, 18
+                        // 3 + 4 + 4 + 5
 
                         if (sentryShiftOne) {
                             SENTRY = true;
                         }
 
-                        attackSquadOne = (Comms.shortId < 16);
-                        attackSquadTwo = (Comms.shortId >= 16 && Comms.shortId < 32);
-                        attackSquadThree = (Comms.shortId >= 32);
-                        // 4 attack specialists per squad
-                        ATTACKSPECIALIST = ((Comms.shortId > 1 && Comms.shortId < 6)
-                                || (Comms.shortId > 15 && Comms.shortId < 20)
-                                || (Comms.shortId > 31 && Comms.shortId < 36));
-                        HEALINGSPECIALIST = ((Comms.shortId >= 6 && Comms.shortId < 10)
-                                || (Comms.shortId >= 20 && Comms.shortId < 24)
-                                || (Comms.shortId >= 31 && Comms.shortId < 35));
+                        // attackSquadOne = (Comms.shortId < 16);
+                        // attackSquadTwo = (Comms.shortId >= 16 && Comms.shortId < 32);
+                        // attackSquadThree = (Comms.shortId >= 32);
+                        // // 4 attack specialists per squad
+                        // ATTACKSPECIALIST = ((Comms.shortId > 1 && Comms.shortId < 6)
+                        //         || (Comms.shortId > 15 && Comms.shortId < 20)
+                        //         || (Comms.shortId > 31 && Comms.shortId < 36));
+                        // HEALINGSPECIALIST = ((Comms.shortId >= 6 && Comms.shortId < 10)
+                        //         || (Comms.shortId >= 20 && Comms.shortId < 24)
+                        //         || (Comms.shortId >= 31 && Comms.shortId < 35));
+
+                        attackSquadOne = (Comms.shortId == 0 || Comms.shortId == 44 || Comms.shortId == 47
+                        || Comms.shortId >= 3 && Comms.shortId < 7 || Comms.shortId >= 15 && Comms.shortId < 19
+                        || (Comms.shortId >= 27 && Comms.shortId < 32));
+                        attackSquadTwo = (Comms.shortId == 1 || Comms.shortId == 45 || Comms.shortId == 48
+                        || Comms.shortId >= 7 && Comms.shortId < 11 || Comms.shortId >= 19 && Comms.shortId < 23
+                        || (Comms.shortId >= 32 && Comms.shortId < 37));
+                        attackSquadThree = (Comms.shortId == 2 || Comms.shortId == 46 || Comms.shortId == 49
+                        || Comms.shortId >= 11 && Comms.shortId < 15 || Comms.shortId >= 23 && Comms.shortId < 27 
+                        || (Comms.shortId >= 37 && Comms.shortId < 44));
                     }
                     // Builder's initial spawn should be their home so that they have real estate to
                     // train
@@ -212,13 +237,13 @@ public strictfp class RobotPlayer {
                     // ensure sentries and builderspecialsits spawn at their appropriate spawns
                     if (turnCount == 2) {
                         MapLocation[] homeFlags = Comms.getDefaultAllyFlagLocations();
-                        if (Comms.shortId == 0 || Comms.shortId == 1 || Comms.shortId == 2) {
+                        if (Comms.shortId == 41 || Comms.shortId == 44 || Comms.shortId == 47) {
                             homeFlag = homeFlags[0];
                             homeFlagIndex = 0;
-                        } else if (Comms.shortId == 30 || Comms.shortId == 31 || Comms.shortId == 29) {
+                        } else if (Comms.shortId == 42 || Comms.shortId == 45 || Comms.shortId == 48) {
                             homeFlag = homeFlags[1];
                             homeFlagIndex = 1;
-                        } else if (Comms.shortId == 48 || Comms.shortId == 49 || Comms.shortId == 47) {
+                        } else if (Comms.shortId == 43 || Comms.shortId == 46 || Comms.shortId == 49) {
                             homeFlag = homeFlags[2];
                             homeFlagIndex = 2;
                         }
