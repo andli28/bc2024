@@ -654,6 +654,14 @@ public class Comms {
                             .travelDistance(currAlly, closestEnemiesToFlags[j])) {
                         closestEnemiesToFlags[j] = enemyLoc;
                     }
+                } else {
+                    // default flags should be ok
+                    //TODO REVIST ONLY USING CURRENT ALLY FLAGS?
+                    MapLocation defaultAlly = defaultAllyFlagLocs[j];
+                    if (closestEnemiesToFlags[j] == null || Pathfinder.travelDistance(defaultAlly,
+                            enemyLoc) < Pathfinder.travelDistance(defaultAlly, closestEnemiesToFlags[j])) {
+                        closestEnemiesToFlags[j] = enemyLoc;
+                    }
                 }
             }
         }
