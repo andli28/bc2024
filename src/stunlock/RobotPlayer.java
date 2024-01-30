@@ -120,7 +120,7 @@ public strictfp class RobotPlayer {
 
     // stunned enemy tracking
     static FastQueue<Pair<Integer, Integer>> stunnedEnemiesQ = new FastQueue<>();
-    static FastIterableIntSet stunnedEnemiesSet = new FastIterableIntSet();
+    static FastIntIntMap stunnedEnemiesSet = new FastIntIntMap();
     static MapLocation[] prevRoundStuns = new MapLocation[70];
     static int prevRoundStunLen = 0;
 
@@ -354,7 +354,11 @@ public strictfp class RobotPlayer {
                     Pair<Integer, Integer> head = stunnedEnemiesQ.peek();
                     while (head != null && head.second <= rc.getRoundNum()) {
                         stunnedEnemiesQ.poll();
+                        int dec = stunnedEnemiesSet.getVal(head.first) - 1;
                         stunnedEnemiesSet.remove(head.first);
+                        if (dec > 0) {
+                            stunnedEnemiesSet.add(head.first, dec);
+                        }
                         head = stunnedEnemiesQ.peek();
                     }
                     // find all stun traps this turn
@@ -377,9 +381,13 @@ public strictfp class RobotPlayer {
                             for (int j = enemies.length; --j >= 0;) {
                                 RobotInfo enemy = enemies[j];
                                 int id = enemy.getID();
-                                if (!stunnedEnemiesSet.contains(id)) {
-                                    stunnedEnemiesQ.add(new Pair<>(id, rc.getRoundNum() + 3));
-                                    stunnedEnemiesSet.add(id);
+                                stunnedEnemiesQ.add(new Pair<>(id, rc.getRoundNum() + 3));
+                                if (stunnedEnemiesSet.contains(id)) {
+                                    int inc = stunnedEnemiesSet.getVal(id) + 1;
+                                    stunnedEnemiesSet.remove(id);
+                                    stunnedEnemiesSet.add(id, inc);
+                                } else {
+                                    stunnedEnemiesSet.add(id, 1);
                                 }
                             }
                         }
