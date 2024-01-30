@@ -14,9 +14,9 @@ emojiMap = {
     'Error': ':heavy_exclamation_mark:'
 }
 errors = []
-currentBot = 'mainbot'
+currentBot = 'stunlock'
 
-bots = ['v9_1_USQuals_REAL']
+bots = ['mainbot']
 botsSet = set(bots)
 
 # See https://github.com/battlecode/battlecode24/blob/master/client/src/constants.ts
