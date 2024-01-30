@@ -180,7 +180,7 @@ public strictfp class RobotPlayer {
                     // decide if this person should be a builder (if shortId == an ID) (Diff ID's
                     // chosen to spawn at diff spawns)
                     if (turnCount == 1) {
-                        if (Comms.shortId == 2 || Comms.shortId == 29 || Comms.shortId == 47) {
+                        if (Comms.shortId == 0 || Comms.shortId == 1 || Comms.shortId == 2) {
                             BUILDERSPECIALIST = true;
                         }
 
@@ -188,23 +188,33 @@ public strictfp class RobotPlayer {
                         // spawns)
                         // Create two shifts to swap out ducks and ensure these ducks can still get XP.
                         // Rotate shift every 500 turns.
-                        sentryShiftOne = (Comms.shortId == 0 || Comms.shortId == 30 || Comms.shortId == 49);
-                        sentryShiftTwo = (Comms.shortId == 1 || Comms.shortId == 31 || Comms.shortId == 48);
+                        sentryShiftOne = (Comms.shortId == 47 || Comms.shortId == 48 || Comms.shortId == 49);
+                        sentryShiftTwo = (Comms.shortId == 44 || Comms.shortId == 45 || Comms.shortId == 46);
 
                         if (sentryShiftOne) {
                             SENTRY = true;
                         }
 
-                        attackSquadOne = (Comms.shortId < 16);
-                        attackSquadTwo = (Comms.shortId >= 16 && Comms.shortId < 32);
-                        attackSquadThree = (Comms.shortId >= 32);
+                        // Builders are 0, 1, 2
+                        // Sentries are 47, 48, 49 (shiftOne)
+                        //          44, 45, 46 (shiftTwo)
+                        // attackSquadOne -> 0, 44, 47, 3-16 -> ATTK: 3,4,5,6 HEAL: 7,8,9,10
+                        // attackSquadTwo -> 1, 45, 48, 17-30 -> ATTK: 17,18,19,20 HEAL: 21,22,23,24
+                        // attackSquadThree -> 2, 46, 49, 31-43 -> ATTK: 31,32,33,34 HEAL: 35,36,37,38
+
+                        attackSquadOne = (Comms.shortId == 0 || Comms.shortId == 44 || Comms.shortId == 47
+                                || (Comms.shortId >= 3 && Comms.shortId <= 16));
+                        attackSquadTwo = (Comms.shortId == 1 || Comms.shortId == 45 || Comms.shortId == 48
+                                || (Comms.shortId >= 17 && Comms.shortId <= 30));
+                        attackSquadThree = (Comms.shortId == 2 || Comms.shortId == 46 || Comms.shortId == 49
+                                || (Comms.shortId >= 31 && Comms.shortId <= 43));
                         // 4 attack specialists per squad
-                        ATTACKSPECIALIST = ((Comms.shortId > 1 && Comms.shortId < 6)
-                                || (Comms.shortId > 15 && Comms.shortId < 20)
-                                || (Comms.shortId > 31 && Comms.shortId < 36));
-                        HEALINGSPECIALIST = ((Comms.shortId >= 6 && Comms.shortId < 10)
-                                || (Comms.shortId >= 20 && Comms.shortId < 24)
-                                || (Comms.shortId >= 31 && Comms.shortId < 35));
+                        ATTACKSPECIALIST = ((Comms.shortId >= 3 && Comms.shortId <= 6)
+                                || (Comms.shortId >= 17 && Comms.shortId <= 20)
+                                || (Comms.shortId >= 31 && Comms.shortId <= 34));
+                        HEALINGSPECIALIST = ((Comms.shortId >= 7 && Comms.shortId <= 10)
+                                || (Comms.shortId >= 21 && Comms.shortId <= 24)
+                                || (Comms.shortId >= 35 && Comms.shortId <= 38));
                     }
                     // Builder's initial spawn should be their home so that they have real estate to
                     // train
@@ -212,13 +222,13 @@ public strictfp class RobotPlayer {
                     // ensure sentries and builderspecialsits spawn at their appropriate spawns
                     if (turnCount == 2) {
                         MapLocation[] homeFlags = Comms.getDefaultAllyFlagLocations();
-                        if (Comms.shortId == 0 || Comms.shortId == 1 || Comms.shortId == 2) {
+                        if (Comms.shortId == 0 || Comms.shortId == 44 || Comms.shortId == 47) {
                             homeFlag = homeFlags[0];
                             homeFlagIndex = 0;
-                        } else if (Comms.shortId == 30 || Comms.shortId == 31 || Comms.shortId == 29) {
+                        } else if (Comms.shortId == 1 || Comms.shortId == 45 || Comms.shortId == 48) {
                             homeFlag = homeFlags[1];
                             homeFlagIndex = 1;
-                        } else if (Comms.shortId == 48 || Comms.shortId == 49 || Comms.shortId == 47) {
+                        } else if (Comms.shortId == 2 || Comms.shortId == 46 || Comms.shortId == 49) {
                             homeFlag = homeFlags[2];
                             homeFlagIndex = 2;
                         }
@@ -654,6 +664,8 @@ public strictfp class RobotPlayer {
                     int sentryWanderingLimit = 12;
                     // distance squared to defend a flag
                     int distanceForDefense = 200;
+                    //crumbs when everyone can build
+                    int crumbsWhenAllCanBuild = Integer.MAX_VALUE;
 
                     // boolean representing if you should go home and trap
                     // if you're a builderspecialist and its between the given turns, and you have a
@@ -688,8 +700,8 @@ public strictfp class RobotPlayer {
                     } else if (false && escortTgt != null) {
                         role = ESCORT;
                         rc.setIndicatorString("Escort " + targetFlag.toString());
-                    } else if ((BUILDERSPECIALIST || rc.getLevel(SkillType.BUILD) > 3) && rc.getCrumbs() > 200
-                            && (enemies.length != 0 && turnCount > GameConstants.SETUP_ROUNDS - 20)) {
+                    } else if ((BUILDERSPECIALIST || rc.getLevel(SkillType.BUILD) > 3 || rc.getCrumbs() > crumbsWhenAllCanBuild)
+                            && rc.getCrumbs() > 200 && (enemies.length != 0 && turnCount > GameConstants.SETUP_ROUNDS - 20)) {
                         role = BUILDING;
                         rc.setIndicatorString("Building");
                     } else if (shouldRespawn) {
