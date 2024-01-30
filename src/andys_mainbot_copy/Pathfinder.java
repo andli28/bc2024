@@ -50,7 +50,12 @@ public class Pathfinder {
         if (Clock.getBytecodesLeft() > 5000) {
             Direction bfsDir = Bfs.getBestDir(tgt);
             // make sure bfs returns dir that is not null and gets u closer to your target
-            if (bfsDir != null) {
+            if (bfsDir != null){
+                initBlockDist = 9999;
+                buhgDir = Rot.NONE;
+                turnsBuhgging = 0;
+                lastBuhgDir = Direction.CENTER;
+
                 return bfsDir;
             }
         }
@@ -145,7 +150,7 @@ public class Pathfinder {
                     lastBuhgDir = moveDir;
                 // check for buhg exiting conditions(closer to goal than init buhgging dist +
                 // not blocked)
-                if (travelDistance(src, tgt) < initBlockDist && directPassable
+                if ((travelDistance(src, tgt) < initBlockDist && directPassable)
                         || turnsBuhgging > 20) {
                     initBlockDist = 9999;
                     buhgDir = Rot.NONE;
@@ -161,8 +166,6 @@ public class Pathfinder {
             // buh
             if (i == 7) {
                 moveDir = buhgDir == Rot.LEFT ? moveDir.rotateRight() : moveDir.rotateLeft();
-            } else if (i == 6) {
-                moveDir = buhgDir == Rot.LEFT ? moveDir.rotateLeft().rotateLeft() : moveDir.rotateRight().rotateRight();
             } else {
                 moveDir = buhgDir == Rot.LEFT ? moveDir.rotateLeft() : moveDir.rotateRight();
             }
