@@ -381,7 +381,8 @@ public strictfp class RobotPlayer {
                             for (int j = enemies.length; --j >= 0;) {
                                 RobotInfo enemy = enemies[j];
                                 int id = enemy.getID();
-                                stunnedEnemiesQ.add(new Pair<>(id, rc.getRoundNum() + 3));
+                                int stunnedRounds = Comms.shortId <= 24 ? 2 : 3;
+                                stunnedEnemiesQ.add(new Pair<>(id, rc.getRoundNum() + stunnedRounds));
                                 if (stunnedEnemiesSet.contains(id)) {
                                     int inc = stunnedEnemiesSet.getVal(id) + 1;
                                     stunnedEnemiesSet.remove(id);
