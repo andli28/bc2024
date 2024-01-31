@@ -1006,7 +1006,7 @@ public strictfp class RobotPlayer {
                             Bfs.getBestDir(closestHostile);
                             closestHostileReachable = Bfs.isReachable(closestHostile);
                         }
-                        if (closestHostileReachable) {
+                        if (closestHostileReachable && rc.isActionReady()) {
                             // dummy mapLocation. Build whlie cooldown + buildCD< 10 and build != null.
                             // laytrapwithinrangeofenemy will return either null (if nothing is built) or
                             // the maplocation of the trap that is built
@@ -1045,7 +1045,7 @@ public strictfp class RobotPlayer {
                             // System.out.println("3. " + Clock.getBytecodesLeft());
                         }
                         attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
-                        if (closestHostileReachable) {
+                        if (closestHostileReachable && rc.isActionReady()) {
                             // dummy mapLocation. Build whlie cooldown + buildCD< 10 and build != null.
                             // laytrapwithinrangeofenemy will return either null (if nothing is built) or
                             // the maplocation of the trap that is built
