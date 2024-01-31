@@ -403,7 +403,8 @@ public class Comms {
                         int firstFree = writeToFirstAvail(fi.getLocation(), ALLY_DEFAULT_FLAG_INDICES);
                         write(6 + firstFree, fi.getID());
                     }
-                } else if (rc.getRoundNum() > 200) {
+                    // carrier during setup or anytime after setup
+                } else if ((rc.hasFlag() && fi.getLocation().equals(rc.getLocation())) || rc.getRoundNum() > 200) {
                     // use id to put in correct slot
                     int idx = getFlagIndexFromID(fi.getID());
                     // if our ducks have eyes this will always true
