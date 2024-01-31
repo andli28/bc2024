@@ -1,4 +1,4 @@
-package testbot;
+package v10;
 
 import battlecode.common.*;
 import mainbot.utils.*;
