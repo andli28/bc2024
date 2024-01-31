@@ -78,9 +78,6 @@ public class Pathfinder {
             return bestDir;
         }
 
-        // if (rc.getID() == 11291)
-        // System.out.println("buhgdir1: " + buhgDir.toString());
-
         // tldr a better first buhg dir guess system
         if (buhgDir == Rot.NONE) {
             // if blocked and no prev buhg choose a buhg dir depending on some ob bounds

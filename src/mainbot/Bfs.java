@@ -3,6 +3,7 @@ package mainbot;
 import battlecode.common.Direction;
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
+import battlecode.common.MapInfo;
 
 // yoinked from 5 musketeers 2022, although originally from xsquare
 public class Bfs {
@@ -566,12 +567,14 @@ public class Bfs {
 
         try {
             if (rc.canMove(Direction.WEST)) {
-                p71 = rc.sensePassability(l71) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l71);
+                p71 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 v71 = p71;
                 d71 = Direction.WEST;
             }
             if (rc.canMove(Direction.SOUTH)) {
-                p83 = rc.sensePassability(l83) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l83);
+                p83 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 v83 = p83;
                 d83 = Direction.SOUTH;
                 if (v83 > v71 + p83) {
@@ -580,7 +583,8 @@ public class Bfs {
                 }
             }
             if (rc.canMove(Direction.NORTH)) {
-                p85 = rc.sensePassability(l85) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l85);
+                p85 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 v85 = p85;
                 d85 = Direction.NORTH;
                 if (v85 > v71 + p85) {
@@ -589,7 +593,8 @@ public class Bfs {
                 }
             }
             if (rc.canMove(Direction.EAST)) {
-                p97 = rc.sensePassability(l97) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l97);
+                p97 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 v97 = p97;
                 d97 = Direction.EAST;
                 if (v97 > v85 + p97) {
@@ -602,7 +607,8 @@ public class Bfs {
                 }
             }
             if (rc.canMove(Direction.SOUTHWEST)) {
-                p70 = rc.sensePassability(l70) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l70);
+                p70 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 v70 = p70;
                 d70 = Direction.SOUTHWEST;
                 if (v70 > v71 + p70) {
@@ -615,7 +621,8 @@ public class Bfs {
                 }
             }
             if (rc.canMove(Direction.NORTHWEST)) {
-                p72 = rc.sensePassability(l72) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l72);
+                p72 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 v72 = p72;
                 d72 = Direction.NORTHWEST;
                 if (v72 > v71 + p72) {
@@ -628,7 +635,8 @@ public class Bfs {
                 }
             }
             if (rc.canMove(Direction.SOUTHEAST)) {
-                p96 = rc.sensePassability(l96) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l96);
+                p96 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 v96 = p96;
                 d96 = Direction.SOUTHEAST;
                 if (v96 > v97 + p96) {
@@ -641,7 +649,8 @@ public class Bfs {
                 }
             }
             if (rc.canMove(Direction.NORTHEAST)) {
-                p98 = rc.sensePassability(l98) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l98);
+                p98 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 v98 = p98;
                 d98 = Direction.NORTHEAST;
                 if (v98 > v85 + p98) {
@@ -654,7 +663,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l58)) {
-                p58 = rc.sensePassability(l58) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l58);
+                p58 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v58 > v71 + p58) {
                     v58 = v71 + p58;
                     d58 = d71;
@@ -669,7 +679,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l82)) {
-                p82 = rc.sensePassability(l82) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l82);
+                p82 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v82 > v83 + p82) {
                     v82 = v83 + p82;
                     d82 = d83;
@@ -684,7 +695,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l86)) {
-                p86 = rc.sensePassability(l86) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l86);
+                p86 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v86 > v85 + p86) {
                     v86 = v85 + p86;
                     d86 = d85;
@@ -699,7 +711,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l110)) {
-                p110 = rc.sensePassability(l110) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l110);
+                p110 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v110 > v97 + p110) {
                     v110 = v97 + p110;
                     d110 = d97;
@@ -714,7 +727,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l57)) {
-                p57 = rc.sensePassability(l57) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l57);
+                p57 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v57 > v71 + p57) {
                     v57 = v71 + p57;
                     d57 = d71;
@@ -729,7 +743,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l59)) {
-                p59 = rc.sensePassability(l59) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l59);
+                p59 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v59 > v71 + p59) {
                     v59 = v71 + p59;
                     d59 = d71;
@@ -744,7 +759,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l69)) {
-                p69 = rc.sensePassability(l69) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l69);
+                p69 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v69 > v83 + p69) {
                     v69 = v83 + p69;
                     d69 = d83;
@@ -763,7 +779,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l73)) {
-                p73 = rc.sensePassability(l73) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l73);
+                p73 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v73 > v85 + p73) {
                     v73 = v85 + p73;
                     d73 = d85;
@@ -782,7 +799,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l95)) {
-                p95 = rc.sensePassability(l95) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l95);
+                p95 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v95 > v83 + p95) {
                     v95 = v83 + p95;
                     d95 = d83;
@@ -797,7 +815,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l99)) {
-                p99 = rc.sensePassability(l99) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l99);
+                p99 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v99 > v85 + p99) {
                     v99 = v85 + p99;
                     d99 = d85;
@@ -812,7 +831,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l109)) {
-                p109 = rc.sensePassability(l109) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l109);
+                p109 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v109 > v97 + p109) {
                     v109 = v97 + p109;
                     d109 = d97;
@@ -831,7 +851,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l111)) {
-                p111 = rc.sensePassability(l111) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l111);
+                p111 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v111 > v97 + p111) {
                     v111 = v97 + p111;
                     d111 = d97;
@@ -850,7 +871,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l56)) {
-                p56 = rc.sensePassability(l56) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l56);
+                p56 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v56 > v70 + p56) {
                     v56 = v70 + p56;
                     d56 = d70;
@@ -865,7 +887,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l60)) {
-                p60 = rc.sensePassability(l60) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l60);
+                p60 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v60 > v72 + p60) {
                     v60 = v72 + p60;
                     d60 = d72;
@@ -880,7 +903,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l108)) {
-                p108 = rc.sensePassability(l108) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l108);
+                p108 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v108 > v96 + p108) {
                     v108 = v96 + p108;
                     d108 = d96;
@@ -895,7 +919,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l112)) {
-                p112 = rc.sensePassability(l112) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l112);
+                p112 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v112 > v98 + p112) {
                     v112 = v98 + p112;
                     d112 = d98;
@@ -910,7 +935,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l45)) {
-                p45 = rc.sensePassability(l45) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l45);
+                p45 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v45 > v58 + p45) {
                     v45 = v58 + p45;
                     d45 = d58;
@@ -925,7 +951,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l81)) {
-                p81 = rc.sensePassability(l81) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l81);
+                p81 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v81 > v82 + p81) {
                     v81 = v82 + p81;
                     d81 = d82;
@@ -940,7 +967,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l87)) {
-                p87 = rc.sensePassability(l87) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l87);
+                p87 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v87 > v86 + p87) {
                     v87 = v86 + p87;
                     d87 = d86;
@@ -955,7 +983,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l123)) {
-                p123 = rc.sensePassability(l123) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l123);
+                p123 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v123 > v110 + p123) {
                     v123 = v110 + p123;
                     d123 = d110;
@@ -970,7 +999,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l44)) {
-                p44 = rc.sensePassability(l44) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l44);
+                p44 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v44 > v58 + p44) {
                     v44 = v58 + p44;
                     d44 = d58;
@@ -989,7 +1019,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l46)) {
-                p46 = rc.sensePassability(l46) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l46);
+                p46 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v46 > v58 + p46) {
                     v46 = v58 + p46;
                     d46 = d58;
@@ -1008,7 +1039,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l68)) {
-                p68 = rc.sensePassability(l68) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l68);
+                p68 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v68 > v82 + p68) {
                     v68 = v82 + p68;
                     d68 = d82;
@@ -1027,7 +1059,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l74)) {
-                p74 = rc.sensePassability(l74) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l74);
+                p74 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v74 > v86 + p74) {
                     v74 = v86 + p74;
                     d74 = d86;
@@ -1046,7 +1079,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l94)) {
-                p94 = rc.sensePassability(l94) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l94);
+                p94 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v94 > v82 + p94) {
                     v94 = v82 + p94;
                     d94 = d82;
@@ -1065,7 +1099,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l100)) {
-                p100 = rc.sensePassability(l100) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l100);
+                p100 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v100 > v86 + p100) {
                     v100 = v86 + p100;
                     d100 = d86;
@@ -1084,7 +1119,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l122)) {
-                p122 = rc.sensePassability(l122) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l122);
+                p122 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v122 > v110 + p122) {
                     v122 = v110 + p122;
                     d122 = d110;
@@ -1103,7 +1139,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l124)) {
-                p124 = rc.sensePassability(l124) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l124);
+                p124 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v124 > v110 + p124) {
                     v124 = v110 + p124;
                     d124 = d110;
@@ -1122,7 +1159,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l43)) {
-                p43 = rc.sensePassability(l43) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l43);
+                p43 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v43 > v57 + p43) {
                     v43 = v57 + p43;
                     d43 = d57;
@@ -1137,7 +1175,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l47)) {
-                p47 = rc.sensePassability(l47) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l47);
+                p47 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v47 > v59 + p47) {
                     v47 = v59 + p47;
                     d47 = d59;
@@ -1152,7 +1191,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l55)) {
-                p55 = rc.sensePassability(l55) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l55);
+                p55 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v55 > v69 + p55) {
                     v55 = v69 + p55;
                     d55 = d69;
@@ -1171,7 +1211,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l61)) {
-                p61 = rc.sensePassability(l61) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l61);
+                p61 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v61 > v73 + p61) {
                     v61 = v73 + p61;
                     d61 = d73;
@@ -1190,7 +1231,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l107)) {
-                p107 = rc.sensePassability(l107) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l107);
+                p107 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v107 > v95 + p107) {
                     v107 = v95 + p107;
                     d107 = d95;
@@ -1205,7 +1247,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l113)) {
-                p113 = rc.sensePassability(l113) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l113);
+                p113 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v113 > v99 + p113) {
                     v113 = v99 + p113;
                     d113 = d99;
@@ -1220,7 +1263,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l121)) {
-                p121 = rc.sensePassability(l121) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l121);
+                p121 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v121 > v109 + p121) {
                     v121 = v109 + p121;
                     d121 = d109;
@@ -1239,7 +1283,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l125)) {
-                p125 = rc.sensePassability(l125) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l125);
+                p125 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v125 > v111 + p125) {
                     v125 = v111 + p125;
                     d125 = d111;
@@ -1258,7 +1303,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l32)) {
-                p32 = rc.sensePassability(l32) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l32);
+                p32 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v32 > v45 + p32) {
                     v32 = v45 + p32;
                     d32 = d45;
@@ -1273,7 +1319,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l80)) {
-                p80 = rc.sensePassability(l80) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l80);
+                p80 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v80 > v81 + p80) {
                     v80 = v81 + p80;
                     d80 = d81;
@@ -1288,7 +1335,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l88)) {
-                p88 = rc.sensePassability(l88) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l88);
+                p88 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v88 > v87 + p88) {
                     v88 = v87 + p88;
                     d88 = d87;
@@ -1303,7 +1351,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l136)) {
-                p136 = rc.sensePassability(l136) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l136);
+                p136 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v136 > v123 + p136) {
                     v136 = v123 + p136;
                     d136 = d123;
@@ -1318,7 +1367,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l31)) {
-                p31 = rc.sensePassability(l31) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l31);
+                p31 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v31 > v45 + p31) {
                     v31 = v45 + p31;
                     d31 = d45;
@@ -1337,7 +1387,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l33)) {
-                p33 = rc.sensePassability(l33) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l33);
+                p33 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v33 > v45 + p33) {
                     v33 = v45 + p33;
                     d33 = d45;
@@ -1356,7 +1407,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l67)) {
-                p67 = rc.sensePassability(l67) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l67);
+                p67 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v67 > v81 + p67) {
                     v67 = v81 + p67;
                     d67 = d81;
@@ -1375,7 +1427,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l75)) {
-                p75 = rc.sensePassability(l75) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l75);
+                p75 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v75 > v87 + p75) {
                     v75 = v87 + p75;
                     d75 = d87;
@@ -1394,7 +1447,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l93)) {
-                p93 = rc.sensePassability(l93) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l93);
+                p93 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v93 > v81 + p93) {
                     v93 = v81 + p93;
                     d93 = d81;
@@ -1413,7 +1467,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l101)) {
-                p101 = rc.sensePassability(l101) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l101);
+                p101 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v101 > v87 + p101) {
                     v101 = v87 + p101;
                     d101 = d87;
@@ -1432,7 +1487,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l135)) {
-                p135 = rc.sensePassability(l135) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l135);
+                p135 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v135 > v123 + p135) {
                     v135 = v123 + p135;
                     d135 = d123;
@@ -1451,7 +1507,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l137)) {
-                p137 = rc.sensePassability(l137) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l137);
+                p137 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v137 > v123 + p137) {
                     v137 = v123 + p137;
                     d137 = d123;
@@ -1470,7 +1527,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l42)) {
-                p42 = rc.sensePassability(l42) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l42);
+                p42 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v42 > v56 + p42) {
                     v42 = v56 + p42;
                     d42 = d56;
@@ -1485,7 +1543,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l48)) {
-                p48 = rc.sensePassability(l48) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l48);
+                p48 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v48 > v60 + p48) {
                     v48 = v60 + p48;
                     d48 = d60;
@@ -1500,7 +1559,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l120)) {
-                p120 = rc.sensePassability(l120) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l120);
+                p120 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v120 > v108 + p120) {
                     v120 = v108 + p120;
                     d120 = d108;
@@ -1515,7 +1575,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l126)) {
-                p126 = rc.sensePassability(l126) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l126);
+                p126 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v126 > v112 + p126) {
                     v126 = v112 + p126;
                     d126 = d112;
@@ -1530,7 +1591,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l30)) {
-                p30 = rc.sensePassability(l30) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l30);
+                p30 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v30 > v44 + p30) {
                     v30 = v44 + p30;
                     d30 = d44;
@@ -1549,7 +1611,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l34)) {
-                p34 = rc.sensePassability(l34) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l34);
+                p34 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v34 > v46 + p34) {
                     v34 = v46 + p34;
                     d34 = d46;
@@ -1568,7 +1631,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l54)) {
-                p54 = rc.sensePassability(l54) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l54);
+                p54 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v54 > v68 + p54) {
                     v54 = v68 + p54;
                     d54 = d68;
@@ -1587,7 +1651,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l62)) {
-                p62 = rc.sensePassability(l62) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l62);
+                p62 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v62 > v74 + p62) {
                     v62 = v74 + p62;
                     d62 = d74;
@@ -1606,7 +1671,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l106)) {
-                p106 = rc.sensePassability(l106) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l106);
+                p106 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v106 > v94 + p106) {
                     v106 = v94 + p106;
                     d106 = d94;
@@ -1625,7 +1691,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l114)) {
-                p114 = rc.sensePassability(l114) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l114);
+                p114 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v114 > v100 + p114) {
                     v114 = v100 + p114;
                     d114 = d100;
@@ -1644,7 +1711,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l134)) {
-                p134 = rc.sensePassability(l134) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l134);
+                p134 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v134 > v122 + p134) {
                     v134 = v122 + p134;
                     d134 = d122;
@@ -1663,7 +1731,8 @@ public class Bfs {
                 }
             }
             if (rc.canSenseLocation(l138)) {
-                p138 = rc.sensePassability(l138) ? 1 : 1000000;
+                MapInfo mi = rc.senseMapInfo(l138);
+                p138 = mi.isWall() || mi.isDam() ? 1000000 : mi.isWater() ? 4 : 1;
                 if (v138 > v124 + p138) {
                     v138 = v124 + p138;
                     d138 = d124;
