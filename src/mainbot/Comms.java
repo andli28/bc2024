@@ -159,11 +159,6 @@ public class Comms {
     }
 
     public static void update() throws GameActionException {
-        // these can be called regardless of dead or alive
-        if (rc.getRoundNum() > 1) {
-            sequence();
-        }
-
         // refresh the indices you are in charge of(enemy locs mostly)
         // logic for this instead of end of turn clear is so that units that execute
         // code first in turn(shortid = 1) have sufficient info
@@ -656,7 +651,7 @@ public class Comms {
                     }
                 } else {
                     // default flags should be ok
-                    //TODO REVIST ONLY USING CURRENT ALLY FLAGS?
+                    // TODO REVIST ONLY USING CURRENT ALLY FLAGS?
                     MapLocation defaultAlly = defaultAllyFlagLocs[j];
                     if (closestEnemiesToFlags[j] == null || Pathfinder.travelDistance(defaultAlly,
                             enemyLoc) < Pathfinder.travelDistance(defaultAlly, closestEnemiesToFlags[j])) {
