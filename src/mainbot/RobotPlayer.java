@@ -648,7 +648,7 @@ public strictfp class RobotPlayer {
                     // building them away from one another
                     int explosiveTrapPreferredDist = Integer.MAX_VALUE;
                     int stunTrapPreferredDist = 2;
-                    if (rc.getCrumbs() > 3000) {
+                    if (rc.getCrumbs() > 10000) {
                         explosiveTrapPreferredDist = 16;
                         stunTrapPreferredDist = 1;
                     } else if (rc.getCrumbs() > 200) {
@@ -665,7 +665,7 @@ public strictfp class RobotPlayer {
                     // distance squared to defend a flag
                     int distanceForDefense = 200;
                     //crumbs when everyone can build
-                    int crumbsWhenAllCanBuild = Integer.MAX_VALUE;
+                    int crumbsWhenAllCanBuild = 5000;
 
                     // boolean representing if you should go home and trap
                     // if you're a builderspecialist and its between the given turns, and you have a
@@ -938,29 +938,37 @@ public strictfp class RobotPlayer {
                     } else if (role == BUILDING) {
                         //System.out.println("1, " + Clock.getBytecodesLeft());
                         Direction optimalDir = null;
-                        // dummy mapLocation. Build whlie cooldown + buildCD< 10 and build != null.
-                        // laytrapwithinrangeofenemy will return either null (if nothing is built) or
-                        // the maplocation of the trap that is built
-                        // update nearest stun and explosive trap with this information and repeat while
-                        // loop until cd restriction or return null
-                        // signifying htat there is nowhere to build.
-                        // TODO: check if can build before and after move
-                        MapLocation build = new MapLocation(0, 0);
-                        int buildCD = SkillType.BUILD.getCooldown(rc.getLevel(SkillType.BUILD));
-                        while (rc.getActionCooldownTurns() + buildCD < 10 && build != null) {
-                            build = layTrapWithinRangeOfEnemy(rc, nearestExplosiveTrap, nearestStunTrap, enemies,
-                                    closestHostile,
-                                    explosiveTrapPreferredDist, stunTrapPreferredDist, buildThreshold);
-                            if (build != null) {
-                                MapInfo updateLoc = rc.senseMapInfo(build);
-                                int distToUpdate = rc.getLocation().distanceSquaredTo(build);
-                                if (updateLoc.getTrapType() == TrapType.STUN && distToUpdate < lowestDistToStunTrap) {
-                                    nearestStunTrap = build;
-                                    lowestDistToStunTrap = distToUpdate;
-                                } else if (updateLoc.getTrapType() == TrapType.EXPLOSIVE
-                                        && distToUpdate < lowestDistToExplosiveTrap) {
-                                    nearestExplosiveTrap = build;
-                                    lowestDistToExplosiveTrap = distToUpdate;
+                        //see if the closest hostile is reachable
+                        boolean closestHostileReachable = true;
+                        if (closestHostile != null) {
+                            Bfs.getBestDir(closestHostile);
+                            closestHostileReachable = Bfs.isReachable(closestHostile);
+                        }
+                        if (closestHostileReachable) {
+                            // dummy mapLocation. Build whlie cooldown + buildCD< 10 and build != null.
+                            // laytrapwithinrangeofenemy will return either null (if nothing is built) or
+                            // the maplocation of the trap that is built
+                            // update nearest stun and explosive trap with this information and repeat while
+                            // loop until cd restriction or return null
+                            // signifying htat there is nowhere to build.
+                            // TODO: check if can build before and after move
+                            MapLocation build = new MapLocation(0, 0);
+                            int buildCD = SkillType.BUILD.getCooldown(rc.getLevel(SkillType.BUILD));
+                            while (rc.getActionCooldownTurns() + buildCD < 10 && build != null) {
+                                build = layTrapWithinRangeOfEnemy(rc, nearestExplosiveTrap, nearestStunTrap, enemies,
+                                        closestHostile,
+                                        explosiveTrapPreferredDist, stunTrapPreferredDist, buildThreshold);
+                                if (build != null) {
+                                    MapInfo updateLoc = rc.senseMapInfo(build);
+                                    int distToUpdate = rc.getLocation().distanceSquaredTo(build);
+                                    if (updateLoc.getTrapType() == TrapType.STUN && distToUpdate < lowestDistToStunTrap) {
+                                        nearestStunTrap = build;
+                                        lowestDistToStunTrap = distToUpdate;
+                                    } else if (updateLoc.getTrapType() == TrapType.EXPLOSIVE
+                                            && distToUpdate < lowestDistToExplosiveTrap) {
+                                        nearestExplosiveTrap = build;
+                                        lowestDistToExplosiveTrap = distToUpdate;
+                                    }
                                 }
                             }
                         }
@@ -974,6 +982,34 @@ public strictfp class RobotPlayer {
                             //System.out.println("3. " + Clock.getBytecodesLeft());
                         }
                         attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
+                        if (closestHostileReachable) {
+                            // dummy mapLocation. Build whlie cooldown + buildCD< 10 and build != null.
+                            // laytrapwithinrangeofenemy will return either null (if nothing is built) or
+                            // the maplocation of the trap that is built
+                            // update nearest stun and explosive trap with this information and repeat while
+                            // loop until cd restriction or return null
+                            // signifying htat there is nowhere to build.
+                            // TODO: check if can build before and after move
+                            MapLocation build = new MapLocation(0, 0);
+                            int buildCD = SkillType.BUILD.getCooldown(rc.getLevel(SkillType.BUILD));
+                            while (rc.getActionCooldownTurns() + buildCD < 10 && build != null) {
+                                build = layTrapWithinRangeOfEnemy(rc, nearestExplosiveTrap, nearestStunTrap, enemies,
+                                        closestHostile,
+                                        explosiveTrapPreferredDist, stunTrapPreferredDist, buildThreshold);
+                                if (build != null) {
+                                    MapInfo updateLoc = rc.senseMapInfo(build);
+                                    int distToUpdate = rc.getLocation().distanceSquaredTo(build);
+                                    if (updateLoc.getTrapType() == TrapType.STUN && distToUpdate < lowestDistToStunTrap) {
+                                        nearestStunTrap = build;
+                                        lowestDistToStunTrap = distToUpdate;
+                                    } else if (updateLoc.getTrapType() == TrapType.EXPLOSIVE
+                                            && distToUpdate < lowestDistToExplosiveTrap) {
+                                        nearestExplosiveTrap = build;
+                                        lowestDistToExplosiveTrap = distToUpdate;
+                                    }
+                                }
+                            }
+                        }
                         if (optimalDir == null) {
                             rc.setIndicatorString("building move null dir");
                         }
