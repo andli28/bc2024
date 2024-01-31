@@ -2061,4 +2061,189 @@ public class Bfs {
         return null;
     }
 
+    public static boolean isReachable(MapLocation target) {
+        if (!rc.canSenseLocation(target)) {
+            return false;
+        }
+        // uses statics(as found from last pathfind call)
+        int dx = target.x - rc.getLocation().x;
+        int dy = target.y - rc.getLocation().y;
+        switch (dx) {
+            case -4:
+                switch (dy) {
+                    case -2:
+                        return v30 < 1000000;
+                    case -1:
+                        return v31 < 1000000;
+                    case 0:
+                        return v32 < 1000000;
+                    case 1:
+                        return v33 < 1000000;
+                    case 2:
+                        return v34 < 1000000;
+                }
+                break;
+            case -3:
+                switch (dy) {
+                    case -3:
+                        return v42 < 1000000;
+                    case -2:
+                        return v43 < 1000000;
+                    case -1:
+                        return v44 < 1000000;
+                    case 0:
+                        return v45 < 1000000;
+                    case 1:
+                        return v46 < 1000000;
+                    case 2:
+                        return v47 < 1000000;
+                    case 3:
+                        return v48 < 1000000;
+                }
+                break;
+            case -2:
+                switch (dy) {
+                    case -4:
+                        return v54 < 1000000;
+                    case -3:
+                        return v55 < 1000000;
+                    case -2:
+                        return v56 < 1000000;
+                    case -1:
+                        return v57 < 1000000;
+                    case 0:
+                        return v58 < 1000000;
+                    case 1:
+                        return v59 < 1000000;
+                    case 2:
+                        return v60 < 1000000;
+                    case 3:
+                        return v61 < 1000000;
+                    case 4:
+                        return v62 < 1000000;
+                }
+                break;
+            case -1:
+                switch (dy) {
+                    case -4:
+                        return v67 < 1000000;
+                    case -3:
+                        return v68 < 1000000;
+                    case -2:
+                        return v69 < 1000000;
+                    case -1:
+                        return v70 < 1000000;
+                    case 0:
+                        return v71 < 1000000;
+                    case 1:
+                        return v72 < 1000000;
+                    case 2:
+                        return v73 < 1000000;
+                    case 3:
+                        return v74 < 1000000;
+                    case 4:
+                        return v75 < 1000000;
+                }
+                break;
+            case 0:
+                switch (dy) {
+                    case -4:
+                        return v80 < 1000000;
+                    case -3:
+                        return v81 < 1000000;
+                    case -2:
+                        return v82 < 1000000;
+                    case -1:
+                        return v83 < 1000000;
+                    case 0:
+                        return v84 < 1000000;
+                    case 1:
+                        return v85 < 1000000;
+                    case 2:
+                        return v86 < 1000000;
+                    case 3:
+                        return v87 < 1000000;
+                    case 4:
+                        return v88 < 1000000;
+                }
+                break;
+            case 1:
+                switch (dy) {
+                    case -4:
+                        return v93 < 1000000;
+                    case -3:
+                        return v94 < 1000000;
+                    case -2:
+                        return v95 < 1000000;
+                    case -1:
+                        return v96 < 1000000;
+                    case 0:
+                        return v97 < 1000000;
+                    case 1:
+                        return v98 < 1000000;
+                    case 2:
+                        return v99 < 1000000;
+                    case 3:
+                        return v100 < 1000000;
+                    case 4:
+                        return v101 < 1000000;
+                }
+                break;
+            case 2:
+                switch (dy) {
+                    case -4:
+                        return v106 < 1000000;
+                    case -3:
+                        return v107 < 1000000;
+                    case -2:
+                        return v108 < 1000000;
+                    case -1:
+                        return v109 < 1000000;
+                    case 0:
+                        return v110 < 1000000;
+                    case 1:
+                        return v111 < 1000000;
+                    case 2:
+                        return v112 < 1000000;
+                    case 3:
+                        return v113 < 1000000;
+                    case 4:
+                        return v114 < 1000000;
+                }
+                break;
+            case 3:
+                switch (dy) {
+                    case -3:
+                        return v120 < 1000000;
+                    case -2:
+                        return v121 < 1000000;
+                    case -1:
+                        return v122 < 1000000;
+                    case 0:
+                        return v123 < 1000000;
+                    case 1:
+                        return v124 < 1000000;
+                    case 2:
+                        return v125 < 1000000;
+                    case 3:
+                        return v126 < 1000000;
+                }
+                break;
+            case 4:
+                switch (dy) {
+                    case -2:
+                        return v134 < 1000000;
+                    case -1:
+                        return v135 < 1000000;
+                    case 0:
+                        return v136 < 1000000;
+                    case 1:
+                        return v137 < 1000000;
+                    case 2:
+                        return v138 < 1000000;
+                }
+                break;
+        }
+        return false;
+    }
 }
