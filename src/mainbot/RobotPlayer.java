@@ -1,6 +1,7 @@
 package mainbot;
 
 import battlecode.common.*;
+import mainbot.utils.*;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -117,6 +118,12 @@ public strictfp class RobotPlayer {
     static int prevWaypointIndex = 0;
     static final int WAYPOINT_SPACING = 5; // min true travel dist between waypoints
 
+    // stunned enemy tracking
+    static FastQueue<Pair<Integer, Integer>> stunnedEnemiesQ = new FastQueue<>();
+    static FastIntIntMap stunnedEnemiesSet = new FastIntIntMap();
+    static MapLocation[] prevRoundStuns = new MapLocation[70];
+    static int prevRoundStunLen = 0;
+
     /**
      * run() is the method that is called when a robot is instantiated in the
      * Battlecode world.
@@ -155,9 +162,9 @@ public strictfp class RobotPlayer {
             turnCount += 1; // We have now been alive for one more turn!
 
             // Resignation at 500 turns for testing purposes
-//             if (turnCount == 700) {
-//             rc.resign();
-//             }
+            // if (turnCount == 700) {
+            // rc.resign();
+            // }
 
             // Try/catch blocks stop unhandled exceptions, which cause your robot to
             // explode.
@@ -197,7 +204,7 @@ public strictfp class RobotPlayer {
 
                         // Builders are 0, 1, 2
                         // Sentries are 47, 48, 49 (shiftOne)
-                        //          44, 45, 46 (shiftTwo)
+                        // 44, 45, 46 (shiftTwo)
                         // attackSquadOne -> 0, 44, 47, 3-16 -> ATTK: 3,4,5,6 HEAL: 7,8,9,10
                         // attackSquadTwo -> 1, 45, 48, 17-30 -> ATTK: 17,18,19,20 HEAL: 21,22,23,24
                         // attackSquadThree -> 2, 46, 49, 31-43 -> ATTK: 31,32,33,34 HEAL: 35,36,37,38
@@ -351,6 +358,51 @@ public strictfp class RobotPlayer {
 
                     // Turns Alive
                     turnsAlive++;
+
+                    // ENEMY STUNLOCK TRACKING
+                    // update stunned enemies q
+                    Pair<Integer, Integer> head = stunnedEnemiesQ.peek();
+                    while (head != null && head.second <= rc.getRoundNum()) {
+                        stunnedEnemiesQ.poll();
+                        int dec = stunnedEnemiesSet.getVal(head.first) - 1;
+                        stunnedEnemiesSet.remove(head.first);
+                        if (dec > 0) {
+                            stunnedEnemiesSet.add(head.first, dec);
+                        }
+                        head = stunnedEnemiesQ.peek();
+                    }
+                    // find all stun traps this turn
+                    MapInfo[] startTurnMapInfos = rc.senseNearbyMapInfos();
+                    int currRoundStunIndex = 0;
+                    IterableLocSet currRoundStunsSet = new IterableLocSet();
+                    for (int i = startTurnMapInfos.length; --i >= 0;) {
+                        MapInfo mapInfo = startTurnMapInfos[i];
+                        if (mapInfo.getTrapType() == TrapType.STUN) {
+                            currRoundStunsSet.add(mapInfo.getMapLocation());
+                            currRoundStunIndex++;
+                        }
+                    }
+                    // find all stuns that went off this turn
+                    for (int i = prevRoundStunLen; --i >= 0;) {
+                        MapLocation stunLoc = prevRoundStuns[i];
+                        if (!currRoundStunsSet.contains(stunLoc)) {
+                            // this stun went off, find all enemies in its range and add them to the set
+                            RobotInfo[] enemies = rc.senseNearbyRobots(stunLoc, 13, rc.getTeam().opponent());
+                            for (int j = enemies.length; --j >= 0;) {
+                                RobotInfo enemy = enemies[j];
+                                int id = enemy.getID();
+                                int stunnedRounds = Comms.shortId <= 24 ? 2 : 3;
+                                stunnedEnemiesQ.add(new Pair<>(id, rc.getRoundNum() + stunnedRounds));
+                                if (stunnedEnemiesSet.contains(id)) {
+                                    int inc = stunnedEnemiesSet.getVal(id) + 1;
+                                    stunnedEnemiesSet.remove(id);
+                                    stunnedEnemiesSet.add(id, inc);
+                                } else {
+                                    stunnedEnemiesSet.add(id, 1);
+                                }
+                            }
+                        }
+                    }
 
                     // Create two shifts to swap out ducks and ensure these ducks can still get XP.
                     // Rotate shift every 500 turns.
@@ -664,7 +716,7 @@ public strictfp class RobotPlayer {
                     int sentryWanderingLimit = 12;
                     // distance squared to defend a flag
                     int distanceForDefense = 200;
-                    //crumbs when everyone can build
+                    // crumbs when everyone can build
                     int crumbsWhenAllCanBuild = 5000;
 
                     // boolean representing if you should go home and trap
@@ -700,8 +752,10 @@ public strictfp class RobotPlayer {
                     } else if (false && escortTgt != null) {
                         role = ESCORT;
                         rc.setIndicatorString("Escort " + targetFlag.toString());
-                    } else if ((BUILDERSPECIALIST || rc.getLevel(SkillType.BUILD) > 3 || rc.getCrumbs() > crumbsWhenAllCanBuild)
-                            && rc.getCrumbs() > 200 && (enemies.length != 0 && turnCount > GameConstants.SETUP_ROUNDS - 20)) {
+                    } else if ((BUILDERSPECIALIST || rc.getLevel(SkillType.BUILD) > 3
+                            || rc.getCrumbs() > crumbsWhenAllCanBuild)
+                            && rc.getCrumbs() > 200
+                            && (enemies.length != 0 && turnCount > GameConstants.SETUP_ROUNDS - 20)) {
                         role = BUILDING;
                         rc.setIndicatorString("Building");
                     } else if (shouldRespawn) {
@@ -831,13 +885,15 @@ public strictfp class RobotPlayer {
                                 tgtLocation = bigCloseCrumb;
                                 turnsNotReachedTgt = 0;
                                 lastTurnPursingCrumb = true;
-                            } else if (turnCount > turnsTillAllowingCombat && targetFlag != null && !rc.canSenseLocation(targetFlag)) {
+                            } else if (turnCount > turnsTillAllowingCombat && targetFlag != null
+                                    && !rc.canSenseLocation(targetFlag)) {
                                 tgtLocation = targetFlag;
                                 turnsNotReachedTgt = 0;
                             } else if (tgtLocation == null || rc.getLocation().equals(tgtLocation) ||
                                     (rc.canSenseLocation(tgtLocation) && (!rc.sensePassability(tgtLocation)
                                             || (rc.senseRobotAtLocation(tgtLocation) != null
-                                            && rc.senseRobotAtLocation(tgtLocation).getTeam().equals(rc.getTeam()))))
+                                                    && rc.senseRobotAtLocation(tgtLocation).getTeam()
+                                                            .equals(rc.getTeam()))))
                                     || turnsNotReachedTgt > 50 || lastTurnPursingCrumb) {
                                 tgtLocation = generateRandomMapLocation(3, rc.getMapWidth() - 3,
                                         3, rc.getMapHeight() - 3);
@@ -936,9 +992,9 @@ public strictfp class RobotPlayer {
                             attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
                         }
                     } else if (role == BUILDING) {
-                        //System.out.println("1, " + Clock.getBytecodesLeft());
+                        // System.out.println("1, " + Clock.getBytecodesLeft());
                         Direction optimalDir = null;
-                        //see if the closest hostile is reachable
+                        // see if the closest hostile is reachable
                         boolean closestHostileReachable = true;
                         if (closestHostile != null) {
                             Bfs.getBestDir(closestHostile);
@@ -961,7 +1017,8 @@ public strictfp class RobotPlayer {
                                 if (build != null) {
                                     MapInfo updateLoc = rc.senseMapInfo(build);
                                     int distToUpdate = rc.getLocation().distanceSquaredTo(build);
-                                    if (updateLoc.getTrapType() == TrapType.STUN && distToUpdate < lowestDistToStunTrap) {
+                                    if (updateLoc.getTrapType() == TrapType.STUN
+                                            && distToUpdate < lowestDistToStunTrap) {
                                         nearestStunTrap = build;
                                         lowestDistToStunTrap = distToUpdate;
                                     } else if (updateLoc.getTrapType() == TrapType.EXPLOSIVE
@@ -972,14 +1029,14 @@ public strictfp class RobotPlayer {
                                 }
                             }
                         }
-                        //System.out.println("2. " + Clock.getBytecodesLeft());
+                        // System.out.println("2. " + Clock.getBytecodesLeft());
                         // Calculate the average distance from all enemies.
                         if (rc.isMovementReady()) {
                             float averageDistSqFromEnemies = averageDistanceSquaredFrom(enemies, rc.getLocation());
                             optimalDir = findOptimalCombatDir(rc, enemies, lowestCurrHostile, closestHostile,
                                     lowestCurrFriendlySeen, averageDistSqFromEnemies,
                                     numHostiles, numFriendlies, attackerCanHeal);
-                            //System.out.println("3. " + Clock.getBytecodesLeft());
+                            // System.out.println("3. " + Clock.getBytecodesLeft());
                         }
                         attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
                         if (closestHostileReachable) {
@@ -999,7 +1056,8 @@ public strictfp class RobotPlayer {
                                 if (build != null) {
                                     MapInfo updateLoc = rc.senseMapInfo(build);
                                     int distToUpdate = rc.getLocation().distanceSquaredTo(build);
-                                    if (updateLoc.getTrapType() == TrapType.STUN && distToUpdate < lowestDistToStunTrap) {
+                                    if (updateLoc.getTrapType() == TrapType.STUN
+                                            && distToUpdate < lowestDistToStunTrap) {
                                         nearestStunTrap = build;
                                         lowestDistToStunTrap = distToUpdate;
                                     } else if (updateLoc.getTrapType() == TrapType.EXPLOSIVE
@@ -1021,7 +1079,7 @@ public strictfp class RobotPlayer {
                         Direction dir;
                         if (rc.canPickupFlag(Info.closestFlag)) {
                             rc.pickupFlag(Info.closestFlag);
-                            if(Info.spawnLocsSet.contains(rc.getLocation())) {
+                            if (Info.spawnLocsSet.contains(rc.getLocation())) {
                                 Comms.captureFlag(Info.closestFlagInfo.getID());
                             }
                             dir = Pathfinder.pathfindHome();
@@ -1029,13 +1087,13 @@ public strictfp class RobotPlayer {
                             dir = Pathfinder.pathfind(rc.getLocation(), Info.closestFlag);
                             if (rc.canPickupFlag(Info.closestFlag)) {
                                 rc.pickupFlag(Info.closestFlag);
-                                if(Info.spawnLocsSet.contains(rc.getLocation())) {
+                                if (Info.spawnLocsSet.contains(rc.getLocation())) {
                                     Comms.captureFlag(Info.closestFlagInfo.getID());
                                 }
                             }
                         }
 
-                        if (rc.canMove(dir) && Info.spawnLocsSet.contains(rc.getLocation().add(dir))){
+                        if (rc.canMove(dir) && Info.spawnLocsSet.contains(rc.getLocation().add(dir))) {
                             Comms.captureFlag(Info.closestFlagInfo.getID());
                         }
 
@@ -1211,7 +1269,8 @@ public strictfp class RobotPlayer {
                     }
 
                     while (lowestCurrFriendly != null && rc.canHeal(lowestCurrFriendly) &&
-                            (closestHostile == null || rc.getLocation().distanceSquaredTo(closestHostile) > 10 || HEALINGSPECIALIST)) {
+                            (closestHostile == null || rc.getLocation().distanceSquaredTo(closestHostile) > 10
+                                    || HEALINGSPECIALIST)) {
                         rc.heal(lowestCurrFriendly);
                     }
 
@@ -1293,6 +1352,19 @@ public strictfp class RobotPlayer {
                             prevWaypoints[prevWaypointIndex] = rc.getLocation();
                         }
                     }
+
+                    // UPDATE STUN INFO
+                    prevRoundStuns = new MapLocation[70];
+                    MapInfo[] endTurnMapInfos = rc.senseNearbyMapInfos();
+                    int endRoundStunIndex = 0;
+                    for (int i = endTurnMapInfos.length; --i >= 0;) {
+                        MapInfo mapInfo = endTurnMapInfos[i];
+                        if (mapInfo.getTrapType() == TrapType.STUN) {
+                            prevRoundStuns[endRoundStunIndex] = mapInfo.getMapLocation();
+                            endRoundStunIndex++;
+                        }
+                    }
+                    prevRoundStunLen = endRoundStunIndex;
                 }
                 Comms.update();
 
@@ -1376,7 +1448,7 @@ public strictfp class RobotPlayer {
      * @throws GameActionException
      */
     public static void layTrap(RobotController rc, MapLocation nearestExplosiveTrap, MapLocation nearestStunTrap,
-                               int explosiveTrapPreferredDist, int stunTrapPreferredDist)
+            int explosiveTrapPreferredDist, int stunTrapPreferredDist)
             throws GameActionException {
         // Iterate through all building directions, and go through the following logic:
         // 1 . If there are no nearby Explosive traps, build one,
@@ -1461,9 +1533,9 @@ public strictfp class RobotPlayer {
      * @throws GameActionException
      */
     public static MapLocation layTrapWithinRangeOfEnemy(RobotController rc, MapLocation nearestExplosiveTrap,
-                                                        MapLocation nearestStunTrap, RobotInfo[] enemies, MapLocation closestEnemy, int explosiveTrapPreferredDist,
-                                                        int stunTrapPreferredDist,
-                                                        int buildThreshold) throws GameActionException {
+            MapLocation nearestStunTrap, RobotInfo[] enemies, MapLocation closestEnemy, int explosiveTrapPreferredDist,
+            int stunTrapPreferredDist,
+            int buildThreshold) throws GameActionException {
         // Iterate through all building directions, and go through the following logic:
         // 1 . If there are no nearby Explosive traps, build one,
         // 2. Else if there are no nearby Stun Traps, build one.
@@ -1561,7 +1633,7 @@ public strictfp class RobotPlayer {
      * @throws GameActionException
      */
     public static void attackMove(RobotController rc, Direction optimalDir, MapLocation lowestCurrHostile,
-                                  int lowestCurrHostileHealth) throws GameActionException {
+            int lowestCurrHostileHealth) throws GameActionException {
         // Calculate what would be the lowest health of a hostile after a movement.
         MapLocation aflowestCurrHostile = null;
         int aflowestCurrHostileHealth = Integer.MAX_VALUE;
@@ -1631,7 +1703,7 @@ public strictfp class RobotPlayer {
     }
 
     public static void healMove(RobotController rc, Direction optimalDir, MapLocation lowestCurrFriend,
-                                int lowestCurrFriendHealth, boolean attackerCanHeal) throws GameActionException {
+            int lowestCurrFriendHealth, boolean attackerCanHeal) throws GameActionException {
         // Calculate what would be the lowest health of a friend after a movement.
         MapLocation aflowestCurrFriend = null;
         int aflowestCurrFriendHealth = Integer.MAX_VALUE;
@@ -1739,14 +1811,15 @@ public strictfp class RobotPlayer {
     }
 
     public static Direction findOptimalCombatDir(RobotController rc, RobotInfo[] enemies, MapLocation lowestCurrHostile,
-                                                 MapLocation closestHostile, MapLocation lowestCurrFriendlySeen, float averageDistFromEnemies,
-                                                 int numHostiles, int numFriendlies, boolean attackerCanHeal) throws GameActionException {
+            MapLocation closestHostile, MapLocation lowestCurrFriendlySeen, float averageDistFromEnemies,
+            int numHostiles, int numFriendlies, boolean attackerCanHeal) throws GameActionException {
         // Calculate the best retreating direction and best attackign direction
         // Simulate moving to any of the four cardinal directions. Calculate the average
         // distance from all enemies.
         // Best Retreat direction is the direction that maximizes average Distance
         // Best Attacking direction is the direction that tries to keep troops at an
-        // Best Healing direction is the direction closest to an injured friend but furthest from enemies
+        // Best Healing direction is the direction closest to an injured friend but
+        // furthest from enemies
         // average distance
         // equal to the attack radius squared.
         Direction optimalDir = null;
@@ -1780,12 +1853,14 @@ public strictfp class RobotPlayer {
                         bestRetreat = validCombatDirs[i];
                     }
 
-                    if (lowestCurrFriendlySeen != null && tempLoc.distanceSquaredTo(lowestCurrFriendlySeen) < distToFriend) {
+                    if (lowestCurrFriendlySeen != null
+                            && tempLoc.distanceSquaredTo(lowestCurrFriendlySeen) < distToFriend) {
                         distToFriend = tempLoc.distanceSquaredTo(lowestCurrFriendlySeen);
                         bestHeal = validCombatDirs[i];
                         bestHealDist = averageDist;
 
-                    } else if (lowestCurrFriendlySeen != null && tempLoc.distanceSquaredTo(lowestCurrFriendlySeen) == distToFriend) {
+                    } else if (lowestCurrFriendlySeen != null
+                            && tempLoc.distanceSquaredTo(lowestCurrFriendlySeen) == distToFriend) {
                         if (bestHealDist < averageDist) {
                             distToFriend = tempLoc.distanceSquaredTo(lowestCurrFriendlySeen);
                             bestHeal = validCombatDirs[i];
@@ -1808,12 +1883,13 @@ public strictfp class RobotPlayer {
             int dmg = 0;
             int dmgIfHeal = 0;
             // int stunnedHostilesInVision = 0;
-            for (int i = enemies.length; --i >= 0; ) {
+            for (int i = enemies.length; --i >= 0;) {
                 RobotInfo enemy = enemies[i];
                 // 10 r^2 is max dist where enemy is 1 move from attack range
                 // if enemy is not in stunned cache
                 // if (!Comms.stunnedEnemiesContains(enemy.getLocation())) {
-                if (enemy.getLocation().distanceSquaredTo(advanceLoc) <= 10) {
+                if (enemy.getLocation().distanceSquaredTo(advanceLoc) <= 10
+                        && !stunnedEnemiesSet.contains(enemy.getID())) {
                     dmg += SkillType.ATTACK.skillEffect
                             + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
                 }
@@ -1998,7 +2074,7 @@ public strictfp class RobotPlayer {
                 }
             } else if (rc.getHealth() <= dmg || numHostiles - 2 /*- stunnedHostilesInVision*/ >= numFriendlies
                     || (!rc.isActionReady() && !(rc.getActionCooldownTurns() / 10 == 1
-                    && rc.getLocation().distanceSquaredTo(closestHostile) >= 17))
+                            && rc.getLocation().distanceSquaredTo(closestHostile) >= 17))
                     || (rc.isActionReady() && lowestCurrHostile != null)) {
                 // if (lowestCurrHostile == null &&
                 // SkillType.ATTACK.getSkillEffect(rc.getLevel(SkillType.ATTACK)) <= dmgIfChill
@@ -2022,7 +2098,7 @@ public strictfp class RobotPlayer {
     }
 
     public static double orthagonalDistanceOfP3RelativeToP2OnVectorP1P2(MapLocation P1, MapLocation P2,
-                                                                        MapLocation P3) {
+            MapLocation P3) {
         // Set P1 as origin:
         double x2 = P2.x - P1.x;
         double x3 = P3.x - P1.x;
@@ -2044,7 +2120,7 @@ public strictfp class RobotPlayer {
     }
 
     public static Direction findOptimalTrapKiteDir(RobotController rc, MapLocation closestEnemy, RobotInfo[] enemies,
-                                                   MapLocation nearestTrap) {
+            MapLocation nearestTrap) {
         Direction optimalDir = null;
         double optimalOrthoDist = Integer.MIN_VALUE;
 
@@ -2073,7 +2149,7 @@ public strictfp class RobotPlayer {
     }
 
     public static Direction findOptimalPursuingStunDir(RobotController rc, RobotInfo[] enemies,
-                                                       float averageDistFromEnemies) throws GameActionException {
+            float averageDistFromEnemies) throws GameActionException {
         Direction bestAttack = null;
         double bestAttackDist = averageDistFromEnemies;
 
