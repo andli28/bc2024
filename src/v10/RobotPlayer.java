@@ -1,4 +1,4 @@
-package mainbot;
+package v10;
 
 import battlecode.common.*;
 import mainbot.utils.*;
@@ -187,7 +187,9 @@ public strictfp class RobotPlayer {
                     // decide if this person should be a builder (if shortId == an ID) (Diff ID's
                     // chosen to spawn at diff spawns)
                     if (turnCount == 1) {
-                        BUILDERSPECIALIST = (Comms.shortId == 0 || Comms.shortId == 1 || Comms.shortId == 2);
+                        if (Comms.shortId == 0 || Comms.shortId == 1 || Comms.shortId == 2) {
+                            BUILDERSPECIALIST = true;
+                        }
 
                         // decide if this person should be a sentry (Diff ID's chosen to spawn at diff
                         // spawns)
@@ -2183,7 +2185,11 @@ public strictfp class RobotPlayer {
     }
 
     public static boolean isInBounds(RobotController rc, MapLocation x) {
-        return x.x >= 0 && x.x < rc.getMapWidth() && x.y >= 0 && x.y < rc.getMapHeight();
+        if (x.x >= 0 && x.x < rc.getMapWidth() && x.y >= 0 && x.y < rc.getMapHeight()) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     public static boolean doSidesHaveWater(RobotController rc, MapLocation x) throws GameActionException {
