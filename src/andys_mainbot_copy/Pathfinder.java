@@ -50,12 +50,7 @@ public class Pathfinder {
         if (Clock.getBytecodesLeft() > 5000) {
             Direction bfsDir = Bfs.getBestDir(tgt);
             // make sure bfs returns dir that is not null and gets u closer to your target
-            if (bfsDir != null){
-                initBlockDist = 9999;
-                buhgDir = Rot.NONE;
-                turnsBuhgging = 0;
-                lastBuhgDir = Direction.CENTER;
-
+            if (bfsDir != null) {
                 return bfsDir;
             }
         }
