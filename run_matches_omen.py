@@ -5,6 +5,8 @@ import platform
 import concurrent.futures
 import os
 
+# This is for use on a powerful Windows computer with enough RAM to run 9 matches at once
+
 emojiMode = True
 emojiMap = {
     'Won': ':heavy_check_mark:',
@@ -14,9 +16,9 @@ emojiMap = {
     'Error': ':heavy_exclamation_mark:'
 }
 errors = []
-currentBot = 'mainbot'
+currentBot = 'v10'
 
-bots = ['v10']
+bots = ['v9_3_diggable']
 botsSet = set(bots)
 
 # See https://github.com/battlecode/battlecode24/blob/master/client/src/constants.ts
@@ -98,12 +100,17 @@ def run_match(bot, map):
 
 
 if __name__ == "__main__":
+    # run ./gradlew build before running this script using subprocess
+
+    process = subprocess.Popen("gradlew.bat build", shell=True)
+    process.wait()
+
     results = {}
     # Show how many matches to play, along with how many cpus we have
     print('We have a maximum of {} cpus'.format(os.cpu_count()))
     numMatches = len(matches)
     
-    with concurrent.futures.ProcessPoolExecutor(max_workers=(min(3, os.cpu_count()))) as executor:
+    with concurrent.futures.ProcessPoolExecutor(max_workers=(min(9, os.cpu_count()))) as executor:
         print('Running {} matches on {} workers'.format(numMatches, executor._max_workers))
         future_to_game = {executor.submit(run_match, bot, map): (bot, map) for bot, map in matches}
         for future in concurrent.futures.as_completed(future_to_game):
@@ -138,7 +145,7 @@ if __name__ == "__main__":
         table = [[replaceWithDictionary(item, emojiMap) for item in row] for row in table]
 
     # Write to file
-    with open('matches-summary-fast.txt', 'w') as f:
+    with open('matches-summary-omen.txt', 'w') as f:
         #Write the ratio of wins to total games, and win percentage
         f.write(match_statistics)
 

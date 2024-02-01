@@ -2063,11 +2063,16 @@ public class Bfs {
 
     public static boolean isReachable(MapLocation target) {
         if (!rc.canSenseLocation(target)) {
-            return false;
+            return true;
         }
         // uses statics(as found from last pathfind call)
+        // shift dx and dy as current loc could have changed from previous bfs call
+        // loc(l84)
+
         int dx = target.x - rc.getLocation().x;
         int dy = target.y - rc.getLocation().y;
+        dx += rc.getLocation().x - l84.x;
+        dy += rc.getLocation().y - l84.y;
         switch (dx) {
             case -4:
                 switch (dy) {
@@ -2244,6 +2249,6 @@ public class Bfs {
                 }
                 break;
         }
-        return false;
+        return true;
     }
 }
