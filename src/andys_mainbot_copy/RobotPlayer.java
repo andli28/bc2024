@@ -110,6 +110,7 @@ public strictfp class RobotPlayer {
     static boolean initialSetTrapStun = false;
     static boolean initialSetTrapWater = false;
     static boolean shouldGoHomeAndTrap = false;
+    static MapLocation[] initialSpawns = new MapLocation[3];
 
     // previous waypoints for backtracking on flag return
     static MapLocation[] prevWaypoints = new MapLocation[20];
@@ -228,15 +229,18 @@ public strictfp class RobotPlayer {
                         if (Comms.shortId == 0 || Comms.shortId == 44 || Comms.shortId == 47) {
                             homeFlag = homeFlags[0];
                             homeFlagIndex = 0;
+                            initialSpawns[0] = homeFlags[0];
                         } else if (Comms.shortId == 1 || Comms.shortId == 45 || Comms.shortId == 48) {
                             homeFlag = homeFlags[1];
                             homeFlagIndex = 1;
                         } else if (Comms.shortId == 2 || Comms.shortId == 46 || Comms.shortId == 49) {
                             homeFlag = homeFlags[2];
                             homeFlagIndex = 2;
+                            initialSpawns[1] = homeFlags[1];
                         }
                         if (BUILDERSPECIALIST) {
                             initialBuilderSpawn = homeFlag;
+                            initialSpawns[2] = homeFlags[2];
                         }
                     }
 
@@ -354,6 +358,39 @@ public strictfp class RobotPlayer {
 
                     // Turns Alive
                     turnsAlive++;
+
+                    MapLocation[] defaultHomeFlags = null;
+                    MapLocation[] currentHomeFlags = null;
+
+                    if (turnCount >= 2 && turnCount <= GameConstants.SETUP_ROUNDS) {
+                        defaultHomeFlags = Comms.getDefaultAllyFlagLocations();
+                        currentHomeFlags = Comms.getCurrentAllyFlagLocations();
+                        if (Comms.shortId == 0 || Comms.shortId == 44 || Comms.shortId == 47) {
+                            if (currentHomeFlags[0] != null) {
+                                homeFlag = currentHomeFlags[0];
+                                homeFlagIndex = 0;
+                            } else {
+                                homeFlag = defaultHomeFlags[0];
+                                homeFlagIndex = 0;
+                            }
+                        } else if (Comms.shortId == 1 || Comms.shortId == 45 || Comms.shortId == 48) {
+                            if (currentHomeFlags[1] != null) {
+                                homeFlag = currentHomeFlags[1];
+                                homeFlagIndex = 1;
+                            } else {
+                                homeFlag = defaultHomeFlags[1];
+                                homeFlagIndex = 1;
+                            }
+                        } else if (Comms.shortId == 2 || Comms.shortId == 46 || Comms.shortId == 49) {
+                            if (currentHomeFlags[2] != null) {
+                                homeFlag = currentHomeFlags[2];
+                                homeFlagIndex = 2;
+                            } else {
+                                homeFlag = defaultHomeFlags[2];
+                                homeFlagIndex = 2;
+                            }
+                        }
+                    }
 
                     // Create two shifts to swap out ducks and ensure these ducks can still get XP.
                     // Rotate shift every 500 turns.
@@ -766,7 +803,7 @@ public strictfp class RobotPlayer {
                         role = RESPAWN;
                         rc.setIndicatorString("Respawning");
                     } else if (shouldNotTrain && (lowestDistToDam == 1 || nearestDividerWithOpenNeighbor != null)
-                            && turnCount > GameConstants.SETUP_ROUNDS - 40 && turnCount <= GameConstants.SETUP_ROUNDS) {
+                            && (turnCount > GameConstants.SETUP_ROUNDS - 40 || (BUILDERSPECIALIST && shouldNotTrain)) && turnCount <= GameConstants.SETUP_ROUNDS) {
                         role = LINEUP;
                         rc.setIndicatorString("LINEUP");
                     } else if (shouldNotTrain
