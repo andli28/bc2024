@@ -1281,6 +1281,14 @@ public strictfp class RobotPlayer {
                             optimalDir = Pathfinder.pathfind(rc.getLocation(), homeFlag);
                             rc.setIndicatorString("Sentrying: Target: " + homeFlag.toString());
                         }
+
+                        // if turncount past setup and can build a water trap on flag, do it.
+                        if (turnCount > GameConstants.SETUP_ROUNDS && rc.canSenseLocation(homeFlag) && rc.senseMapInfo(homeFlag).getTrapType().equals(TrapType.NONE)) {
+                            if (rc.canBuild(TrapType.WATER, homeFlag)) {
+                                rc.build(TrapType.WATER, homeFlag);
+                            }
+                        }
+
                         // always path to the homeFlag when sentrying
                         if (optimalDir != null && rc.canMove(optimalDir)) {
                             rc.move(optimalDir);

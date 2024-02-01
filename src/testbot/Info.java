@@ -1,7 +1,7 @@
 package testbot;
 
 import battlecode.common.*;
-import mainbot.utils.*;
+import testbot.utils.*;
 
 public class Info {
     public static RobotController rc;
