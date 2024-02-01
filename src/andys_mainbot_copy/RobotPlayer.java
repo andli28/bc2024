@@ -486,7 +486,7 @@ public strictfp class RobotPlayer {
                     for (int i = nearbyMap.length - 1; i >= 0; i--) {
                         MapInfo singleMap = nearbyMap[i];
                         int distToSingleMap = rc.getLocation().distanceSquaredTo(singleMap.getMapLocation());
-                        if (diggable == null && BUILDERSPECIALIST && bytecodesLeft - Clock.getBytecodesLeft() < 2000
+                        if (diggable == null && BUILDERSPECIALIST
                                 && rc.getExperience(SkillType.BUILD) < 30
                                 && numHostiles == 0
                                 && distToSingleMap <= 11
