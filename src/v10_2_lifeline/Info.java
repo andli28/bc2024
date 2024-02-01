@@ -1,7 +1,7 @@
-package v10_2_apex_legend;
+package v10_2_lifeline;
 
 import battlecode.common.*;
-import v10_2_apex_legend.utils.*;
+import v10_2_lifeline.utils.*;
 
 public class Info {
     public static RobotController rc;
