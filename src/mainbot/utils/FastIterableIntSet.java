@@ -3,6 +3,8 @@ package mainbot.utils;
 /**
  * Interface to represent ints up to 65535 (2^16-1)
  */
+
+// 5 musketeers 2022
 public class FastIterableIntSet {
     public StringBuilder keys;
     public int maxlen;

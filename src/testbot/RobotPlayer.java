@@ -1,7 +1,7 @@
 package testbot;
 
 import battlecode.common.*;
-import mainbot.utils.*;
+import testbot.utils.*;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -73,8 +73,6 @@ public strictfp class RobotPlayer {
     static boolean retireSentry = false;
     static MapLocation homeFlag = null;
     static int homeFlagIndex = -1;
-    static HashSet<Integer> prevEnemiesIn1Step = new HashSet<>();
-    static int prevHp = 1000;
 
     // Delegating Roles:
     // 1. Scouting - base role for units. Purpose: to explore the map, gather
@@ -120,8 +118,8 @@ public strictfp class RobotPlayer {
     static final int WAYPOINT_SPACING = 5; // min true travel dist between waypoints
 
     // stunned enemy tracking
-    static FastQueue<Pair<Integer, Integer>> stunnedEnemiesQ = new FastQueue<>();
-    static FastIntIntMap stunnedEnemiesSet = new FastIntIntMap();
+    static FastQueue<Pair<Integer, Integer>> stunnedEnemiesQ = new FastQueue<>(100);
+    static FastIntIntMap stunnedEnemiesSet = new FastIntIntMap(50);
     static MapLocation[] prevRoundStuns = new MapLocation[70];
     static int prevRoundStunLen = 0;
 
@@ -163,7 +161,7 @@ public strictfp class RobotPlayer {
             turnCount += 1; // We have now been alive for one more turn!
 
             // Resignation at 500 turns for testing purposes
-            // if (turnCount == 700) {
+            // if (turnCount == 2) {
             // rc.resign();
             // }
 
@@ -188,9 +186,7 @@ public strictfp class RobotPlayer {
                     // decide if this person should be a builder (if shortId == an ID) (Diff ID's
                     // chosen to spawn at diff spawns)
                     if (turnCount == 1) {
-                        if (Comms.shortId == 0 || Comms.shortId == 1 || Comms.shortId == 2) {
-                            BUILDERSPECIALIST = true;
-                        }
+                        BUILDERSPECIALIST = (Comms.shortId == 0 || Comms.shortId == 1 || Comms.shortId == 2);
 
                         // decide if this person should be a sentry (Diff ID's chosen to spawn at diff
                         // spawns)
@@ -393,7 +389,6 @@ public strictfp class RobotPlayer {
                         }
                     }
 
-
                     // Create two shifts to swap out ducks and ensure these ducks can still get XP.
                     // Rotate shift every 500 turns.
                     boolean swapTurnOne = ((turnCount >= 2 && turnCount < 500)
@@ -418,10 +413,16 @@ public strictfp class RobotPlayer {
                     // TODO: allow sentry to simply run back home if close enough (can now be
                     // dragged away if chasing a target who has the flag)
                     boolean shouldRespawn = false;
+                    boolean shouldGoProtectSpawn = false;
                     if ((sentryShiftOne && shiftOneSwapIn || sentryShiftTwo && shiftTwoSwapIn)
-                            && rc.senseMapInfo(rc.getLocation()).getTeamTerritory().equals(rc.getTeam().opponent()) &&
+                            && !rc.senseMapInfo(rc.getLocation()).getTeamTerritory().equals(rc.getTeam()) &&
                             !rc.canSenseLocation(homeFlag) && !retireSentry) {
                         shouldRespawn = true;
+                    }
+                    if ((sentryShiftOne && shiftOneSwapIn || sentryShiftTwo && shiftTwoSwapIn)
+                            && rc.senseMapInfo(rc.getLocation()).getTeamTerritory().equals(rc.getTeam()) &&
+                            !rc.canSenseLocation(homeFlag) && !retireSentry) {
+                        shouldGoProtectSpawn = true;
                     }
 
                     // Attack -> Healing -> Capturing
@@ -559,7 +560,7 @@ public strictfp class RobotPlayer {
                         if (!currRoundStunsSet.contains(stunLoc)) {
                             // this stun went off, find all enemies in its range and add them to the set
                             for (int j = enemies.length; --j >= 0;) {
-                                if (stunLoc.distanceSquaredTo(enemies[j].getLocation()) <=13) {
+                                if (stunLoc.distanceSquaredTo(enemies[j].getLocation()) <= 13) {
                                     RobotInfo enemy = enemies[j];
                                     int id = enemy.getID();
                                     int stunnedRounds = Comms.shortId <= 24 ? 2 : 3;
@@ -652,7 +653,8 @@ public strictfp class RobotPlayer {
                     }
 
                     // only calculate if you are a builder specialist, or level > 3,
-                    // homeflag is not null and you should go home and trap or you can sense home and have more than 100 crumbs
+                    // homeflag is not null and you should go home and trap or you can sense home
+                    // and have more than 100 crumbs
                     Direction dirToClosestBroadcastFromHomeFlag = null;
                     if ((BUILDERSPECIALIST || rc.getLevel(SkillType.BUILD) > 3) && homeFlag != null &&
                             (shouldGoHomeAndTrap || (rc.canSenseLocation(homeFlag) && rc.getCrumbs() >= 100))) {
@@ -777,7 +779,6 @@ public strictfp class RobotPlayer {
                     // crumbs when everyone can build
                     int crumbsWhenAllCanBuild = 5000;
 
-
                     // Role Delegation (outdated)
                     // If you have a flag, return
                     // else if your health is below retreat threshold with nearby enemies, you're
@@ -796,7 +797,7 @@ public strictfp class RobotPlayer {
                     } else if (false && escortTgt != null) {
                         role = ESCORT;
                         rc.setIndicatorString("Escort " + targetFlag.toString());
-                    } else if ((BUILDERSPECIALIST || rc.getLevel(SkillType.BUILD) > 3
+                    } else if (!shouldGoProtectSpawn && (BUILDERSPECIALIST || rc.getLevel(SkillType.BUILD) > 3
                             || rc.getCrumbs() > crumbsWhenAllCanBuild)
                             && rc.getCrumbs() > 200
                             && (enemies.length != 0 && turnCount > GameConstants.SETUP_ROUNDS - 20)) {
@@ -811,14 +812,14 @@ public strictfp class RobotPlayer {
                             && turnCount > GameConstants.SETUP_ROUNDS - 40 && turnCount <= GameConstants.SETUP_ROUNDS) {
                         role = LINEUP;
                         rc.setIndicatorString("LINEUP");
-                    } else if (shouldNotTrain
+                    } else if (!shouldGoProtectSpawn && shouldNotTrain
                             && (bigCloseCrumb != null && turnCount > GameConstants.SETUP_ROUNDS - 40)) {
                         role = CRUMBS;
                         rc.setIndicatorString("CRUMBS: " + bigCloseCrumb.toString());
                     } else if (shouldNotTrain && Info.numFlagsNearbyNotPickedUp != 0) {
                         role = CAPTURING; // changed here
                         rc.setIndicatorString("Capturing");
-                    } else if (shouldNotTrain && (enemies.length != 0 && turnCount > GameConstants.SETUP_ROUNDS)) {
+                    } else if (!shouldGoProtectSpawn && shouldNotTrain && (enemies.length != 0 && turnCount > GameConstants.SETUP_ROUNDS)) {
                         role = INCOMBAT;
                         haveSeenCombat = true;
                         rc.setIndicatorString("In combat");
@@ -831,10 +832,10 @@ public strictfp class RobotPlayer {
                             && rc.getLocation().distanceSquaredTo(closestDisplacedFlag) < distanceForDefense) {
                         role = DEFENDING;
                         rc.setIndicatorString("Defending");
-                    } else if (lowestCurrFriendlySeenHealth < GameConstants.DEFAULT_HEALTH) {
+                    } else if (!shouldGoProtectSpawn && lowestCurrFriendlySeenHealth < GameConstants.DEFAULT_HEALTH) {
                         role = HEALING;
                         rc.setIndicatorString("Healing");
-                    } else if (SENTRY && !retireSentry) {
+                    } else if (shouldGoProtectSpawn || (SENTRY && !retireSentry)) {
                         role = SENTRYING;
                         rc.setIndicatorString("Sentry");
                     } else {
@@ -1281,6 +1282,14 @@ public strictfp class RobotPlayer {
                             rc.setIndicatorString("Sentrying: Target: " + homeFlag.toString());
                         }
 
+
+                        // if turncount past setup and can build a water trap on flag, do it.
+                        if (turnCount > GameConstants.SETUP_ROUNDS && rc.canSenseLocation(homeFlag) && rc.senseMapInfo(homeFlag).getTrapType().equals(TrapType.NONE)) {
+                            if (rc.canBuild(TrapType.WATER, homeFlag)) {
+                                rc.build(TrapType.WATER, homeFlag);
+                            }
+                        }
+
                         // always path to the homeFlag when sentrying
                         if (optimalDir != null && rc.canMove(optimalDir)) {
                             rc.move(optimalDir);
@@ -1426,15 +1435,6 @@ public strictfp class RobotPlayer {
                     // // We can also move our code into different methods or classes to better
                     // // organize it!
                     // updateEnemyRobots(rc);
-
-                    // record all enemies within 10 r^2(capable of attacking you in their next turn)
-                    prevEnemiesIn1Step.clear();
-                    RobotInfo[] currEnemiesIn1Step = rc.senseNearbyRobots(rc.getLocation(), 10,
-                            rc.getTeam().opponent());
-                    for (RobotInfo ri : currEnemiesIn1Step) {
-                        prevEnemiesIn1Step.add(ri.getID());
-                    }
-                    prevHp = rc.getHealth();
 
                     // if alive update waypoint list as needed
                     if (role != RETURNING && turnsAlive % 5 == 0 && rc.getRoundNum() > 200) {
@@ -2190,6 +2190,14 @@ public strictfp class RobotPlayer {
         return optimalDir;
     }
 
+    public static float totalPathfinderDistanceSquaredFromLocation(MapLocation[] bots, MapLocation location) throws GameActionException {
+        int totalDist = 0;
+        for (int j = bots.length - 1; j >= 0; j--) {
+            totalDist += Pathfinder.travelDistance(bots[j], location);
+        }
+        return totalDist;
+    }
+
     public static double orthagonalDistanceOfP3RelativeToP2OnVectorP1P2(MapLocation P1, MapLocation P2,
             MapLocation P3) {
         // Set P1 as origin:
@@ -2271,20 +2279,8 @@ public strictfp class RobotPlayer {
         return averageDist;
     }
 
-    public static float totalPathfinderDistanceSquaredFromLocation(MapLocation[] bots, MapLocation location) throws GameActionException {
-        int totalDist = 0;
-        for (int j = bots.length - 1; j >= 0; j--) {
-            totalDist += Pathfinder.travelDistance(bots[j], location);
-        }
-        return totalDist;
-    }
-
     public static boolean isInBounds(RobotController rc, MapLocation x) {
-        if (x.x >= 0 && x.x < rc.getMapWidth() && x.y >= 0 && x.y < rc.getMapHeight()) {
-            return true;
-        } else {
-            return false;
-        }
+        return x.x >= 0 && x.x < rc.getMapWidth() && x.y >= 0 && x.y < rc.getMapHeight();
     }
 
     public static boolean doSidesHaveWater(RobotController rc, MapLocation x) throws GameActionException {

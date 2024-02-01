@@ -2,6 +2,7 @@ package mainbot.utils;
 
 import battlecode.common.*;
 
+// 5 musketeers 2022
 public class FastIntIntMap {
     public StringBuilder keyVals;
     public int maxlen;
