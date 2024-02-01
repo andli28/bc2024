@@ -1,7 +1,7 @@
-package mainbot;
+package flagbot;
 
+import flagbot.utils.*;
 import battlecode.common.*;
-import mainbot.utils.*;
 
 import java.util.Arrays;
 import java.util.HashMap;
