@@ -818,7 +818,7 @@ public strictfp class RobotPlayer {
                         role = INCOMBAT;
                         haveSeenCombat = true;
                         rc.setIndicatorString("In combat");
-                    } else if (BUILDERSPECIALIST && !shouldGoHomeAndTrap
+                    } else if (turnCount < GameConstants.SETUP_ROUNDS && BUILDERSPECIALIST && !shouldGoHomeAndTrap
                             && diggable != null && rc.getExperience(SkillType.BUILD) < 30) {
                         role = TRAINBUILD;
                         rc.setIndicatorString("Training builder: " + diggable.toString());
