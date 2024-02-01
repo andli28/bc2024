@@ -162,9 +162,9 @@ public strictfp class RobotPlayer {
             turnCount += 1; // We have now been alive for one more turn!
 
             // Resignation at 500 turns for testing purposes
-            // if (turnCount == 2) {
-            // rc.resign();
-            // }
+//             if (turnCount == 201) {
+//                rc.resign();
+//             }
 
             // Try/catch blocks stop unhandled exceptions, which cause your robot to
             // explode.
@@ -1033,7 +1033,16 @@ public strictfp class RobotPlayer {
                         if (optimalDir != null) {
                             if (!SENTRY || retireSentry || (SENTRY && !retireSentry && rc.getLocation().add(optimalDir)
                                     .distanceSquaredTo(homeFlag) < sentryWanderingLimit)) {
-                                attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
+                                if (closestDisplacedFlag != null && rc.canSenseLocation(closestDisplacedFlag)) {
+                                    if (lowestCurrHostile != null) {
+                                        attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
+                                    } else {
+                                        attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
+                                        clearTheWay(rc);
+                                    }
+                                } else {
+                                    attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
+                                }
                             }
                         } else {
                             rc.setIndicatorString("combat null");
@@ -1230,7 +1239,7 @@ public strictfp class RobotPlayer {
 
                     } else if (role == SENTRYING) {
                         Direction optimalDir = null;
-                        if (turnCount < 100 && !safeToDrop) {
+                        if (turnCount < 100 || !safeToDrop) {
                             if (rc.canPickupFlag(homeFlag) && !rc.hasFlag()) {
                                 FlagInfo[] homeFlagID = rc.senseNearbyFlags(1, rc.getTeam());
                                 rc.pickupFlag(homeFlag);
@@ -1246,21 +1255,24 @@ public strictfp class RobotPlayer {
                                         if (closestDam != null) {
                                             totalDistFromBroadcasts += 100*tempLoc.distanceSquaredTo(closestDam);
                                         }
+                                        if (turnCount > 35) {
+                                            for (int j = initialSpawns.length - 1; j >= 0; j--) {
+                                                if (initialSpawns[j] != null) {
+                                                    totalDistFromBroadcasts -= initialSpawns[j].distanceSquaredTo(tempLoc);
+                                                }
+                                            }
+                                        }
+
                                         // if you're close to the other flags after turn 75, don't go this direction
 
-                                        boolean notSafe = false;
                                         if (turnCount > 50) {
                                             for (int j = currentHomeFlags.length - 1; j >= 0; j--) {
                                                 if (currentHomeFlags[j] != null && !homeFlag.equals(currentHomeFlags[j])) {
                                                     if (currentHomeFlags[j].distanceSquaredTo(tempLoc) <= 72) {
-                                                        totalDistFromBroadcasts += currentHomeFlags[j].distanceSquaredTo(tempLoc) * 100;
-                                                    }
-                                                    if (currentHomeFlags[j].distanceSquaredTo(tempLoc) <= 50) {
-                                                        notSafe = true;
+                                                        totalDistFromBroadcasts += currentHomeFlags[j].distanceSquaredTo(tempLoc) * 1000;
                                                     }
                                                 }
                                             }
-                                            safeToDrop = !notSafe;
                                         }
                                         // go furthest away from all broadcast locs
                                         if (totalDistFromBroadcasts > furthestAway) {
@@ -1269,14 +1281,29 @@ public strictfp class RobotPlayer {
                                         }
                                     }
                                 }
+
+                                //move to the optimal dir
                                 if (bestRelocate != null) {
                                     optimalDir = Pathfinder.pathfind(rc.getLocation(), bestRelocate);
                                     rc.setIndicatorString("Relocating: " + bestRelocate);
                                 }
+
+                                //check if its safe to drop after turn 50.
+                                boolean notSafe = false;
+                                if (turnCount > 50) {
+                                    for (int j = currentHomeFlags.length - 1; j >= 0; j--) {
+                                        if (currentHomeFlags[j] != null && !homeFlag.equals(currentHomeFlags[j])) {
+                                            if (currentHomeFlags[j].distanceSquaredTo(rc.getLocation()) < 36) {
+                                                notSafe = true;
+                                            }
+                                        }
+                                    }
+                                    safeToDrop = !notSafe;
+                                }
                             } else {
                                 optimalDir = Pathfinder.pathfind(rc.getLocation(), homeFlag);
                             }
-                        } else if (rc.hasFlag() && turnCount < GameConstants.SETUP_ROUNDS) {
+                        } else if (rc.hasFlag() && turnCount < GameConstants.SETUP_ROUNDS && safeToDrop) {
                             rc.dropFlag(rc.getLocation());
                             FlagInfo[] flagDropped = rc.senseNearbyFlags(1);
                             Comms.flagDrop(flagDropped[0]);
