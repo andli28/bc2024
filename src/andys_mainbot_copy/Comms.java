@@ -2,6 +2,8 @@ package andys_mainbot_copy;
 
 import battlecode.common.*;
 
+import mainbot.utils.*;
+
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -14,26 +16,6 @@ enum Spec {
     BUILD,
     HEAL,
     NONE
-}
-
-// from
-// https://www.geeksforgeeks.org/creating-a-user-defined-printable-pair-class-in-java/
-// since im lazy
-class Pair<S, T> {
-    S first;
-    T second;
-
-    // constructor for assigning values
-    Pair(S first, T second) {
-        this.first = first;
-        this.second = second;
-    }
-
-    // printing the pair class
-    @Override
-    public String toString() {
-        return first.toString() + "," + second.toString();
-    }
 }
 
 public class Comms {
@@ -85,7 +67,7 @@ public class Comms {
     public static Spec prevSpec = Spec.NONE;
     // killed enemy unit respawn tracking
     public static int turnKillCount = 0;
-    public static LinkedList<Pair<Integer, Integer>> respawnTimer = new LinkedList<>();
+    public static FastQueue<Pair<Integer, Integer>> respawnTimer = new FastQueue<>(50);
     public static MapLocation prevEndTurnLoc = null;
 
     // comms indices you are in charge of refreshing
@@ -159,11 +141,6 @@ public class Comms {
     }
 
     public static void update() throws GameActionException {
-        // these can be called regardless of dead or alive
-        if (rc.getRoundNum() > 1) {
-            sequence();
-        }
-
         // refresh the indices you are in charge of(enemy locs mostly)
         // logic for this instead of end of turn clear is so that units that execute
         // code first in turn(shortid = 1) have sufficient info
@@ -299,7 +276,7 @@ public class Comms {
         while (respawnTimer.size() > 0) {
             Pair<Integer, Integer> nextRespawn = respawnTimer.peek();
             if (nextRespawn.first <= rc.getRoundNum()) {
-                respawnTimer.remove();
+                respawnTimer.poll();
                 delta += nextRespawn.second;
             } else {
                 break;
@@ -408,7 +385,8 @@ public class Comms {
                         int firstFree = writeToFirstAvail(fi.getLocation(), ALLY_DEFAULT_FLAG_INDICES);
                         write(6 + firstFree, fi.getID());
                     }
-                } else if (rc.getRoundNum() > 200) {
+                    // carrier during setup or anytime after setup
+                } else if ((rc.hasFlag() && fi.getLocation().equals(rc.getLocation())) || rc.getRoundNum() > 200) {
                     // use id to put in correct slot
                     int idx = getFlagIndexFromID(fi.getID());
                     // if our ducks have eyes this will always true
@@ -656,7 +634,7 @@ public class Comms {
                     }
                 } else {
                     // default flags should be ok
-                    //TODO REVIST ONLY USING CURRENT ALLY FLAGS?
+                    // TODO REVIST ONLY USING CURRENT ALLY FLAGS?
                     MapLocation defaultAlly = defaultAllyFlagLocs[j];
                     if (closestEnemiesToFlags[j] == null || Pathfinder.travelDistance(defaultAlly,
                             enemyLoc) < Pathfinder.travelDistance(defaultAlly, closestEnemiesToFlags[j])) {
