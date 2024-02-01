@@ -187,9 +187,7 @@ public strictfp class RobotPlayer {
                     // decide if this person should be a builder (if shortId == an ID) (Diff ID's
                     // chosen to spawn at diff spawns)
                     if (turnCount == 1) {
-                        if (Comms.shortId == 0 || Comms.shortId == 1 || Comms.shortId == 2) {
-                            BUILDERSPECIALIST = true;
-                        }
+                        BUILDERSPECIALIST = (Comms.shortId == 0 || Comms.shortId == 1 || Comms.shortId == 2);
 
                         // decide if this person should be a sentry (Diff ID's chosen to spawn at diff
                         // spawns)
@@ -2185,11 +2183,7 @@ public strictfp class RobotPlayer {
     }
 
     public static boolean isInBounds(RobotController rc, MapLocation x) {
-        if (x.x >= 0 && x.x < rc.getMapWidth() && x.y >= 0 && x.y < rc.getMapHeight()) {
-            return true;
-        } else {
-            return false;
-        }
+        return x.x >= 0 && x.x < rc.getMapWidth() && x.y >= 0 && x.y < rc.getMapHeight();
     }
 
     public static boolean doSidesHaveWater(RobotController rc, MapLocation x) throws GameActionException {
