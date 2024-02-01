@@ -434,7 +434,7 @@ public class Comms {
                 continue;
             boolean validComm = false;
             for (int j = nearbyFlags.length; --j >= 0;) {
-                if (nearbyFlags[j].getLocation().equals(loc)) {
+                if (nearbyFlags[j].getLocation().equals(loc) && nearbyFlags[j].getID() == comms[15 + i]) {
                     validComm = true;
                 }
             }
@@ -448,16 +448,21 @@ public class Comms {
         for (int i = 3; --i >= 0;) {
             // ally flags
             MapLocation loc = decodeLoc(comms[3 + i]);
+            int flagId = comms[6 + i];
             if (loc == null || loc.distanceSquaredTo(rc.getLocation()) > GameConstants.VISION_RADIUS_SQUARED)
                 continue;
             boolean validComm = false;
             for (int j = nearbyFlags.length; --j >= 0;) {
-                if (nearbyFlags[j].getLocation().equals(loc)) {
+                if (nearbyFlags[j].getLocation().equals(loc) && nearbyFlags[j].getID() == comms[6 + i]) {
                     validComm = true;
                 }
             }
             if (!validComm)
-                write(3 + i, 0);
+                if (!loc.equals(decodeLoc(comms[i]))) {
+                    write(3 + i, comms[i]);
+                } else {
+                    write(3 + i, 0);
+                }
         }
     }
 
