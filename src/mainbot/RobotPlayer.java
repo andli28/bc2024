@@ -775,7 +775,7 @@ public strictfp class RobotPlayer {
                     // distance squared the sentry can be from the home flag
                     int sentryWanderingLimit = 12;
                     // distance squared to defend a flag
-                    int distanceForDefense = 40;
+                    int distanceForDefense = 200;
                     // crumbs when everyone can build
                     int crumbsWhenAllCanBuild = 5000;
 
@@ -823,7 +823,7 @@ public strictfp class RobotPlayer {
                         role = INCOMBAT;
                         haveSeenCombat = true;
                         rc.setIndicatorString("In combat");
-                    } else if (BUILDERSPECIALIST && !shouldGoHomeAndTrap
+                    } else if (turnCount < GameConstants.SETUP_ROUNDS && BUILDERSPECIALIST && !shouldGoHomeAndTrap
                             && diggable != null && rc.getExperience(SkillType.BUILD) < 30) {
                         role = TRAINBUILD;
                         rc.setIndicatorString("Training builder: " + diggable.toString());
@@ -1281,6 +1281,14 @@ public strictfp class RobotPlayer {
                             optimalDir = Pathfinder.pathfind(rc.getLocation(), homeFlag);
                             rc.setIndicatorString("Sentrying: Target: " + homeFlag.toString());
                         }
+
+                        // if turncount past setup and can build a water trap on flag, do it.
+                        if (turnCount > GameConstants.SETUP_ROUNDS && rc.canSenseLocation(homeFlag) && rc.senseMapInfo(homeFlag).getTrapType().equals(TrapType.NONE)) {
+                            if (rc.canBuild(TrapType.WATER, homeFlag)) {
+                                rc.build(TrapType.WATER, homeFlag);
+                            }
+                        }
+
                         // always path to the homeFlag when sentrying
                         if (optimalDir != null && rc.canMove(optimalDir)) {
                             rc.move(optimalDir);
