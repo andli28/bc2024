@@ -1,7 +1,7 @@
 package andys_mainbot_copy;
 
-import andys_mainbot_copy.utils.*;
 import battlecode.common.*;
+import mainbot.utils.*;
 
 public class Info {
     public static RobotController rc;
