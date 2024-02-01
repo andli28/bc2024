@@ -419,7 +419,8 @@ public strictfp class RobotPlayer {
                     // dragged away if chasing a target who has the flag)
                     boolean shouldRespawn = false;
                     if ((sentryShiftOne && shiftOneSwapIn || sentryShiftTwo && shiftTwoSwapIn)
-                            && !rc.canSenseLocation(homeFlag) && !retireSentry) {
+                            && rc.senseMapInfo(rc.getLocation()).getTeamTerritory().equals(rc.getTeam().opponent()) &&
+                            !rc.canSenseLocation(homeFlag) && !retireSentry) {
                         shouldRespawn = true;
                     }
 
