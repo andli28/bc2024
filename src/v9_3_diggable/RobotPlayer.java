@@ -1,4 +1,4 @@
-package mainbot;
+package v9_3_diggable;
 
 import battlecode.common.*;
 import mainbot.utils.*;
@@ -73,6 +73,8 @@ public strictfp class RobotPlayer {
     static boolean retireSentry = false;
     static MapLocation homeFlag = null;
     static int homeFlagIndex = -1;
+    static HashSet<Integer> prevEnemiesIn1Step = new HashSet<>();
+    static int prevHp = 1000;
 
     // Delegating Roles:
     // 1. Scouting - base role for units. Purpose: to explore the map, gather
@@ -117,8 +119,8 @@ public strictfp class RobotPlayer {
     static final int WAYPOINT_SPACING = 5; // min true travel dist between waypoints
 
     // stunned enemy tracking
-    static FastQueue<Pair<Integer, Integer>> stunnedEnemiesQ = new FastQueue<>(100);
-    static FastIntIntMap stunnedEnemiesSet = new FastIntIntMap(50);
+    static FastQueue<Pair<Integer, Integer>> stunnedEnemiesQ = new FastQueue<>();
+    static FastIntIntMap stunnedEnemiesSet = new FastIntIntMap();
     static MapLocation[] prevRoundStuns = new MapLocation[70];
     static int prevRoundStunLen = 0;
 
@@ -160,7 +162,7 @@ public strictfp class RobotPlayer {
             turnCount += 1; // We have now been alive for one more turn!
 
             // Resignation at 500 turns for testing purposes
-            // if (turnCount == 2) {
+            // if (turnCount == 700) {
             // rc.resign();
             // }
 
@@ -185,7 +187,9 @@ public strictfp class RobotPlayer {
                     // decide if this person should be a builder (if shortId == an ID) (Diff ID's
                     // chosen to spawn at diff spawns)
                     if (turnCount == 1) {
-                        BUILDERSPECIALIST = (Comms.shortId == 0 || Comms.shortId == 1 || Comms.shortId == 2);
+                        if (Comms.shortId == 0 || Comms.shortId == 1 || Comms.shortId == 2) {
+                            BUILDERSPECIALIST = true;
+                        }
 
                         // decide if this person should be a sentry (Diff ID's chosen to spawn at diff
                         // spawns)
@@ -355,6 +359,7 @@ public strictfp class RobotPlayer {
                     // Turns Alive
                     turnsAlive++;
 
+
                     // Create two shifts to swap out ducks and ensure these ducks can still get XP.
                     // Rotate shift every 500 turns.
                     boolean swapTurnOne = ((turnCount >= 2 && turnCount < 500)
@@ -449,9 +454,8 @@ public strictfp class RobotPlayer {
                     for (int i = nearbyMap.length - 1; i >= 0; i--) {
                         MapInfo singleMap = nearbyMap[i];
                         int distToSingleMap = rc.getLocation().distanceSquaredTo(singleMap.getMapLocation());
-                        if (diggable == null && BUILDERSPECIALIST && bytecodesLeft - Clock.getBytecodesLeft() < 2000
+                        if (diggable == null && BUILDERSPECIALIST
                                 && rc.getExperience(SkillType.BUILD) < 30
-                                && numHostiles == 0
                                 && distToSingleMap <= 11
                                 && singleMap.isPassable()
                                 && !singleMap.isSpawnZone()
@@ -517,7 +521,7 @@ public strictfp class RobotPlayer {
                         if (!currRoundStunsSet.contains(stunLoc)) {
                             // this stun went off, find all enemies in its range and add them to the set
                             for (int j = enemies.length; --j >= 0;) {
-                                if (stunLoc.distanceSquaredTo(enemies[j].getLocation()) <= 13) {
+                                if (stunLoc.distanceSquaredTo(enemies[j].getLocation()) <=13) {
                                     RobotInfo enemy = enemies[j];
                                     int id = enemy.getID();
                                     int stunnedRounds = Comms.shortId <= 24 ? 2 : 3;
@@ -610,8 +614,7 @@ public strictfp class RobotPlayer {
                     }
 
                     // only calculate if you are a builder specialist, or level > 3,
-                    // homeflag is not null and you should go home and trap or you can sense home
-                    // and have more than 100 crumbs
+                    // homeflag is not null and you should go home and trap or you can sense home and have more than 100 crumbs
                     Direction dirToClosestBroadcastFromHomeFlag = null;
                     if ((BUILDERSPECIALIST || rc.getLevel(SkillType.BUILD) > 3) && homeFlag != null &&
                             (shouldGoHomeAndTrap || (rc.canSenseLocation(homeFlag) && rc.getCrumbs() >= 100))) {
@@ -735,6 +738,7 @@ public strictfp class RobotPlayer {
                     int distanceForDefense = 200;
                     // crumbs when everyone can build
                     int crumbsWhenAllCanBuild = 5000;
+
 
                     // Role Delegation (outdated)
                     // If you have a flag, return
@@ -1334,6 +1338,15 @@ public strictfp class RobotPlayer {
                     // // We can also move our code into different methods or classes to better
                     // // organize it!
                     // updateEnemyRobots(rc);
+
+                    // record all enemies within 10 r^2(capable of attacking you in their next turn)
+                    prevEnemiesIn1Step.clear();
+                    RobotInfo[] currEnemiesIn1Step = rc.senseNearbyRobots(rc.getLocation(), 10,
+                            rc.getTeam().opponent());
+                    for (RobotInfo ri : currEnemiesIn1Step) {
+                        prevEnemiesIn1Step.add(ri.getID());
+                    }
+                    prevHp = rc.getHealth();
 
                     // if alive update waypoint list as needed
                     if (role != RETURNING && turnsAlive % 5 == 0 && rc.getRoundNum() > 200) {
@@ -2171,7 +2184,11 @@ public strictfp class RobotPlayer {
     }
 
     public static boolean isInBounds(RobotController rc, MapLocation x) {
-        return x.x >= 0 && x.x < rc.getMapWidth() && x.y >= 0 && x.y < rc.getMapHeight();
+        if (x.x >= 0 && x.x < rc.getMapWidth() && x.y >= 0 && x.y < rc.getMapHeight()) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     public static boolean doSidesHaveWater(RobotController rc, MapLocation x) throws GameActionException {

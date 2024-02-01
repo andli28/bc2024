@@ -1,6 +1,6 @@
-package v9_2;
+package v9_3_diggable;
 
-import v9_2.utils.*;
+import v9_3_diggable.utils.*;
 import battlecode.common.*;
 
 public class Info {
