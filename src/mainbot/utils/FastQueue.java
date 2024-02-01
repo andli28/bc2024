@@ -3,6 +3,7 @@ package mainbot.utils;
 /**
  * An implementation of a ring buffer queue
  */
+// 5 musketeers 2022
 @SuppressWarnings("unchecked")
 public class FastQueue<T> {
 	private T[] buf;

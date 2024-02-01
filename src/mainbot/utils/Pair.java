@@ -1,8 +1,5 @@
 package mainbot.utils;
 
-// from
-// https://www.geeksforgeeks.org/creating-a-user-defined-printable-pair-class-in-java/
-// since im lazy
 public class Pair<S, T> {
     public S first;
     public T second;
