@@ -2,6 +2,8 @@ package mainbot;
 
 import battlecode.common.*;
 
+import mainbot.utils.*;
+
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -14,26 +16,6 @@ enum Spec {
     BUILD,
     HEAL,
     NONE
-}
-
-// from
-// https://www.geeksforgeeks.org/creating-a-user-defined-printable-pair-class-in-java/
-// since im lazy
-class Pair<S, T> {
-    S first;
-    T second;
-
-    // constructor for assigning values
-    Pair(S first, T second) {
-        this.first = first;
-        this.second = second;
-    }
-
-    // printing the pair class
-    @Override
-    public String toString() {
-        return first.toString() + "," + second.toString();
-    }
 }
 
 public class Comms {
@@ -85,7 +67,7 @@ public class Comms {
     public static Spec prevSpec = Spec.NONE;
     // killed enemy unit respawn tracking
     public static int turnKillCount = 0;
-    public static LinkedList<Pair<Integer, Integer>> respawnTimer = new LinkedList<>();
+    public static FastQueue<Pair<Integer, Integer>> respawnTimer = new FastQueue<>(50);
     public static MapLocation prevEndTurnLoc = null;
 
     // comms indices you are in charge of refreshing
@@ -294,7 +276,7 @@ public class Comms {
         while (respawnTimer.size() > 0) {
             Pair<Integer, Integer> nextRespawn = respawnTimer.peek();
             if (nextRespawn.first <= rc.getRoundNum()) {
-                respawnTimer.remove();
+                respawnTimer.poll();
                 delta += nextRespawn.second;
             } else {
                 break;
