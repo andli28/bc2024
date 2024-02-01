@@ -276,7 +276,9 @@ public strictfp class RobotPlayer {
 
                     // finding the spawn/flag that is in danger with closest enemies.
                     MapLocation closestSpawnInDanger = null;
-                    int enemyDistToClosestSpawnInDanger = Integer.MAX_VALUE;
+                    MapLocation furthestSpawnInDanger = null;
+                    int enemyDistToFurthestSpawnInDanger = Integer.MIN_VALUE;
+                    int enemyDistToClosestSpawnInDanger = 150;
                     MapLocation[] closestEnemiesToFlags = Comms.getClosestEnemyToAllyFlags();
                     int[] distsClosestEnemiesToFlags = Comms.getClosestEnemyDistanceToAllyFlags();
                     for (int i = closestEnemiesToFlags.length - 1; i >= 0; i--) {
@@ -284,6 +286,11 @@ public strictfp class RobotPlayer {
                                 && distsClosestEnemiesToFlags[i] < enemyDistToClosestSpawnInDanger) {
                             closestSpawnInDanger = Comms.getCurrentAllyFlagLocations()[i];
                             enemyDistToClosestSpawnInDanger = distsClosestEnemiesToFlags[i];
+                        }
+                        if (closestEnemiesToFlags[i] != null
+                                && distsClosestEnemiesToFlags[i] > enemyDistToFurthestSpawnInDanger) {
+                            furthestSpawnInDanger = Comms.getCurrentAllyFlagLocations()[i];
+                            enemyDistToFurthestSpawnInDanger = distsClosestEnemiesToFlags[i];
                         }
                     }
 
@@ -1784,6 +1791,9 @@ public strictfp class RobotPlayer {
         // 4. else if they both don't exist, move in optimal dir
         if (aflowestCurrHostile == null && lowestCurrHostile != null) {
             while (rc.canAttack(lowestCurrHostile)) {
+                if (rc.senseRobotAtLocation(lowestCurrHostile).getHealth() <= rc.getAttackDamage()) {
+                    Comms.turnKillCount++;
+                }
                 rc.attack(lowestCurrHostile);
             }
             if (optimalDir != null) {
@@ -1796,6 +1806,9 @@ public strictfp class RobotPlayer {
                 rc.move(optimalDir);
             }
             while (rc.canAttack(aflowestCurrHostile)) {
+                if (rc.senseRobotAtLocation(aflowestCurrHostile).getHealth() <= rc.getAttackDamage()) {
+                    Comms.turnKillCount++;
+                }
                 rc.attack(aflowestCurrHostile);
             }
         } else if (aflowestCurrHostile != null && lowestCurrHostile != null) {
@@ -1804,10 +1817,16 @@ public strictfp class RobotPlayer {
                     rc.move(optimalDir);
                 }
                 while (rc.canAttack(aflowestCurrHostile)) {
+                    if (rc.senseRobotAtLocation(aflowestCurrHostile).getHealth() <= rc.getAttackDamage()) {
+                        Comms.turnKillCount++;
+                    }
                     rc.attack(aflowestCurrHostile);
                 }
             } else {
                 while (lowestCurrHostile != null && rc.canAttack(lowestCurrHostile)) {
+                    if (rc.senseRobotAtLocation(lowestCurrHostile).getHealth() <= rc.getAttackDamage()) {
+                        Comms.turnKillCount++;
+                    }
                     rc.attack(lowestCurrHostile);
                 }
                 if (optimalDir != null) {
