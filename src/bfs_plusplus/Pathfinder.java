@@ -1,4 +1,4 @@
-package bfs_plus;
+package bfs_plusplus;
 
 import battlecode.common.*;
 
@@ -21,6 +21,10 @@ public class Pathfinder {
     public static Direction lastBuhgDir = Direction.CENTER;
     public static int initBlockDist = 9999;
     public static int turnsBuhgging = 0;
+    public static MapLocation prevTarget = null;
+    public static MapLocation checkpointLoc = null;
+    public static int tgtPathfindCalls = 0;
+    public static final int MIN_BFS_PROGRESS = 6;
 
     // cosine similarity for 2 2d vecs
     public static float cosSim(int dx1, int dy1, int dx2, int dy2) {
@@ -38,6 +42,26 @@ public class Pathfinder {
         return x1f * y2f - x2f * y1f;
     }
 
+    // wrapper for pathfind so that i can actually execute end of function static
+    // updates
+    public static Direction pathfind2(MapLocation src, MapLocation tgt) throws GameActionException {
+        tgtPathfindCalls++;
+        // reset static params if target changes
+        if (prevTarget != null && !tgt.equals(prevTarget)) {
+            buhgDir = Rot.NONE;
+            turnsBuhgging = 0;
+            lastBuhgDir = Direction.CENTER;
+            checkpointLoc = null;
+            tgtPathfindCalls = 0;
+        }
+        Direction dir = pathfind(src, tgt);
+        prevTarget = tgt;
+        if (tgtPathfindCalls % 10 == 0) {
+            checkpointLoc = rc.getLocation();
+        }
+        return dir;
+    }
+
     // does not explicitly check movement cd but does canmove checks
     public static Direction pathfind(MapLocation src, MapLocation tgt) throws GameActionException {
         assert tgt != null;
@@ -45,13 +69,15 @@ public class Pathfinder {
         if (!rc.isMovementReady() || src.equals(tgt))
             return Direction.CENTER;
 
-        // use bfs if we have > 5k bytecode and not currently buhgging, otherwise do
-        // greedy/buhg if no bytecode or no result from bfs
-        if (buhgDir == Rot.NONE && Clock.getBytecodesLeft() > 5000) {
+        // use bfs if we have > 5k bytecode, otherwise do buhg if no bytecode or no
+        // result from bfs
+        // also if bfs has not made good progress since last checkpoint we do buhg
+        if (Clock.getBytecodesLeft() > 5000
+                && (checkpointLoc == null
+                        || travelDistance(checkpointLoc, tgt) - travelDistance(src, tgt) >= MIN_BFS_PROGRESS)) {
             Direction bfsDir = Bfs.getBestDir(tgt);
-            // make sure bfs returns dir that is not null and gets u closer to your target
-            if (bfsDir != null
-                    && rc.getLocation().add(bfsDir).distanceSquaredTo(tgt) < rc.getLocation().distanceSquaredTo(tgt)) {
+            // make sure bfs returns dir that is not null
+            if (bfsDir != null) {
                 return bfsDir;
             }
         }
@@ -61,11 +87,9 @@ public class Pathfinder {
 
         // if direct is blocked
         boolean directPassable = rc.senseMapInfo(src.add(dirTo)).isPassable();
-        // as per gone fishing prev year 75% chance to treat unit as wall
-        boolean directOccupied = rc.isLocationOccupied(src.add(dirTo)) && RobotPlayer.rng.nextDouble() < 0.75;
 
         // direct greedily(8 dir) if can until impassible 1 tile no los, then buhg
-        if ((directPassable && !directOccupied) && buhgDir == Rot.NONE) {
+        if (directPassable && buhgDir == Rot.NONE) {
             Direction bestDir = Direction.CENTER;
             int minDist = 9999;
             for (Direction d : Direction.allDirections()) {
@@ -80,9 +104,6 @@ public class Pathfinder {
             }
             return bestDir;
         }
-
-        // if (rc.getID() == 11291)
-        // System.out.println("buhgdir1: " + buhgDir.toString());
 
         // tldr a better first buhg dir guess system
         if (buhgDir == Rot.NONE) {
@@ -176,7 +197,7 @@ public class Pathfinder {
 
     public static Direction pathfindHome() throws GameActionException {
         rc.setIndicatorString("returning: " + Info.closestSpawn.toString());
-        return Pathfinder.pathfind(rc.getLocation(), Info.closestSpawn);
+        return Pathfinder.pathfind2(rc.getLocation(), Info.closestSpawn);
     }
 
     public static int bfsDist(MapLocation src, MapLocation tgt) throws GameActionException {

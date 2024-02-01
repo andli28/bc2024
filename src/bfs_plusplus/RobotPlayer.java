@@ -1,6 +1,7 @@
-package bfs_plus;
+package bfs_plusplus;
 
 import battlecode.common.*;
+import bfs_plusplus.utils.*;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -72,8 +73,6 @@ public strictfp class RobotPlayer {
     static boolean retireSentry = false;
     static MapLocation homeFlag = null;
     static int homeFlagIndex = -1;
-    static HashSet<Integer> prevEnemiesIn1Step = new HashSet<>();
-    static int prevHp = 1000;
 
     // Delegating Roles:
     // 1. Scouting - base role for units. Purpose: to explore the map, gather
@@ -111,11 +110,19 @@ public strictfp class RobotPlayer {
     static boolean initialSetTrapStun = false;
     static boolean initialSetTrapWater = false;
     static boolean shouldGoHomeAndTrap = false;
+    static boolean safeToDrop = false;
+    static MapLocation[] initialSpawns = new MapLocation[3];
 
     // previous waypoints for backtracking on flag return
     static MapLocation[] prevWaypoints = new MapLocation[20];
     static int prevWaypointIndex = 0;
     static final int WAYPOINT_SPACING = 5; // min true travel dist between waypoints
+
+    // stunned enemy tracking
+    static FastQueue<Pair<Integer, Integer>> stunnedEnemiesQ = new FastQueue<>(100);
+    static FastIntIntMap stunnedEnemiesSet = new FastIntIntMap(50);
+    static MapLocation[] prevRoundStuns = new MapLocation[70];
+    static int prevRoundStunLen = 0;
 
     /**
      * run() is the method that is called when a robot is instantiated in the
@@ -155,7 +162,7 @@ public strictfp class RobotPlayer {
             turnCount += 1; // We have now been alive for one more turn!
 
             // Resignation at 500 turns for testing purposes
-            // if (turnCount == 200) {
+            // if (turnCount == 201) {
             // rc.resign();
             // }
 
@@ -180,28 +187,39 @@ public strictfp class RobotPlayer {
                     // decide if this person should be a builder (if shortId == an ID) (Diff ID's
                     // chosen to spawn at diff spawns)
                     if (turnCount == 1) {
-                        if (Comms.shortId == 2 || Comms.shortId == 29 || Comms.shortId == 47) {
-                            BUILDERSPECIALIST = true;
-                        }
+                        BUILDERSPECIALIST = (Comms.shortId == 0 || Comms.shortId == 1 || Comms.shortId == 2);
 
                         // decide if this person should be a sentry (Diff ID's chosen to spawn at diff
                         // spawns)
                         // Create two shifts to swap out ducks and ensure these ducks can still get XP.
                         // Rotate shift every 500 turns.
-                        sentryShiftOne = (Comms.shortId == 0 || Comms.shortId == 30 || Comms.shortId == 49);
-                        sentryShiftTwo = (Comms.shortId == 1 || Comms.shortId == 31 || Comms.shortId == 48);
+                        sentryShiftOne = (Comms.shortId == 47 || Comms.shortId == 48 || Comms.shortId == 49);
+                        sentryShiftTwo = (Comms.shortId == 44 || Comms.shortId == 45 || Comms.shortId == 46);
 
                         if (sentryShiftOne) {
                             SENTRY = true;
                         }
 
-                        attackSquadOne = (Comms.shortId < 16);
-                        attackSquadTwo = (Comms.shortId >= 16 && Comms.shortId < 32);
-                        attackSquadThree = (Comms.shortId >= 32);
+                        // Builders are 0, 1, 2
+                        // Sentries are 47, 48, 49 (shiftOne)
+                        // 44, 45, 46 (shiftTwo)
+                        // attackSquadOne -> 0, 44, 47, 3-16 -> ATTK: 3,4,5,6 HEAL: 7,8,9,10
+                        // attackSquadTwo -> 1, 45, 48, 17-30 -> ATTK: 17,18,19,20 HEAL: 21,22,23,24
+                        // attackSquadThree -> 2, 46, 49, 31-43 -> ATTK: 31,32,33,34 HEAL: 35,36,37,38
+
+                        attackSquadOne = (Comms.shortId == 0 || Comms.shortId == 44 || Comms.shortId == 47
+                                || (Comms.shortId >= 3 && Comms.shortId <= 16));
+                        attackSquadTwo = (Comms.shortId == 1 || Comms.shortId == 45 || Comms.shortId == 48
+                                || (Comms.shortId >= 17 && Comms.shortId <= 30));
+                        attackSquadThree = (Comms.shortId == 2 || Comms.shortId == 46 || Comms.shortId == 49
+                                || (Comms.shortId >= 31 && Comms.shortId <= 43));
                         // 4 attack specialists per squad
-                        ATTACKSPECIALIST = ((Comms.shortId > 1 && Comms.shortId < 6)
-                                || (Comms.shortId > 15 && Comms.shortId < 20)
-                                || (Comms.shortId > 31 && Comms.shortId < 36));
+                        ATTACKSPECIALIST = ((Comms.shortId >= 3 && Comms.shortId <= 6)
+                                || (Comms.shortId >= 17 && Comms.shortId <= 20)
+                                || (Comms.shortId >= 31 && Comms.shortId <= 34));
+                        HEALINGSPECIALIST = ((Comms.shortId >= 7 && Comms.shortId <= 10)
+                                || (Comms.shortId >= 21 && Comms.shortId <= 24)
+                                || (Comms.shortId >= 35 && Comms.shortId <= 38));
                     }
                     // Builder's initial spawn should be their home so that they have real estate to
                     // train
@@ -209,18 +227,21 @@ public strictfp class RobotPlayer {
                     // ensure sentries and builderspecialsits spawn at their appropriate spawns
                     if (turnCount == 2) {
                         MapLocation[] homeFlags = Comms.getDefaultAllyFlagLocations();
-                        if (Comms.shortId == 0 || Comms.shortId == 1 || Comms.shortId == 2) {
+                        if (Comms.shortId == 0 || Comms.shortId == 44 || Comms.shortId == 47) {
                             homeFlag = homeFlags[0];
                             homeFlagIndex = 0;
-                        } else if (Comms.shortId == 30 || Comms.shortId == 31 || Comms.shortId == 29) {
+                            initialSpawns[0] = homeFlags[0];
+                        } else if (Comms.shortId == 1 || Comms.shortId == 45 || Comms.shortId == 48) {
                             homeFlag = homeFlags[1];
                             homeFlagIndex = 1;
-                        } else if (Comms.shortId == 48 || Comms.shortId == 49 || Comms.shortId == 47) {
+                        } else if (Comms.shortId == 2 || Comms.shortId == 46 || Comms.shortId == 49) {
                             homeFlag = homeFlags[2];
                             homeFlagIndex = 2;
+                            initialSpawns[1] = homeFlags[1];
                         }
                         if (BUILDERSPECIALIST) {
                             initialBuilderSpawn = homeFlag;
+                            initialSpawns[2] = homeFlags[2];
                         }
                     }
 
@@ -339,6 +360,39 @@ public strictfp class RobotPlayer {
                     // Turns Alive
                     turnsAlive++;
 
+                    MapLocation[] defaultHomeFlags = null;
+                    MapLocation[] currentHomeFlags = null;
+
+                    if (turnCount >= 2 && turnCount <= GameConstants.SETUP_ROUNDS) {
+                        defaultHomeFlags = Comms.getDefaultAllyFlagLocations();
+                        currentHomeFlags = Comms.getCurrentAllyFlagLocations();
+                        if (Comms.shortId == 0 || Comms.shortId == 44 || Comms.shortId == 47) {
+                            if (currentHomeFlags[0] != null) {
+                                homeFlag = currentHomeFlags[0];
+                                homeFlagIndex = 0;
+                            } else {
+                                homeFlag = defaultHomeFlags[0];
+                                homeFlagIndex = 0;
+                            }
+                        } else if (Comms.shortId == 1 || Comms.shortId == 45 || Comms.shortId == 48) {
+                            if (currentHomeFlags[1] != null) {
+                                homeFlag = currentHomeFlags[1];
+                                homeFlagIndex = 1;
+                            } else {
+                                homeFlag = defaultHomeFlags[1];
+                                homeFlagIndex = 1;
+                            }
+                        } else if (Comms.shortId == 2 || Comms.shortId == 46 || Comms.shortId == 49) {
+                            if (currentHomeFlags[2] != null) {
+                                homeFlag = currentHomeFlags[2];
+                                homeFlagIndex = 2;
+                            } else {
+                                homeFlag = defaultHomeFlags[2];
+                                homeFlagIndex = 2;
+                            }
+                        }
+                    }
+
                     // Create two shifts to swap out ducks and ensure these ducks can still get XP.
                     // Rotate shift every 500 turns.
                     boolean swapTurnOne = ((turnCount >= 2 && turnCount < 500)
@@ -363,9 +417,16 @@ public strictfp class RobotPlayer {
                     // TODO: allow sentry to simply run back home if close enough (can now be
                     // dragged away if chasing a target who has the flag)
                     boolean shouldRespawn = false;
+                    boolean shouldGoProtectSpawn = false;
                     if ((sentryShiftOne && shiftOneSwapIn || sentryShiftTwo && shiftTwoSwapIn)
-                            && !rc.canSenseLocation(homeFlag) && !retireSentry) {
+                            && !rc.senseMapInfo(rc.getLocation()).getTeamTerritory().equals(rc.getTeam()) &&
+                            !rc.canSenseLocation(homeFlag) && !retireSentry) {
                         shouldRespawn = true;
+                    }
+                    if ((sentryShiftOne && shiftOneSwapIn || sentryShiftTwo && shiftTwoSwapIn)
+                            && rc.senseMapInfo(rc.getLocation()).getTeamTerritory().equals(rc.getTeam()) &&
+                            !rc.canSenseLocation(homeFlag) && !retireSentry) {
+                        shouldGoProtectSpawn = true;
                     }
 
                     // Attack -> Healing -> Capturing
@@ -379,6 +440,35 @@ public strictfp class RobotPlayer {
                         rc.buyGlobal(GlobalUpgrade.CAPTURING);
                     }
 
+                    // Enemy Counting, finding number of hostiles, number of hostiles in range, and
+                    // the nearby hostile with the lowest HP
+                    RobotInfo[] enemies = rc.senseNearbyRobots(rc.getLocation(), GameConstants.VISION_RADIUS_SQUARED,
+                            rc.getTeam().opponent());
+                    int numHostiles = 0;
+                    int numHostilesIR = 0;
+                    MapLocation lowestCurrHostile = null;
+                    int lowestCurrHostileHealth = Integer.MAX_VALUE;
+                    MapLocation closestHostile = null;
+                    int distToClosestHostile = Integer.MAX_VALUE;
+
+                    if (enemies.length != 0) {
+                        for (int i = enemies.length - 1; i >= 0; i--) {
+                            numHostiles++;
+                            int tempDistToHostile = rc.getLocation().distanceSquaredTo(enemies[i].getLocation());
+                            if (tempDistToHostile <= GameConstants.ATTACK_RADIUS_SQUARED) {
+                                numHostilesIR++;
+                            }
+                            if (tempDistToHostile <= GameConstants.ATTACK_RADIUS_SQUARED
+                                    && enemies[i].getHealth() < lowestCurrHostileHealth) {
+                                lowestCurrHostileHealth = enemies[i].getHealth();
+                                lowestCurrHostile = enemies[i].getLocation();
+                            }
+                            if (tempDistToHostile < distToClosestHostile) {
+                                distToClosestHostile = tempDistToHostile;
+                                closestHostile = enemies[i].getLocation();
+                            }
+                        }
+                    }
                     // Information about the closest displaced flag + distance to that MapLocation
                     MapLocation closestDisplacedFlag = Comms.closestDisplacedAllyFlag();
 
@@ -390,6 +480,7 @@ public strictfp class RobotPlayer {
                     MapLocation nearestWater = null;
                     MapLocation nearestDividerWithOpenNeighbor = null;
                     MapLocation diggable = null;
+                    MapLocation closestDam = null;
 
                     int lowestDistToStunTrap = Integer.MAX_VALUE;
                     int lowestDistToExplosiveTrap = Integer.MAX_VALUE;
@@ -399,12 +490,14 @@ public strictfp class RobotPlayer {
                     int lowestDistToDam = Integer.MAX_VALUE;
 
                     MapInfo[] nearbyMap = rc.senseNearbyMapInfos();
+                    int bytecodesLeft = Clock.getBytecodesLeft();
 
                     for (int i = nearbyMap.length - 1; i >= 0; i--) {
                         MapInfo singleMap = nearbyMap[i];
                         int distToSingleMap = rc.getLocation().distanceSquaredTo(singleMap.getMapLocation());
-                        if (diggable == null && BUILDERSPECIALIST
-                                && rc.getExperience(SkillType.BUILD) <= 30
+                        if (diggable == null && BUILDERSPECIALIST && bytecodesLeft - Clock.getBytecodesLeft() < 2000
+                                && rc.getExperience(SkillType.BUILD) < 30
+                                && numHostiles == 0
                                 && distToSingleMap <= 11
                                 && singleMap.isPassable()
                                 && !singleMap.isSpawnZone()
@@ -432,6 +525,7 @@ public strictfp class RobotPlayer {
                         if (singleMap.isDam() && !singleMap.isWall()) {
                             if (distToSingleMap < lowestDistToDam) {
                                 lowestDistToDam = distToSingleMap;
+                                closestDam = singleMap.getMapLocation();
                             }
                             if (distToSingleMap < lowestDistToDividerWithOpenNeighbor
                                     && areNeighborsOpen(rc, singleMap.getMapLocation())) {
@@ -441,6 +535,51 @@ public strictfp class RobotPlayer {
                         }
                     }
                     rememberThisTurnClosestStunTrap = nearestStunTrap;
+
+                    // ENEMY STUNLOCK TRACKING
+                    // update stunned enemies q
+                    Pair<Integer, Integer> head = stunnedEnemiesQ.peek();
+                    while (head != null && head.second <= rc.getRoundNum()) {
+                        stunnedEnemiesQ.poll();
+                        int dec = stunnedEnemiesSet.getVal(head.first) - 1;
+                        stunnedEnemiesSet.remove(head.first);
+                        if (dec > 0) {
+                            stunnedEnemiesSet.add(head.first, dec);
+                        }
+                        head = stunnedEnemiesQ.peek();
+                    }
+                    // find all stun traps this turn
+                    int currRoundStunIndex = 0;
+                    IterableLocSet currRoundStunsSet = new IterableLocSet();
+                    for (int i = nearbyMap.length; --i >= 0;) {
+                        MapInfo mapInfo = nearbyMap[i];
+                        if (mapInfo.getTrapType() == TrapType.STUN) {
+                            currRoundStunsSet.add(mapInfo.getMapLocation());
+                            currRoundStunIndex++;
+                        }
+                    }
+                    // find all stuns that went off this turn
+                    for (int i = prevRoundStunLen; --i >= 0;) {
+                        MapLocation stunLoc = prevRoundStuns[i];
+                        if (!currRoundStunsSet.contains(stunLoc)) {
+                            // this stun went off, find all enemies in its range and add them to the set
+                            for (int j = enemies.length; --j >= 0;) {
+                                if (stunLoc.distanceSquaredTo(enemies[j].getLocation()) <= 13) {
+                                    RobotInfo enemy = enemies[j];
+                                    int id = enemy.getID();
+                                    int stunnedRounds = Comms.shortId <= 24 ? 2 : 3;
+                                    stunnedEnemiesQ.add(new Pair<>(id, rc.getRoundNum() + stunnedRounds));
+                                    if (stunnedEnemiesSet.contains(id)) {
+                                        int inc = stunnedEnemiesSet.getVal(id) + 1;
+                                        stunnedEnemiesSet.remove(id);
+                                        stunnedEnemiesSet.add(id, inc);
+                                    } else {
+                                        stunnedEnemiesSet.add(id, 1);
+                                    }
+                                }
+                            }
+                        }
+                    }
 
                     // if you were randomly chosen as a builder specialist && turncount is between
                     // 75 and max setup rounds
@@ -500,8 +639,29 @@ public strictfp class RobotPlayer {
                         }
                     }
 
+                    // disincentivize combat before this turn to allow for more useful activities
+                    // during setup
+                    int turnsTillAllowingCombat = 150;
+                    // boolean representing if you should go home and trap
+                    // if you're a builderspecialist and its between the given turns, and you have a
+                    // missing initial trap and you have crumbs, go home and trap
+                    // if its not between the turns, set to false.
+                    if (BUILDERSPECIALIST && (turnCount > 100 && turnCount < turnsTillAllowingCombat)) {
+                        if ((!initialSetTrapStun || !initialSetTrapWater) && rc.getCrumbs() >= 100) {
+                            shouldGoHomeAndTrap = true;
+                        } else if (!(!initialSetTrapStun || !initialSetTrapWater)) {
+                            shouldGoHomeAndTrap = false;
+                        }
+                    } else {
+                        shouldGoHomeAndTrap = false;
+                    }
+
+                    // only calculate if you are a builder specialist, or level > 3,
+                    // homeflag is not null and you should go home and trap or you can sense home
+                    // and have more than 100 crumbs
                     Direction dirToClosestBroadcastFromHomeFlag = null;
-                    if (BUILDERSPECIALIST && homeFlag != null) {
+                    if ((BUILDERSPECIALIST || rc.getLevel(SkillType.BUILD) > 3) && homeFlag != null &&
+                            (shouldGoHomeAndTrap || (rc.canSenseLocation(homeFlag) && rc.getCrumbs() >= 100))) {
                         int tempDist = Integer.MAX_VALUE;
                         MapLocation optBroadcast = null;
                         for (int i = broadCastLocs.length - 1; i >= 0; i--) {
@@ -515,6 +675,8 @@ public strictfp class RobotPlayer {
                             dirToClosestBroadcastFromHomeFlag = homeFlag.directionTo(optBroadcast);
                         }
                     }
+
+                    shouldGoHomeAndTrap = shouldGoHomeAndTrap && (dirToClosestBroadcastFromHomeFlag != null);
 
                     MapLocation escortTgt = null;
                     // set target flag as to null if someone is already escorting it.
@@ -531,36 +693,6 @@ public strictfp class RobotPlayer {
                                 if (rc.canSenseLocation(enemyFlagLocs[i])) {
                                     escortTgt = enemyFlagLocs[i];
                                 }
-                            }
-                        }
-                    }
-
-                    // Enemy Counting, finding number of hostiles, number of hostiles in range, and
-                    // the nearby hostile with the lowest HP
-                    RobotInfo[] enemies = rc.senseNearbyRobots(rc.getLocation(), GameConstants.VISION_RADIUS_SQUARED,
-                            rc.getTeam().opponent());
-                    int numHostiles = 0;
-                    int numHostilesIR = 0;
-                    MapLocation lowestCurrHostile = null;
-                    int lowestCurrHostileHealth = Integer.MAX_VALUE;
-                    MapLocation closestHostile = null;
-                    int distToClosestHostile = Integer.MAX_VALUE;
-
-                    if (enemies.length != 0) {
-                        for (int i = enemies.length - 1; i >= 0; i--) {
-                            numHostiles++;
-                            int tempDistToHostile = rc.getLocation().distanceSquaredTo(enemies[i].getLocation());
-                            if (tempDistToHostile <= GameConstants.ATTACK_RADIUS_SQUARED) {
-                                numHostilesIR++;
-                            }
-                            if (tempDistToHostile <= GameConstants.ATTACK_RADIUS_SQUARED
-                                    && enemies[i].getHealth() < lowestCurrHostileHealth) {
-                                lowestCurrHostileHealth = enemies[i].getHealth();
-                                lowestCurrHostile = enemies[i].getLocation();
-                            }
-                            if (tempDistToHostile < distToClosestHostile) {
-                                distToClosestHostile = tempDistToHostile;
-                                closestHostile = enemies[i].getLocation();
                             }
                         }
                     }
@@ -635,7 +767,7 @@ public strictfp class RobotPlayer {
                     // building them away from one another
                     int explosiveTrapPreferredDist = Integer.MAX_VALUE;
                     int stunTrapPreferredDist = 2;
-                    if (rc.getCrumbs() > 3000) {
+                    if (rc.getCrumbs() > 10000) {
                         explosiveTrapPreferredDist = 16;
                         stunTrapPreferredDist = 1;
                     } else if (rc.getCrumbs() > 200) {
@@ -644,28 +776,12 @@ public strictfp class RobotPlayer {
                     // when building traps near enemies, this is how close the given trap should be
                     // relative to the enemy.
                     int buildThreshold = 12;
-                    // disincentivize combat before this turn to allow for more useful activities
-                    // during setup
-                    int turnsTillAllowingCombat = 150;
                     // distance squared the sentry can be from the home flag
                     int sentryWanderingLimit = 12;
                     // distance squared to defend a flag
                     int distanceForDefense = 200;
-
-                    // boolean representing if you should go home and trap
-                    // if you're a builderspecialist and its between the given turns, and you have a
-                    // missing initial trap and you have crumbs, go home and trap
-                    // if its not between the turns, set to false.
-                    if (BUILDERSPECIALIST && (turnCount > 100 && turnCount < turnsTillAllowingCombat)
-                            && dirToClosestBroadcastFromHomeFlag != null) {
-                        if ((!initialSetTrapStun || !initialSetTrapWater) && rc.getCrumbs() >= 100) {
-                            shouldGoHomeAndTrap = true;
-                        } else if (!(!initialSetTrapStun || !initialSetTrapWater)) {
-                            shouldGoHomeAndTrap = false;
-                        }
-                    } else {
-                        shouldGoHomeAndTrap = false;
-                    }
+                    // crumbs when everyone can build
+                    int crumbsWhenAllCanBuild = 5000;
 
                     // Role Delegation (outdated)
                     // If you have a flag, return
@@ -679,13 +795,15 @@ public strictfp class RobotPlayer {
                     // else if you're lowest current friendly seen has a health below the dfault,
                     // you're healing
                     // else, you're scouting
-                    if (rc.hasFlag()) {
+                    if (rc.hasFlag() && turnCount > GameConstants.SETUP_ROUNDS) {
                         role = RETURNING;
                         rc.setIndicatorString("Returning");
                     } else if (false && escortTgt != null) {
                         role = ESCORT;
                         rc.setIndicatorString("Escort " + targetFlag.toString());
-                    } else if ((BUILDERSPECIALIST || rc.getLevel(SkillType.BUILD) > 3) && rc.getCrumbs() > 200
+                    } else if (!shouldGoProtectSpawn && (BUILDERSPECIALIST || rc.getLevel(SkillType.BUILD) > 3
+                            || rc.getCrumbs() > crumbsWhenAllCanBuild)
+                            && rc.getCrumbs() > 200
                             && (enemies.length != 0 && turnCount > GameConstants.SETUP_ROUNDS - 20)) {
                         role = BUILDING;
                         rc.setIndicatorString("Building");
@@ -695,33 +813,35 @@ public strictfp class RobotPlayer {
                         role = RESPAWN;
                         rc.setIndicatorString("Respawning");
                     } else if (shouldNotTrain && (lowestDistToDam == 1 || nearestDividerWithOpenNeighbor != null)
-                            && turnCount > GameConstants.SETUP_ROUNDS - 40 && turnCount <= GameConstants.SETUP_ROUNDS) {
+                            && (turnCount > GameConstants.SETUP_ROUNDS - 40 || (BUILDERSPECIALIST && shouldNotTrain))
+                            && turnCount <= GameConstants.SETUP_ROUNDS) {
                         role = LINEUP;
                         rc.setIndicatorString("LINEUP");
-                    } else if (shouldNotTrain
+                    } else if (!shouldGoProtectSpawn && shouldNotTrain
                             && (bigCloseCrumb != null && turnCount > GameConstants.SETUP_ROUNDS - 40)) {
                         role = CRUMBS;
                         rc.setIndicatorString("CRUMBS: " + bigCloseCrumb.toString());
                     } else if (shouldNotTrain && Info.numFlagsNearbyNotPickedUp != 0) {
                         role = CAPTURING; // changed here
                         rc.setIndicatorString("Capturing");
-                    } else if (shouldNotTrain && (enemies.length != 0 && turnCount > GameConstants.SETUP_ROUNDS)) {
+                    } else if (!shouldGoProtectSpawn && shouldNotTrain
+                            && (enemies.length != 0 && turnCount > GameConstants.SETUP_ROUNDS)) {
                         role = INCOMBAT;
                         haveSeenCombat = true;
                         rc.setIndicatorString("In combat");
-                    } else if (BUILDERSPECIALIST && !shouldGoHomeAndTrap
+                    } else if (turnCount < GameConstants.SETUP_ROUNDS && BUILDERSPECIALIST && !shouldGoHomeAndTrap
                             && diggable != null && rc.getExperience(SkillType.BUILD) < 30) {
                         role = TRAINBUILD;
                         rc.setIndicatorString("Training builder: " + diggable.toString());
-                    } else if (closestDisplacedFlag != null &&
+                    } else if (turnCount > GameConstants.SETUP_ROUNDS && closestDisplacedFlag != null &&
                             rc.senseMapInfo(rc.getLocation()).getTeamTerritory().equals(rc.getTeam())
                             && rc.getLocation().distanceSquaredTo(closestDisplacedFlag) < distanceForDefense) {
                         role = DEFENDING;
                         rc.setIndicatorString("Defending");
-                    } else if (lowestCurrFriendlySeenHealth < GameConstants.DEFAULT_HEALTH) {
+                    } else if (!shouldGoProtectSpawn && lowestCurrFriendlySeenHealth < GameConstants.DEFAULT_HEALTH) {
                         role = HEALING;
                         rc.setIndicatorString("Healing");
-                    } else if (SENTRY && !retireSentry) {
+                    } else if (shouldGoProtectSpawn || (SENTRY && !retireSentry)) {
                         role = SENTRYING;
                         rc.setIndicatorString("Sentry");
                     } else {
@@ -741,10 +861,10 @@ public strictfp class RobotPlayer {
                         // if you have lvl 6 building, have over 100 crumbs, no enemies are around, and
                         // can sense your home location, check if you can stun trap corners.
                         if ((BUILDERSPECIALIST || rc.getLevel(SkillType.BUILD) > 3)
-                                && dirToClosestBroadcastFromHomeFlag != null) {
+                                && dirToClosestBroadcastFromHomeFlag != null && turnCount > 100) {
                             if (shouldGoHomeAndTrap && !rc.canSenseLocation(homeFlag)) {
                                 if (rc.isMovementReady()) {
-                                    optimalDir = Pathfinder.pathfind(rc.getLocation(), homeFlag);
+                                    optimalDir = Pathfinder.pathfind2(rc.getLocation(), homeFlag);
                                     rc.setIndicatorString("Scouting: Going home to see if I can set traps");
                                 }
                             } else if (rc.canSenseLocation(homeFlag) && rc.getCrumbs() >= 100) {
@@ -778,7 +898,7 @@ public strictfp class RobotPlayer {
                                             }
                                         }
                                         int distSqToCorner = rc.getLocation().distanceSquaredTo(spawnCheck);
-                                        if (rc.canSenseLocation(spawnCheck)
+                                        if (rc.canSenseLocation(spawnCheck) && rc.sensePassability(spawnCheck)
                                                 && rc.senseMapInfo(spawnCheck).getTrapType() == TrapType.NONE
                                                 && distSqToCorner < distToClosestViableLoc) {
                                             distToClosestViableLoc = distSqToCorner;
@@ -798,7 +918,7 @@ public strictfp class RobotPlayer {
                                             rc.build(TrapType.WATER, closestViableLocWithoutTrap);
                                         } else {
                                             if (rc.isMovementReady()) {
-                                                optimalDir = Pathfinder.pathfind(rc.getLocation(),
+                                                optimalDir = Pathfinder.pathfind2(rc.getLocation(),
                                                         closestViableLocWithoutTrap);
                                             }
                                         }
@@ -831,7 +951,7 @@ public strictfp class RobotPlayer {
                                 turnsNotReachedTgt = 0;
                                 lastTurnPursingCrumb = false;
                             }
-                            optimalDir = Pathfinder.pathfind(rc.getLocation(), tgtLocation);
+                            optimalDir = Pathfinder.pathfind2(rc.getLocation(), tgtLocation);
                             if (tgtLocation != null) {
                                 rc.setIndicatorString("Scouting: Tgt: " + tgtLocation.toString());
                             }
@@ -902,21 +1022,29 @@ public strictfp class RobotPlayer {
                         // if you're a sentry, you cannot leave sight of the flag, so you are confined
                         // to a wandering limit
                         // Calculate the average distance from all enemies.
-                        if (rc.isMovementReady()) {
-                            float averageDistSqFromEnemies = averageDistanceSquaredFrom(enemies, rc.getLocation());
-                            optimalDir = findOptimalCombatDir(rc, enemies, lowestCurrHostile, closestHostile,
-                                    averageDistSqFromEnemies,
-                                    numHostiles, numFriendlies);
-                        }
                         boolean shouldProtectAtAllCosts = closestDisplacedFlag != null
                                 && rc.getLocation().distanceSquaredTo(closestDisplacedFlag) < 20;
                         if (shouldProtectAtAllCosts && rc.isMovementReady()) {
-                            optimalDir = Pathfinder.pathfind(rc.getLocation(), closestDisplacedFlag);
+                            optimalDir = Pathfinder.pathfind2(rc.getLocation(), closestDisplacedFlag);
+                        } else if (rc.isMovementReady()) {
+                            float averageDistSqFromEnemies = averageDistanceSquaredFrom(enemies, rc.getLocation());
+                            optimalDir = findOptimalCombatDir(rc, enemies, lowestCurrHostile, closestHostile,
+                                    lowestCurrFriendlySeen, averageDistSqFromEnemies,
+                                    numHostiles, numFriendlies, attackerCanHeal);
                         }
                         if (optimalDir != null) {
                             if (!SENTRY || retireSentry || (SENTRY && !retireSentry && rc.getLocation().add(optimalDir)
                                     .distanceSquaredTo(homeFlag) < sentryWanderingLimit)) {
-                                attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
+                                if (closestDisplacedFlag != null && rc.canSenseLocation(closestDisplacedFlag)) {
+                                    if (lowestCurrHostile != null) {
+                                        attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
+                                    } else {
+                                        attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
+                                        clearTheWay(rc);
+                                    }
+                                } else {
+                                    attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
+                                }
                             }
                         } else {
                             rc.setIndicatorString("combat null");
@@ -925,29 +1053,38 @@ public strictfp class RobotPlayer {
                     } else if (role == BUILDING) {
                         // System.out.println("1, " + Clock.getBytecodesLeft());
                         Direction optimalDir = null;
-                        // dummy mapLocation. Build whlie cooldown + buildCD< 10 and build != null.
-                        // laytrapwithinrangeofenemy will return either null (if nothing is built) or
-                        // the maplocation of the trap that is built
-                        // update nearest stun and explosive trap with this information and repeat while
-                        // loop until cd restriction or return null
-                        // signifying htat there is nowhere to build.
-                        // TODO: check if can build before and after move
-                        MapLocation build = new MapLocation(0, 0);
-                        int buildCD = SkillType.BUILD.getCooldown(rc.getLevel(SkillType.BUILD));
-                        while (rc.getActionCooldownTurns() + buildCD < 10 && build != null) {
-                            build = layTrapWithinRangeOfEnemy(rc, nearestExplosiveTrap, nearestStunTrap, enemies,
-                                    closestHostile,
-                                    explosiveTrapPreferredDist, stunTrapPreferredDist, buildThreshold);
-                            if (build != null) {
-                                MapInfo updateLoc = rc.senseMapInfo(build);
-                                int distToUpdate = rc.getLocation().distanceSquaredTo(build);
-                                if (updateLoc.getTrapType() == TrapType.STUN && distToUpdate < lowestDistToStunTrap) {
-                                    nearestStunTrap = build;
-                                    lowestDistToStunTrap = distToUpdate;
-                                } else if (updateLoc.getTrapType() == TrapType.EXPLOSIVE
-                                        && distToUpdate < lowestDistToExplosiveTrap) {
-                                    nearestExplosiveTrap = build;
-                                    lowestDistToExplosiveTrap = distToUpdate;
+                        // see if the closest hostile is reachable
+                        boolean closestHostileReachable = true;
+                        if (closestHostile != null) {
+                            Bfs.getBestDir(closestHostile);
+                            closestHostileReachable = Bfs.isReachable(closestHostile);
+                        }
+                        if (closestHostileReachable && rc.isActionReady()) {
+                            // dummy mapLocation. Build whlie cooldown + buildCD< 10 and build != null.
+                            // laytrapwithinrangeofenemy will return either null (if nothing is built) or
+                            // the maplocation of the trap that is built
+                            // update nearest stun and explosive trap with this information and repeat while
+                            // loop until cd restriction or return null
+                            // signifying htat there is nowhere to build.
+                            // TODO: check if can build before and after move
+                            MapLocation build = new MapLocation(0, 0);
+                            int buildCD = SkillType.BUILD.getCooldown(rc.getLevel(SkillType.BUILD));
+                            while (rc.getActionCooldownTurns() + buildCD < 10 && build != null) {
+                                build = layTrapWithinRangeOfEnemy(rc, nearestExplosiveTrap, nearestStunTrap, enemies,
+                                        closestHostile,
+                                        explosiveTrapPreferredDist, stunTrapPreferredDist, buildThreshold);
+                                if (build != null) {
+                                    MapInfo updateLoc = rc.senseMapInfo(build);
+                                    int distToUpdate = rc.getLocation().distanceSquaredTo(build);
+                                    if (updateLoc.getTrapType() == TrapType.STUN
+                                            && distToUpdate < lowestDistToStunTrap) {
+                                        nearestStunTrap = build;
+                                        lowestDistToStunTrap = distToUpdate;
+                                    } else if (updateLoc.getTrapType() == TrapType.EXPLOSIVE
+                                            && distToUpdate < lowestDistToExplosiveTrap) {
+                                        nearestExplosiveTrap = build;
+                                        lowestDistToExplosiveTrap = distToUpdate;
+                                    }
                                 }
                             }
                         }
@@ -956,11 +1093,40 @@ public strictfp class RobotPlayer {
                         if (rc.isMovementReady()) {
                             float averageDistSqFromEnemies = averageDistanceSquaredFrom(enemies, rc.getLocation());
                             optimalDir = findOptimalCombatDir(rc, enemies, lowestCurrHostile, closestHostile,
-                                    averageDistSqFromEnemies,
-                                    numHostiles, numFriendlies);
+                                    lowestCurrFriendlySeen, averageDistSqFromEnemies,
+                                    numHostiles, numFriendlies, attackerCanHeal);
                             // System.out.println("3. " + Clock.getBytecodesLeft());
                         }
                         attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
+                        if (closestHostileReachable && rc.isActionReady()) {
+                            // dummy mapLocation. Build whlie cooldown + buildCD< 10 and build != null.
+                            // laytrapwithinrangeofenemy will return either null (if nothing is built) or
+                            // the maplocation of the trap that is built
+                            // update nearest stun and explosive trap with this information and repeat while
+                            // loop until cd restriction or return null
+                            // signifying htat there is nowhere to build.
+                            // TODO: check if can build before and after move
+                            MapLocation build = new MapLocation(0, 0);
+                            int buildCD = SkillType.BUILD.getCooldown(rc.getLevel(SkillType.BUILD));
+                            while (rc.getActionCooldownTurns() + buildCD < 10 && build != null) {
+                                build = layTrapWithinRangeOfEnemy(rc, nearestExplosiveTrap, nearestStunTrap, enemies,
+                                        closestHostile,
+                                        explosiveTrapPreferredDist, stunTrapPreferredDist, buildThreshold);
+                                if (build != null) {
+                                    MapInfo updateLoc = rc.senseMapInfo(build);
+                                    int distToUpdate = rc.getLocation().distanceSquaredTo(build);
+                                    if (updateLoc.getTrapType() == TrapType.STUN
+                                            && distToUpdate < lowestDistToStunTrap) {
+                                        nearestStunTrap = build;
+                                        lowestDistToStunTrap = distToUpdate;
+                                    } else if (updateLoc.getTrapType() == TrapType.EXPLOSIVE
+                                            && distToUpdate < lowestDistToExplosiveTrap) {
+                                        nearestExplosiveTrap = build;
+                                        lowestDistToExplosiveTrap = distToUpdate;
+                                    }
+                                }
+                            }
+                        }
                         if (optimalDir == null) {
                             rc.setIndicatorString("building move null dir");
                         }
@@ -977,7 +1143,7 @@ public strictfp class RobotPlayer {
                             }
                             dir = Pathfinder.pathfindHome();
                         } else {
-                            dir = Pathfinder.pathfind(rc.getLocation(), Info.closestFlag);
+                            dir = Pathfinder.pathfind2(rc.getLocation(), Info.closestFlag);
                             if (rc.canPickupFlag(Info.closestFlag)) {
                                 rc.pickupFlag(Info.closestFlag);
                                 if (Info.spawnLocsSet.contains(rc.getLocation())) {
@@ -1034,7 +1200,7 @@ public strictfp class RobotPlayer {
                             // backtrack home along waypoint list
                             MapLocation currTgt = prevWaypoints[prevWaypointIndex];
                             if (currTgt != null) {
-                                Direction dir = Pathfinder.pathfind(rc.getLocation(), currTgt);
+                                Direction dir = Pathfinder.pathfind2(rc.getLocation(), currTgt);
                                 if (rc.canMove(dir)) {
                                     rc.move(dir);
                                 }
@@ -1059,7 +1225,7 @@ public strictfp class RobotPlayer {
                         }
                     } else if (role == DEFENDING) {
 
-                        Direction dir = Pathfinder.pathfind(rc.getLocation(), closestDisplacedFlag);
+                        Direction dir = Pathfinder.pathfind2(rc.getLocation(), closestDisplacedFlag);
                         healMove(rc, dir, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
 
                         rc.setIndicatorString("Defending" + closestDisplacedFlag.toString());
@@ -1067,26 +1233,110 @@ public strictfp class RobotPlayer {
 
                         // if you're a sentry, you cannot leave sight of the flag, so you are confined
                         // to a wandering limit
-                        Direction dir = Pathfinder.pathfind(rc.getLocation(), lowestCurrFriendlySeen);
+                        Direction dir = Pathfinder.pathfind2(rc.getLocation(), lowestCurrFriendlySeen);
                         if (!SENTRY || retireSentry || (SENTRY && !retireSentry
                                 && rc.getLocation().add(dir).distanceSquaredTo(homeFlag) < sentryWanderingLimit)) {
                             healMove(rc, dir, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
                         }
 
                     } else if (role == SENTRYING) {
+                        Direction optimalDir = null;
+                        if (turnCount < 100 || !safeToDrop) {
+                            if (rc.canPickupFlag(homeFlag) && !rc.hasFlag()) {
+                                FlagInfo[] homeFlagID = rc.senseNearbyFlags(1, rc.getTeam());
+                                rc.pickupFlag(homeFlag);
+                            } else if (rc.hasFlag()) {
+                                float furthestAway = Integer.MIN_VALUE;
+                                MapLocation bestRelocate = null;
+                                MapInfo[] checkLocs = rc.senseNearbyMapInfos(11);
+                                for (int i = checkLocs.length - 1; i > -0; i--) {
+                                    MapLocation tempLoc = checkLocs[i].getMapLocation();
+                                    if (rc.canSenseLocation(tempLoc) && rc.sensePassability(tempLoc)) {
+                                        float totalDistFromBroadcasts = totalPathfinderDistanceSquaredFromLocation(
+                                                broadCastLocs, tempLoc);
+                                        // if close to a dam, don't go that direction
+                                        if (closestDam != null) {
+                                            totalDistFromBroadcasts += 100 * tempLoc.distanceSquaredTo(closestDam);
+                                        }
+                                        if (turnCount > 35) {
+                                            for (int j = initialSpawns.length - 1; j >= 0; j--) {
+                                                if (initialSpawns[j] != null) {
+                                                    totalDistFromBroadcasts -= initialSpawns[j]
+                                                            .distanceSquaredTo(tempLoc);
+                                                }
+                                            }
+                                        }
+
+                                        // if you're close to the other flags after turn 75, don't go this direction
+
+                                        if (turnCount > 50) {
+                                            for (int j = currentHomeFlags.length - 1; j >= 0; j--) {
+                                                if (currentHomeFlags[j] != null
+                                                        && !homeFlag.equals(currentHomeFlags[j])) {
+                                                    if (currentHomeFlags[j].distanceSquaredTo(tempLoc) <= 72) {
+                                                        totalDistFromBroadcasts += currentHomeFlags[j]
+                                                                .distanceSquaredTo(tempLoc) * 1000;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        // go furthest away from all broadcast locs
+                                        if (totalDistFromBroadcasts > furthestAway) {
+                                            furthestAway = totalDistFromBroadcasts;
+                                            bestRelocate = tempLoc;
+                                        }
+                                    }
+                                }
+
+                                // move to the optimal dir
+                                if (bestRelocate != null) {
+                                    optimalDir = Pathfinder.pathfind2(rc.getLocation(), bestRelocate);
+                                    rc.setIndicatorString("Relocating: " + bestRelocate);
+                                }
+
+                                // check if its safe to drop after turn 50.
+                                boolean notSafe = false;
+                                if (turnCount > 50) {
+                                    for (int j = currentHomeFlags.length - 1; j >= 0; j--) {
+                                        if (currentHomeFlags[j] != null && !homeFlag.equals(currentHomeFlags[j])) {
+                                            if (currentHomeFlags[j].distanceSquaredTo(rc.getLocation()) < 36) {
+                                                notSafe = true;
+                                            }
+                                        }
+                                    }
+                                    safeToDrop = !notSafe;
+                                }
+                            } else {
+                                optimalDir = Pathfinder.pathfind2(rc.getLocation(), homeFlag);
+                            }
+                        } else if (rc.hasFlag() && turnCount < GameConstants.SETUP_ROUNDS && safeToDrop) {
+                            rc.dropFlag(rc.getLocation());
+                            FlagInfo[] flagDropped = rc.senseNearbyFlags(1);
+                            Comms.flagDrop(flagDropped[0]);
+                            rc.setIndicatorString("Dropped Flag");
+                        } else {
+                            optimalDir = Pathfinder.pathfind2(rc.getLocation(), homeFlag);
+                            rc.setIndicatorString("Sentrying: Target: " + homeFlag.toString());
+                        }
+
+                        // if turncount past setup and can build a water trap on flag, do it.
+                        if (turnCount > GameConstants.SETUP_ROUNDS && rc.canSenseLocation(homeFlag)
+                                && rc.senseMapInfo(homeFlag).getTrapType().equals(TrapType.NONE)) {
+                            if (rc.canBuild(TrapType.WATER, homeFlag)) {
+                                rc.build(TrapType.WATER, homeFlag);
+                            }
+                        }
 
                         // always path to the homeFlag when sentrying
-                        Direction dir = Pathfinder.pathfind(rc.getLocation(), homeFlag);
-                        if (rc.canMove(dir)) {
-                            rc.move(dir);
+                        if (optimalDir != null && rc.canMove(optimalDir)) {
+                            rc.move(optimalDir);
                         }
-                        rc.setIndicatorString("Sentrying: Target: " + homeFlag.toString());
 
                     } else if (role == RESPAWN) {
                         // respawn by going to the nearest hostile or if that is null, the nearest
                         // broadcast flag.
                         if (closestHostile != null) {
-                            Direction dir = Pathfinder.pathfind(rc.getLocation(), closestHostile);
+                            Direction dir = Pathfinder.pathfind2(rc.getLocation(), closestHostile);
                             if (enemies.length != 0) {
                                 attackMove(rc, dir, lowestCurrHostile, lowestCurrHostileHealth);
                             } else {
@@ -1094,7 +1344,7 @@ public strictfp class RobotPlayer {
                             }
                             rc.setIndicatorString("Respawning target: Hostile " + closestHostile.toString());
                         } else if (targetFlag != null) {
-                            Direction dir = Pathfinder.pathfind(rc.getLocation(), targetFlag);
+                            Direction dir = Pathfinder.pathfind2(rc.getLocation(), targetFlag);
                             if (enemies.length != 0) {
                                 attackMove(rc, dir, lowestCurrHostile, lowestCurrHostileHealth);
                             } else {
@@ -1104,7 +1354,7 @@ public strictfp class RobotPlayer {
                         }
                     } else if (role == CRUMBS) {
 
-                        Direction pathToCrumb = Pathfinder.pathfind(rc.getLocation(), bigCloseCrumb);
+                        Direction pathToCrumb = Pathfinder.pathfind2(rc.getLocation(), bigCloseCrumb);
                         if (enemies.length != 0) {
                             attackMove(rc, pathToCrumb, lowestCurrHostile, lowestCurrHostileHealth);
                         } else if (nearestWater != null) {
@@ -1124,7 +1374,7 @@ public strictfp class RobotPlayer {
 
                     } else if (role == LINEUP) {
                         if (nearestDividerWithOpenNeighbor != null && lowestDistToDam != 1) {
-                            Direction pathToDivider = Pathfinder.pathfind(rc.getLocation(),
+                            Direction pathToDivider = Pathfinder.pathfind2(rc.getLocation(),
                                     nearestDividerWithOpenNeighbor);
                             clearTheWay(rc);
                             healMove(rc, pathToDivider, lowestCurrFriendly, lowestCurrFriendlyHealth, attackerCanHeal);
@@ -1136,9 +1386,9 @@ public strictfp class RobotPlayer {
                     } else if (role == ESCORT) {
                         Direction optimalDir = null;
                         if (rc.getLocation().distanceSquaredTo(escortTgt) > 10) {
-                            optimalDir = Pathfinder.pathfind(rc.getLocation(), escortTgt);
+                            optimalDir = Pathfinder.pathfind2(rc.getLocation(), escortTgt);
                         } else {
-                            optimalDir = Pathfinder.pathfind(rc.getLocation(), escortTgt).opposite();
+                            optimalDir = Pathfinder.pathfind2(rc.getLocation(), escortTgt).opposite();
                         }
                         if (closestHostile != null) {
                             attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
@@ -1150,7 +1400,7 @@ public strictfp class RobotPlayer {
                         Direction optimalDir = null;
                         if (diggable != null) {
                             if (rc.isMovementReady()) {
-                                optimalDir = Pathfinder.pathfind(rc.getLocation(), diggable);
+                                optimalDir = Pathfinder.pathfind2(rc.getLocation(), diggable);
                             }
                             if (closestHostile != null) {
                                 attackMove(rc, optimalDir, lowestCurrHostile, lowestCurrHostileHealth);
@@ -1162,7 +1412,8 @@ public strictfp class RobotPlayer {
                     }
 
                     while (lowestCurrFriendly != null && rc.canHeal(lowestCurrFriendly) &&
-                            (closestHostile == null || rc.getLocation().distanceSquaredTo(closestHostile) > 10)) {
+                            (closestHostile == null || rc.getLocation().distanceSquaredTo(closestHostile) > 10
+                                    || HEALINGSPECIALIST)) {
                         rc.heal(lowestCurrFriendly);
                     }
 
@@ -1171,16 +1422,12 @@ public strictfp class RobotPlayer {
                     }
 
                     // Sentry comm updates to information about home flags.
-                    if (SENTRY) {
+                    if (SENTRY && turnCount > GameConstants.SETUP_ROUNDS) {
                         // TODO this is an opportunity to update if homeFlag exists in comms
                         // if you're location is the same as the closest default, check if its still
                         // there. If not, retire sentry.
                         MapLocation[] allyFlags = null;
-                        if (turnCount <= 200) {
-                            allyFlags = Comms.getDefaultAllyFlagLocations();
-                        } else {
-                            allyFlags = Comms.getCurrentAllyFlagLocations();
-                        }
+                        allyFlags = Comms.getCurrentAllyFlagLocations();
                         retireSentry = !(allyFlags[homeFlagIndex] != null && allyFlags[homeFlagIndex].equals(homeFlag));
                     }
 
@@ -1208,7 +1455,7 @@ public strictfp class RobotPlayer {
                     // rc.move(dir);
                     // }
                     // // Move and attack randomly if no objective.
-                    // Direction dir = Pathfinder.pathfind(rc.getLocation(), new MapLocation(29,
+                    // Direction dir = Pathfinder.pathfind2(rc.getLocation(), new MapLocation(29,
                     // 0));
                     // MapLocation nextLoc = rc.getLocation().add(dir);
                     // if (rc.canMove(dir)) {
@@ -1226,15 +1473,6 @@ public strictfp class RobotPlayer {
                     // // organize it!
                     // updateEnemyRobots(rc);
 
-                    // record all enemies within 10 r^2(capable of attacking you in their next turn)
-                    prevEnemiesIn1Step.clear();
-                    RobotInfo[] currEnemiesIn1Step = rc.senseNearbyRobots(rc.getLocation(), 10,
-                            rc.getTeam().opponent());
-                    for (RobotInfo ri : currEnemiesIn1Step) {
-                        prevEnemiesIn1Step.add(ri.getID());
-                    }
-                    prevHp = rc.getHealth();
-
                     // if alive update waypoint list as needed
                     if (role != RETURNING && turnsAlive % 5 == 0 && rc.getRoundNum() > 200) {
                         MapLocation prevWP = prevWaypoints[prevWaypointIndex];
@@ -1244,6 +1482,19 @@ public strictfp class RobotPlayer {
                             prevWaypoints[prevWaypointIndex] = rc.getLocation();
                         }
                     }
+
+                    // UPDATE STUN INFO
+                    prevRoundStuns = new MapLocation[70];
+                    MapInfo[] endTurnMapInfos = rc.senseNearbyMapInfos();
+                    int endRoundStunIndex = 0;
+                    for (int i = endTurnMapInfos.length; --i >= 0;) {
+                        MapInfo mapInfo = endTurnMapInfos[i];
+                        if (mapInfo.getTrapType() == TrapType.STUN) {
+                            prevRoundStuns[endRoundStunIndex] = mapInfo.getMapLocation();
+                            endRoundStunIndex++;
+                        }
+                    }
+                    prevRoundStunLen = endRoundStunIndex;
                 }
                 Comms.update();
 
@@ -1690,22 +1941,30 @@ public strictfp class RobotPlayer {
     }
 
     public static Direction findOptimalCombatDir(RobotController rc, RobotInfo[] enemies, MapLocation lowestCurrHostile,
-            MapLocation closestHostile,
-            float averageDistFromEnemies,
-            int numHostiles, int numFriendlies) throws GameActionException {
+            MapLocation closestHostile, MapLocation lowestCurrFriendlySeen, float averageDistFromEnemies,
+            int numHostiles, int numFriendlies, boolean attackerCanHeal) throws GameActionException {
         // Calculate the best retreating direction and best attackign direction
         // Simulate moving to any of the four cardinal directions. Calculate the average
         // distance from all enemies.
         // Best Retreat direction is the direction that maximizes average Distance
         // Best Attacking direction is the direction that tries to keep troops at an
+        // Best Healing direction is the direction closest to an injured friend but
+        // furthest from enemies
         // average distance
         // equal to the attack radius squared.
         Direction optimalDir = null;
         if (rc.isMovementReady()) {
             Direction bestRetreat = null;
             Direction bestAttack = null;
+            Direction bestHeal = null;
             float bestRetreatDist = averageDistFromEnemies;
             float bestAttackDist = Integer.MAX_VALUE;
+            float bestHealDist = averageDistFromEnemies;
+            int distToFriend = Integer.MAX_VALUE;
+
+            if (lowestCurrFriendlySeen != null) {
+                distToFriend = rc.getLocation().distanceSquaredTo(lowestCurrFriendlySeen);
+            }
 
             Direction[] validCombatDirs = directions;
             for (int i = validCombatDirs.length - 1; i >= 0; i--) {
@@ -1723,6 +1982,21 @@ public strictfp class RobotPlayer {
                         bestRetreatDist = averageDist;
                         bestRetreat = validCombatDirs[i];
                     }
+
+                    if (lowestCurrFriendlySeen != null
+                            && tempLoc.distanceSquaredTo(lowestCurrFriendlySeen) < distToFriend) {
+                        distToFriend = tempLoc.distanceSquaredTo(lowestCurrFriendlySeen);
+                        bestHeal = validCombatDirs[i];
+                        bestHealDist = averageDist;
+
+                    } else if (lowestCurrFriendlySeen != null
+                            && tempLoc.distanceSquaredTo(lowestCurrFriendlySeen) == distToFriend) {
+                        if (bestHealDist < averageDist) {
+                            distToFriend = tempLoc.distanceSquaredTo(lowestCurrFriendlySeen);
+                            bestHeal = validCombatDirs[i];
+                            bestHealDist = averageDist;
+                        }
+                    }
                 }
             }
 
@@ -1737,15 +2011,23 @@ public strictfp class RobotPlayer {
             MapLocation advanceLoc = bestAttack == null ? rc.getLocation()
                     : rc.getLocation().add(bestAttack);
             int dmg = 0;
+            int dmgIfHeal = 0;
             // int stunnedHostilesInVision = 0;
             for (int i = enemies.length; --i >= 0;) {
                 RobotInfo enemy = enemies[i];
                 // 10 r^2 is max dist where enemy is 1 move from attack range
                 // if enemy is not in stunned cache
                 // if (!Comms.stunnedEnemiesContains(enemy.getLocation())) {
-                if (enemy.getLocation().distanceSquaredTo(advanceLoc) <= 10) {
+                if (enemy.getLocation().distanceSquaredTo(advanceLoc) <= 10
+                        && !stunnedEnemiesSet.contains(enemy.getID())) {
                     dmg += SkillType.ATTACK.skillEffect
                             + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
+                }
+                if (bestHeal != null) {
+                    if (enemy.getLocation().distanceSquaredTo(rc.getLocation().add(bestHeal)) <= 10) {
+                        dmgIfHeal += SkillType.ATTACK.skillEffect
+                                + SkillType.ATTACK.getSkillEffect(enemy.getAttackLevel());
+                    }
                 }
                 // } else {
                 // stunnedHostilesInVision++;
@@ -1914,7 +2196,13 @@ public strictfp class RobotPlayer {
             // go out. If you have no cooldown, go out.
             // Otherwise, go in.
             // changed here
-            if (rc.getHealth() <= dmg || numHostiles - 2 /*- stunnedHostilesInVision*/ >= numFriendlies
+            if (bestHeal != null && HEALINGSPECIALIST && rc.getHealth() <= dmgIfHeal
+                    && numFriendlies - numHostiles >= 4 && rc.getLocation().distanceSquaredTo(closestHostile) > 4) {
+                optimalDir = bestHeal;
+                if (optimalDir != null) {
+                    rc.setIndicatorString("In combat bestHeal: " + bestHeal.toString() + " " + dmgIfHeal);
+                }
+            } else if (rc.getHealth() <= dmg || numHostiles - 2 /*- stunnedHostilesInVision*/ >= numFriendlies
                     || (!rc.isActionReady() && !(rc.getActionCooldownTurns() / 10 == 1
                             && rc.getLocation().distanceSquaredTo(closestHostile) >= 17))
                     || (rc.isActionReady() && lowestCurrHostile != null)) {
@@ -1937,6 +2225,15 @@ public strictfp class RobotPlayer {
             }
         }
         return optimalDir;
+    }
+
+    public static float totalPathfinderDistanceSquaredFromLocation(MapLocation[] bots, MapLocation location)
+            throws GameActionException {
+        int totalDist = 0;
+        for (int j = bots.length - 1; j >= 0; j--) {
+            totalDist += Pathfinder.travelDistance(bots[j], location);
+        }
+        return totalDist;
     }
 
     public static double orthagonalDistanceOfP3RelativeToP2OnVectorP1P2(MapLocation P1, MapLocation P2,
@@ -2012,31 +2309,16 @@ public strictfp class RobotPlayer {
     }
 
     public static float averageDistanceSquaredFrom(RobotInfo[] bots, MapLocation location) {
-        Integer[] allDistances = new Integer[bots.length];
+        int totalDist = 0;
         for (int j = bots.length - 1; j >= 0; j--) {
-            if (bots[j] != null) {
-                int tempDist = location.distanceSquaredTo(bots[j].getLocation());
-                allDistances[j] = tempDist;
-            }
+            totalDist += location.distanceSquaredTo(bots[j].getLocation());
         }
-        int numInArray = 0;
-        int sum = 0;
-        for (int k = allDistances.length - 1; k >= 0; k--) {
-            if (allDistances[k] != null) {
-                sum += allDistances[k];
-                numInArray++;
-            }
-        }
-        float averageDist = (float) sum / numInArray;
+        float averageDist = (float) totalDist / bots.length;
         return averageDist;
     }
 
     public static boolean isInBounds(RobotController rc, MapLocation x) {
-        if (x.x >= 0 && x.x < rc.getMapWidth() && x.y >= 0 && x.y < rc.getMapHeight()) {
-            return true;
-        } else {
-            return false;
-        }
+        return x.x >= 0 && x.x < rc.getMapWidth() && x.y >= 0 && x.y < rc.getMapHeight();
     }
 
     public static boolean doSidesHaveWater(RobotController rc, MapLocation x) throws GameActionException {

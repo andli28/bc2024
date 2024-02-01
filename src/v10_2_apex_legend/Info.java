@@ -1,7 +1,7 @@
-package bfs_plus;
+package v10_2_apex_legend;
 
 import battlecode.common.*;
-import bfs_plus.utils.*;
+import v10_2_apex_legend.utils.*;
 
 public class Info {
     public static RobotController rc;
