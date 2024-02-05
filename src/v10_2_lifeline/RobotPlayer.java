@@ -2109,7 +2109,7 @@ public strictfp class RobotPlayer {
             } else if (rc.getHealth() <= dmg || numHostiles - 2 - stunnedEnemiesInVision >= numFriendlies
                     || (!rc.isActionReady() && !(rc.getActionCooldownTurns() / 10 == 1
                             && rc.getLocation().distanceSquaredTo(closestHostile) >= 17))
-                    || (rc.isActionReady() && lowestCurrHostile != null)) {
+                    || (rc.isActionReady() && lowestCurrHostile != null) && rc.getHealth() > 70) {
                 // if (lowestCurrHostile == null &&
                 // SkillType.ATTACK.getSkillEffect(rc.getLevel(SkillType.ATTACK)) <= dmgIfChill
                 // && rc.isActionReady() && rc.getHealth() > dmgIfChill && numFriendlies + 1 >=
